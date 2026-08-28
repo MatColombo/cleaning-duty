@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "House Care",
+  "short_name": "House Care",
+  "description": "Household cleaning duties with flexible routines and clear daily tasks.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#f5f6f2",
+  "theme_color": "#15231d",
+  "lang": "en",
+  "categories": ["productivity", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today", "short_name": "Today", "url": "/", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Home cockpit", "short_name": "Home", "url": "/home", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

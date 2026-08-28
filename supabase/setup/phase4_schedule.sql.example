@@ -1,0 +1,23 @@
+-- Run once after deploying the send-push Edge Function.
+-- Replace the three CHANGE_ME values first. CRON_SECRET must match the Edge Function secret.
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+-- Supabase Vault is available on hosted projects and is used below for secrets.
+
+select vault.create_secret('https://CHANGE_ME.supabase.co/functions/v1/send-push', 'house_care_push_url', 'House Care push Edge Function URL');
+select vault.create_secret('CHANGE_ME_RANDOM_CRON_SECRET', 'house_care_cron_secret', 'House Care push cron shared secret');
+
+select cron.schedule(
+  'house-care-send-push',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'house_care_push_url'),
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'house_care_cron_secret')
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
