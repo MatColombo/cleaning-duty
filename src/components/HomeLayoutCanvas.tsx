@@ -82,17 +82,20 @@ export function HomeLayoutCanvas({
   function localPoint(event: ReactPointerEvent<SVGSVGElement | SVGElement>) {
     const svg = svgRef.current
     if (!svg) return { x: 0, y: 0 }
-    const rect = svg.getBoundingClientRect()
-    return {
-      x: (event.clientX - rect.left) / Math.max(1, rect.width) * VIEW_W,
-      y: (event.clientY - rect.top) / Math.max(1, rect.height) * VIEW_H,
-    }
+    const matrix = svg.getScreenCTM()
+    if (!matrix) return { x: 0, y: 0 }
+    const point = svg.createSVGPoint()
+    point.x = event.clientX
+    point.y = event.clientY
+    const local = point.matrixTransform(matrix.inverse())
+    return { x: local.x, y: local.y }
   }
 
   function beginInteraction(event: ReactPointerEvent<SVGElement>, element: LayoutElement, mode: Interaction['mode'], vertexIndex?: number) {
     if (!editMode) return
+    event.preventDefault()
     event.stopPropagation()
-    event.currentTarget.setPointerCapture(event.pointerId)
+    svgRef.current?.setPointerCapture(event.pointerId)
     const point = localPoint(event)
     setInteraction({ mode, elementId: element.id, pointerId: event.pointerId, startX: point.x, startY: point.y, original: element, vertexIndex })
     setDraft(element)
@@ -102,6 +105,7 @@ export function HomeLayoutCanvas({
 
   function moveInteraction(event: ReactPointerEvent<SVGSVGElement>) {
     if (!interaction || event.pointerId !== interaction.pointerId) return
+    event.preventDefault()
     const point = localPoint(event)
     const dx = point.x - interaction.startX
     const dy = point.y - interaction.startY
@@ -109,16 +113,16 @@ export function HomeLayoutCanvas({
     if (interaction.mode === 'move') {
       setDraft({
         ...original,
-        x: clamp(snap(original.x + dx, snapToGrid), 0, VIEW_W - original.width),
-        y: clamp(snap(original.y + dy, snapToGrid), 0, VIEW_H - original.height),
+        x: clamp(original.x + dx, 0, VIEW_W - original.width),
+        y: clamp(original.y + dy, 0, VIEW_H - original.height),
       })
       return
     }
     if (interaction.mode === 'resize') {
       setDraft({
         ...original,
-        width: clamp(snap(original.width + dx, snapToGrid), 60, VIEW_W - original.x),
-        height: clamp(snap(original.height + dy, snapToGrid), 50, VIEW_H - original.y),
+        width: clamp(original.width + dx, 60, VIEW_W - original.x),
+        height: clamp(original.height + dy, 50, VIEW_H - original.y),
       })
       return
     }
@@ -133,13 +137,25 @@ export function HomeLayoutCanvas({
 
   async function endInteraction(event: ReactPointerEvent<SVGSVGElement>) {
     if (!interaction || event.pointerId !== interaction.pointerId) return
+    event.preventDefault()
     const changed = draft
+    if (svgRef.current?.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId)
     setInteraction(null)
     setDraft(null)
     if (!changed || !onGeometryCommit) return
-    await onGeometryCommit(changed.id, {
-      x: changed.x, y: changed.y, width: changed.width, height: changed.height,
-      points: changed.points, rotation: changed.rotation,
+    const finalGeometry = snapToGrid ? (() => {
+      const x = clamp(snap(changed.x, true), 0, VIEW_W - changed.width)
+      const y = clamp(snap(changed.y, true), 0, VIEW_H - changed.height)
+      return {
+        ...changed,
+        x, y,
+        width: clamp(snap(changed.width, true), 60, VIEW_W - x),
+        height: clamp(snap(changed.height, true), 50, VIEW_H - y),
+      }
+    })() : changed
+    await onGeometryCommit(finalGeometry.id, {
+      x: finalGeometry.x, y: finalGeometry.y, width: finalGeometry.width, height: finalGeometry.height,
+      points: finalGeometry.points, rotation: finalGeometry.rotation,
     })
   }
 
@@ -151,14 +167,13 @@ export function HomeLayoutCanvas({
   return <div className={`layout-canvas-wrap${compact ? ' compact' : ''}`}>
     <svg
       ref={svgRef}
-      className={`home-layout-canvas ${editMode ? 'editing' : ''}`}
+      className={`home-layout-canvas ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}`}
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       role="img"
       aria-label="Home layout"
       onPointerMove={moveInteraction}
       onPointerUp={endInteraction}
       onPointerCancel={endInteraction}
-      onPointerLeave={(event) => { if (interaction) void endInteraction(event) }}
       onPointerDown={(event) => { if (event.target === event.currentTarget) { onSelectElement?.(''); onSelectEntity?.('') } }}
     >
       {editMode && <defs><pattern id={`grid-${sceneId}`} width={GRID} height={GRID} patternUnits="userSpaceOnUse"><path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} className="layout-grid-line" fill="none" /></pattern></defs>}
@@ -196,11 +211,11 @@ export function HomeLayoutCanvas({
         const entity = entities.get(element.entityId)
         if (!entity) return null
         const type = types.get(entity.typeId)
-        const care = careEstimateForEntity(data, entity.id)
-        const taskCount = scheduledTasksForEntity(data, entity.id).length
-        const supplyAlerts = supplyAlertsForEntity(data, entity.id).length
+        const care = overlay === 'care' ? careEstimateForEntity(data, entity.id) : null
+        const taskCount = overlay === 'tasks' ? scheduledTasksForEntity(data, entity.id).length : 0
+        const supplyAlerts = overlay === 'supplies' ? supplyAlertsForEntity(data, entity.id).length : 0
         const selected = selectedElementId === element.id || selectedEntityIds.has(entity.id)
-        const overlayClass = overlay === 'care' ? careClass(care.status) : ''
+        const overlayClass = care ? careClass(care.status) : ''
         const centerX = element.x + element.width / 2
         const centerY = element.y + element.height / 2
         const transform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined
@@ -222,7 +237,7 @@ export function HomeLayoutCanvas({
           {element.role === 'object' && <text x={centerX} y={centerY - 8} textAnchor="middle" className="object-icon">{type?.icon || '·'}</text>}
           <text x={centerX} y={element.labelPosition === 'top' ? element.y + 24 : centerY + (element.role === 'object' ? 22 : 5)} textAnchor="middle" className="layout-label">{entity.name}</text>
 
-          {overlay === 'care' && care.score != null && <g className="layout-badge care-badge">
+          {care && care.score != null && <g className="layout-badge care-badge">
             <rect x={element.x + 9} y={element.y + 9} width="48" height="24" rx="12" />
             <text x={element.x + 33} y={element.y + 26} textAnchor="middle">{care.score}</text>
           </g>}
@@ -241,18 +256,33 @@ export function HomeLayoutCanvas({
             <circle
               cx={element.x + element.width}
               cy={element.y + element.height}
-              r="13"
-              className="resize-handle"
+              r={compact ? 28 : 58}
+              className="handle-hit-area"
               onPointerDown={(event) => beginInteraction(event, element, 'resize')}
             />
-            {element.shape === 'polygon' && points.map((point, index) => <circle
-              key={index}
-              cx={element.x + point.x * element.width}
-              cy={element.y + point.y * element.height}
-              r="11"
-              className="vertex-handle"
-              onPointerDown={(event) => beginInteraction(event, element, 'vertex', index)}
-            />)}
+            <circle
+              cx={element.x + element.width}
+              cy={element.y + element.height}
+              r={compact ? 13 : 18}
+              className="resize-handle handle-visual"
+              pointerEvents="none"
+            />
+            {element.shape === 'polygon' && points.map((point, index) => <g key={index}>
+              <circle
+                cx={element.x + point.x * element.width}
+                cy={element.y + point.y * element.height}
+                r={compact ? 24 : 48}
+                className="handle-hit-area"
+                onPointerDown={(event) => beginInteraction(event, element, 'vertex', index)}
+              />
+              <circle
+                cx={element.x + point.x * element.width}
+                cy={element.y + point.y * element.height}
+                r={compact ? 11 : 15}
+                className="vertex-handle handle-visual"
+                pointerEvents="none"
+              />
+            </g>)}
           </>}
         </g>
       })}

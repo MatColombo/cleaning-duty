@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { FormField } from '../components/FormField'
 import { HomeLayoutCanvas, type HomeOverlay } from '../components/HomeLayoutCanvas'
@@ -35,7 +35,7 @@ export function HomePage() {
   const [activeSceneId, setActiveSceneId] = useState('')
   const [selectedElementId, setSelectedElementId] = useState('')
   const [selectedEntityId, setSelectedEntityId] = useState('')
-  const [snapToGrid, setSnapToGrid] = useState(true)
+  const [snapToGrid, setSnapToGrid] = useState(false)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [sceneEditOpen, setSceneEditOpen] = useState(false)
   const [placementRole, setPlacementRole] = useState<LayoutRole | null>(null)
@@ -206,10 +206,10 @@ export function HomePage() {
       <button className="button secondary small align-start" onClick={() => setEntityEditOpen(true)}>{t('editDetails')}</button>
       <fieldset className="field-group compact-group"><legend>{t('geometry')}</legend>
         <div className="geometry-grid">
-          <FormField label="X"><input type="number" value={Math.round(selectedElement.x)} onChange={(event) => void updateLayoutElement(selectedElement.id, { x: Number(event.target.value) })} /></FormField>
-          <FormField label="Y"><input type="number" value={Math.round(selectedElement.y)} onChange={(event) => void updateLayoutElement(selectedElement.id, { y: Number(event.target.value) })} /></FormField>
-          <FormField label={t('width')}><input type="number" min="60" value={Math.round(selectedElement.width)} onChange={(event) => void updateLayoutElement(selectedElement.id, { width: Math.max(60, Number(event.target.value)) })} /></FormField>
-          <FormField label={t('height')}><input type="number" min="50" value={Math.round(selectedElement.height)} onChange={(event) => void updateLayoutElement(selectedElement.id, { height: Math.max(50, Number(event.target.value)) })} /></FormField>
+          <FormField label="X"><CommittedNumberInput value={selectedElement.x} min={0} max={1000 - selectedElement.width} onCommit={(value) => updateLayoutElement(selectedElement.id, { x: value })} /></FormField>
+          <FormField label="Y"><CommittedNumberInput value={selectedElement.y} min={0} max={700 - selectedElement.height} onCommit={(value) => updateLayoutElement(selectedElement.id, { y: value })} /></FormField>
+          <FormField label={t('width')}><CommittedNumberInput value={selectedElement.width} min={60} max={1000 - selectedElement.x} onCommit={(value) => updateLayoutElement(selectedElement.id, { width: value })} /></FormField>
+          <FormField label={t('height')}><CommittedNumberInput value={selectedElement.height} min={50} max={700 - selectedElement.y} onCommit={(value) => updateLayoutElement(selectedElement.id, { height: value })} /></FormField>
         </div>
         <div className="rotation-row"><button className="button secondary small" onClick={() => void updateLayoutElement(selectedElement.id, { rotation: selectedElement.rotation - 15 })}>↺ 15°</button><strong>{selectedElement.rotation}°</strong><button className="button secondary small" onClick={() => void updateLayoutElement(selectedElement.id, { rotation: selectedElement.rotation + 15 })}>15° ↻</button></div>
       </fieldset>
@@ -386,6 +386,39 @@ export function HomePage() {
     const direct = entities.filter((item) => item.parentId === parentId)
     return direct.flatMap((item) => [item.id, ...descendantIds(item.id)])
   }
+}
+
+function CommittedNumberInput({ value, min, max, onCommit }: { value: number; min: number; max: number; onCommit: (value: number) => void | Promise<void> }) {
+  const [draft, setDraft] = useState(String(Math.round(value)))
+  const focused = useRef(false)
+
+  useEffect(() => {
+    if (!focused.current) setDraft(String(Math.round(value)))
+  }, [value])
+
+  function commit() {
+    focused.current = false
+    const parsed = Number(draft)
+    if (!Number.isFinite(parsed)) { setDraft(String(Math.round(value))); return }
+    const next = Math.max(min, Math.min(max, parsed))
+    setDraft(String(Math.round(next)))
+    if (next !== value) void onCommit(next)
+  }
+
+  return <input
+    type="number"
+    inputMode="numeric"
+    min={min}
+    max={max}
+    value={draft}
+    onFocus={(event) => { focused.current = true; event.currentTarget.select() }}
+    onChange={(event) => setDraft(event.target.value)}
+    onBlur={commit}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter') event.currentTarget.blur()
+      if (event.key === 'Escape') { setDraft(String(Math.round(value))); event.currentTarget.blur() }
+    }}
+  />
 }
 
 function defaultPolygon() {

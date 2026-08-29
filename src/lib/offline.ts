@@ -89,3 +89,43 @@ export function saveSyncConflicts(userId: string, conflicts: SyncConflict[]): vo
 export function clearSyncConflicts(userId: string): void {
   localStorage.removeItem(`${CONFLICT_PREFIX}${userId}`)
 }
+
+/**
+ * v1.0 stored cloud runtime state per user. v1.0.1 scopes it per user+workspace.
+ * Migrate the old single-workspace keys once so an upgrade cannot strand
+ * pending offline actions from the household that was open before updating.
+ */
+export function migrateLegacyOfflineStorage(userId: string, workspaceId: string): void {
+  const scope = `${userId}:${workspaceId}`
+  try {
+    const oldCacheKey = `${CACHE_PREFIX}${userId}`
+    const newCacheKey = `${CACHE_PREFIX}${scope}`
+    if (!localStorage.getItem(newCacheKey)) {
+      const raw = localStorage.getItem(oldCacheKey)
+      if (raw) {
+        const parsed = JSON.parse(raw) as { data?: WorkspaceData }
+        if (parsed.data?.workspace?.id === workspaceId) localStorage.setItem(newCacheKey, raw)
+      }
+    }
+
+    const oldQueueKey = `${QUEUE_PREFIX}${userId}`
+    const newQueueKey = `${QUEUE_PREFIX}${scope}`
+    if (!localStorage.getItem(newQueueKey)) {
+      const legacyQueue = safeRead<OfflineMutation[]>(oldQueueKey, []).filter((item) => item.workspaceId === workspaceId)
+      if (legacyQueue.length) localStorage.setItem(newQueueKey, JSON.stringify(legacyQueue))
+    }
+
+    const oldConflictKey = `${CONFLICT_PREFIX}${userId}`
+    const newConflictKey = `${CONFLICT_PREFIX}${scope}`
+    if (!localStorage.getItem(newConflictKey)) {
+      const legacyConflicts = safeRead<SyncConflict[]>(oldConflictKey, [])
+      if (legacyConflicts.length) localStorage.setItem(newConflictKey, JSON.stringify(legacyConflicts.slice(-30)))
+    }
+
+    localStorage.removeItem(oldCacheKey)
+    localStorage.removeItem(oldQueueKey)
+    localStorage.removeItem(oldConflictKey)
+  } catch {
+    // Storage migration is best-effort; online cloud state remains canonical.
+  }
+}

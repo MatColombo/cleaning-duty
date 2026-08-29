@@ -1,4 +1,4 @@
-# House Care v1.0 — online deployment
+# House Care v1.0.1 — online deployment
 
 Verified against the Supabase and Cloudflare documentation on 2026-08-28.
 

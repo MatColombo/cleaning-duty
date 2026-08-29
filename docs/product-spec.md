@@ -2025,3 +2025,14 @@ Do not maintain competing product specifications unless a later architecture/des
 - Added a production deployment guide for Supabase, Cloudflare Workers Static Assets, Auth, Web Push, Cron/Vault, two-user onboarding, smoke tests, and updates.
 - Explicitly deferred photos, sensors, purchasing integrations, additional role systems, automated off-site backups, and large analytics dashboards until real usage justifies them.
 
+
+### 1.7 — 2026-08-28 — v1.0.1 maintenance release
+
+- Added cloud workspace discovery, explicit home switching, per-device last-home selection, create-another-home flow, and archived-home recovery.
+- Added owner-only archive/restore/permanent-delete operations. Permanent delete is intentionally gated behind archive and exact-name confirmation.
+- Archived homes cancel pending notification jobs; restoring rebuilds reminders for still-scheduled tasks.
+- Scoped cloud cache, offline mutation queues and sync conflicts by user + workspace so homes remain isolated during offline operation.
+- Improved the Home editor for touch: continuous pointer motion, snapping only on gesture end, snap disabled by default, screen-transform-correct SVG coordinates, and enlarged invisible resize/vertex hit targets.
+- Geometry inputs now buffer edits and commit on blur/Enter rather than persisting every keystroke.
+- Mobile form controls use at least 16px text to prevent iOS Safari focus zoom.
+- Added migration `20260828170000_v1_0_1_workspace_management.sql`; backup schema remains v6 and application version is 1.0.1.

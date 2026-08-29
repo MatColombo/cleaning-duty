@@ -39,6 +39,17 @@ export interface Workspace {
   timezone: string
   careSensitivity: CareSensitivity
   ownerUserId?: string
+  archivedAt?: string
+  createdAt: string
+}
+
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  timezone: string
+  role: MemberRole
+  ownerUserId?: string
+  archivedAt?: string
   createdAt: string
 }
 

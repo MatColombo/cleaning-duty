@@ -28,17 +28,19 @@ import type {
   SupplyEvent,
   WorkspaceData,
   WorkspaceMember,
+  WorkspaceSummary,
 } from '../types/domain'
 import { useAuth } from './AuthContext'
 import { clearLocalData, createLocalWorkspace, loadLocalData, saveLocalData } from '../lib/localRepository'
-import { applyCloudMutation, createCloudWorkspace, loadCloudData, replaceCloudData, saveCloudData } from '../lib/cloudRepository'
+import { applyCloudMutation, archiveCloudWorkspace, createCloudWorkspace, deleteCloudWorkspace, listCloudWorkspaces, loadCloudData, replaceCloudData, restoreCloudWorkspace, saveCloudData } from '../lib/cloudRepository'
 import { materializeTasks } from '../lib/scheduler'
 import { newId, nowIso } from '../lib/id'
 import { normalizeWorkspaceData } from '../lib/dataMigrations'
 import { prepareImportedWorkspace, type HouseholdBackup } from '../lib/backup'
 import { applyMutationLocally } from '../lib/mutations'
 import { applyStarterPack as buildStarterPack } from '../lib/templates'
-import { enqueueOfflineMutation, loadCloudCache, loadOfflineQueue, loadSyncConflicts, saveCloudCache, saveOfflineQueue, saveSyncConflicts, clearSyncConflicts, type OfflineMutation, type SyncConflict } from '../lib/offline'
+import { clearCloudCache, enqueueOfflineMutation, loadCloudCache, loadOfflineQueue, loadSyncConflicts, migrateLegacyOfflineStorage, saveCloudCache, saveOfflineQueue, saveSyncConflicts, clearSyncConflicts, type OfflineMutation, type SyncConflict } from '../lib/offline'
+import { clearSelectedWorkspaceId, loadSelectedWorkspaceId, loadWorkspaceCatalog, saveSelectedWorkspaceId, saveWorkspaceCatalog, workspaceScope } from '../lib/workspaces'
 
 interface EntityInput { name: string; typeId: string; parentId?: string; labels: string[]; metadata: Record<string, MetadataValue> }
 interface ActionInput { name: string; icon?: string; instructions?: string; defaultSupplyIds: string[]; metadata: Record<string, MetadataValue> }
@@ -63,6 +65,7 @@ interface RelationInput { fromEntityId: string; toEntityId?: string; targetScene
 
 interface DataValue {
   data: WorkspaceData | null
+  workspaces: WorkspaceSummary[]
   loading: boolean
   saving: boolean
   error: string | null
@@ -71,6 +74,10 @@ interface DataValue {
   syncConflicts: SyncConflict[]
   dismissSyncConflicts: () => void
   currentMember?: WorkspaceMember
+  switchWorkspace: (workspaceId: string) => Promise<void>
+  archiveWorkspace: (workspaceId: string) => Promise<void>
+  restoreWorkspace: (workspaceId: string) => Promise<void>
+  deleteWorkspace: (workspaceId: string) => Promise<void>
   createWorkspace: (name: string, ownerName: string, timezone: string) => Promise<void>
   updateWorkspace: (patch: Partial<Pick<WorkspaceData['workspace'], 'name' | 'timezone' | 'careSensitivity'>>) => Promise<void>
   applyStarterPack: (locale: Locale) => Promise<void>
@@ -117,6 +124,7 @@ const DataContext = createContext<DataValue | null>(null)
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, cloudUser, isCloud } = useAuth()
   const [data, setData] = useState<WorkspaceData | null>(null)
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +142,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const save = async () => {
       if (isCloud) {
         await saveCloudData(next, user?.id)
-        if (user?.id) saveCloudCache(user.id, next)
+        if (user?.id) saveCloudCache(workspaceScope(user.id, next.workspace.id), next)
       } else saveLocalData(next)
     }
     const queued = saveQueueRef.current.catch(() => undefined).then(save)
@@ -150,39 +158,124 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [isCloud, user?.id])
 
-  const refreshFromCloud = useCallback(async (): Promise<WorkspaceData | null> => {
+  const refreshWorkspaceCatalog = useCallback(async (): Promise<WorkspaceSummary[]> => {
+    if (!user) return []
+    if (!isCloud || !cloudUser) {
+      const local = dataRef.current
+      const summaries: WorkspaceSummary[] = local ? [{
+        id: local.workspace.id, name: local.workspace.name, timezone: local.workspace.timezone, role: 'owner',
+        ownerUserId: local.workspace.ownerUserId, archivedAt: local.workspace.archivedAt, createdAt: local.workspace.createdAt,
+      }] : []
+      setWorkspaces(summaries)
+      return summaries
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cached = loadWorkspaceCatalog(user.id)
+      setWorkspaces(cached)
+      return cached
+    }
+    const next = await listCloudWorkspaces(cloudUser)
+    saveWorkspaceCatalog(user.id, next)
+    setWorkspaces(next)
+    return next
+  }, [user, isCloud, cloudUser])
+
+  const refreshFromCloud = useCallback(async (workspaceId?: string): Promise<WorkspaceData | null> => {
     if (!isCloud || !cloudUser || !user?.id) return dataRef.current
-    let fresh = await loadCloudData(cloudUser)
+    const targetId = workspaceId ?? dataRef.current?.workspace.id
+    if (!targetId) return null
+    let fresh = await loadCloudData(cloudUser, targetId)
     if (!fresh) return null
     fresh = normalizeWorkspaceData(fresh)
     const generated = materializeTasks(fresh)
     if (JSON.stringify(generated) !== JSON.stringify(fresh)) await saveCloudData(generated, user.id)
-    saveCloudCache(user.id, generated)
+    saveCloudCache(workspaceScope(user.id, targetId), generated)
+    saveSelectedWorkspaceId(user.id, targetId)
     dataRef.current = generated
     setData(generated)
     return generated
   }, [isCloud, cloudUser, user?.id])
 
+  const activateWorkspace = useCallback(async (workspaceId: string): Promise<void> => {
+    if (!user) return
+    if (!isCloud || !cloudUser) {
+      if (dataRef.current?.workspace.id !== workspaceId) throw new Error('Local mode supports one household.')
+      return
+    }
+    setLoading(true)
+    try {
+      await saveQueueRef.current.catch(() => undefined)
+      const scope = workspaceScope(user.id, workspaceId)
+      let loaded: WorkspaceData | null
+      if (typeof navigator !== 'undefined' && !navigator.onLine) loaded = loadCloudCache(scope)
+      else {
+        try { loaded = await loadCloudData(cloudUser, workspaceId) }
+        catch (err) {
+          loaded = loadCloudCache(scope)
+          if (!loaded) throw err
+          setError('Using cached household data until the connection recovers.')
+        }
+      }
+      if (!loaded) throw new Error('This household is not available on this device yet.')
+      loaded = materializeTasks(normalizeWorkspaceData(loaded))
+      if (navigator.onLine) saveCloudCache(scope, loaded)
+      saveSelectedWorkspaceId(user.id, workspaceId)
+      dataRef.current = loaded
+      setData(loaded)
+      setPendingSync(loadOfflineQueue(scope).length)
+      setSyncConflicts(loadSyncConflicts(scope))
+      if (navigator.onLine) setError(null)
+    } finally { setLoading(false) }
+  }, [user, isCloud, cloudUser])
+
   useEffect(() => {
     let cancelled = false
     async function load() {
-      if (!user) { setData(null); setLoading(false); return }
+      if (!user) { dataRef.current = null; setData(null); setWorkspaces([]); setLoading(false); return }
       setLoading(true)
-      setPendingSync(isCloud ? loadOfflineQueue(user.id).length : 0)
-      setSyncConflicts(isCloud ? loadSyncConflicts(user.id) : [])
       try {
-        let loaded: WorkspaceData | null
+        let loaded: WorkspaceData | null = null
         if (isCloud && cloudUser) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) loaded = loadCloudCache(user.id)
+          let catalog: WorkspaceSummary[]
+          if (typeof navigator !== 'undefined' && !navigator.onLine) catalog = loadWorkspaceCatalog(user.id)
           else {
-            try { loaded = await loadCloudData(cloudUser) }
+            try { catalog = await listCloudWorkspaces(cloudUser); saveWorkspaceCatalog(user.id, catalog) }
             catch (err) {
-              loaded = loadCloudCache(user.id)
-              if (!loaded) throw err
-              setError('Using cached household data until the connection recovers.')
+              catalog = loadWorkspaceCatalog(user.id)
+              if (!catalog.length) throw err
+              setError('Using cached household list until the connection recovers.')
             }
           }
-        } else loaded = loadLocalData()
+          if (!cancelled) setWorkspaces(catalog)
+          const active = catalog.filter((item) => !item.archivedAt)
+          const preferredId = loadSelectedWorkspaceId(user.id)
+          const selected = active.find((item) => item.id === preferredId) ?? active[0]
+          if (selected) {
+            migrateLegacyOfflineStorage(user.id, selected.id)
+            const scope = workspaceScope(user.id, selected.id)
+            setPendingSync(loadOfflineQueue(scope).length)
+            setSyncConflicts(loadSyncConflicts(scope))
+            if (typeof navigator !== 'undefined' && !navigator.onLine) loaded = loadCloudCache(scope)
+            else {
+              try { loaded = await loadCloudData(cloudUser, selected.id) }
+              catch (err) {
+                loaded = loadCloudCache(scope)
+                if (!loaded) throw err
+                setError('Using cached household data until the connection recovers.')
+              }
+            }
+            if (loaded) saveSelectedWorkspaceId(user.id, selected.id)
+          } else {
+            setPendingSync(0)
+            setSyncConflicts([])
+          }
+        } else {
+          loaded = loadLocalData()
+          if (loaded && !cancelled) setWorkspaces([{
+            id: loaded.workspace.id, name: loaded.workspace.name, timezone: loaded.workspace.timezone, role: 'owner',
+            ownerUserId: loaded.workspace.ownerUserId, archivedAt: loaded.workspace.archivedAt, createdAt: loaded.workspace.createdAt,
+          }])
+        }
         if (loaded) {
           loaded = normalizeWorkspaceData(loaded)
           const generated = materializeTasks(loaded)
@@ -191,7 +284,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             else if (!isCloud) saveLocalData(generated)
           }
           loaded = generated
-          if (isCloud) saveCloudCache(user.id, loaded)
+          if (isCloud) saveCloudCache(workspaceScope(user.id, loaded.workspace.id), loaded)
         }
         if (!cancelled) { dataRef.current = loaded; setData(loaded); if (navigator.onLine) setError(null) }
       } catch (err) {
@@ -229,8 +322,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       itemId: mutation.kind === 'supply_status' ? mutation.supplyId : mutation.taskId,
       at: nowIso(), message: 'The item changed on another device before this offline action could sync.',
     }
-    const next = [...loadSyncConflicts(user.id), conflict].slice(-30)
-    saveSyncConflicts(user.id, next)
+    const scope = workspaceScope(user.id, mutation.workspaceId)
+    const next = [...loadSyncConflicts(scope), conflict].slice(-30)
+    saveSyncConflicts(scope, next)
     setSyncConflicts(next)
   }, [user?.id])
 
@@ -242,9 +336,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setData(optimistic)
 
     if (!isCloud) { saveLocalData(optimistic); return }
-    saveCloudCache(user.id, optimistic)
+    const scope = workspaceScope(user.id, current.workspace.id)
+    saveCloudCache(scope, optimistic)
     if (!navigator.onLine) {
-      const queue = enqueueOfflineMutation(user.id, mutation)
+      const queue = enqueueOfflineMutation(scope, mutation)
       setPendingSync(queue.length)
       return
     }
@@ -258,7 +353,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (!navigator.onLine || /fetch|network|timeout/i.test(message)) {
-        const queue = enqueueOfflineMutation(user.id, mutation)
+        const queue = enqueueOfflineMutation(scope, mutation)
         setPendingSync(queue.length)
         setOnline(false)
         setError(null)
@@ -272,7 +367,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const flushOfflineQueue = useCallback(async () => {
     if (!isCloud || !user?.id || !cloudUser || !navigator.onLine) return
-    const queue = loadOfflineQueue(user.id)
+    const workspaceId = dataRef.current?.workspace.id
+    if (!workspaceId) return
+    const scope = workspaceScope(user.id, workspaceId)
+    const queue = loadOfflineQueue(scope)
     if (!queue.length) { setPendingSync(0); return }
     setSaving(true)
     const remaining: OfflineMutation[] = []
@@ -296,7 +394,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           break
         }
       }
-      saveOfflineQueue(user.id, remaining)
+      saveOfflineQueue(scope, remaining)
       setPendingSync(remaining.length)
       if (!remaining.length) { await refreshFromCloud(); setError(null) }
     } finally { setSaving(false) }
@@ -335,9 +433,64 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [currentMember?.id])
 
   const value = useMemo<DataValue>(() => ({
-    data, loading, saving, error, online, pendingSync, syncConflicts,
-    dismissSyncConflicts: () => { if (user?.id) clearSyncConflicts(user.id); setSyncConflicts([]) },
+    data, workspaces, loading, saving, error, online, pendingSync, syncConflicts,
+    dismissSyncConflicts: () => {
+      if (user?.id && dataRef.current?.workspace.id) clearSyncConflicts(workspaceScope(user.id, dataRef.current.workspace.id))
+      setSyncConflicts([])
+    },
     currentMember,
+    switchWorkspace: async (workspaceId) => {
+      if (online && pendingSync > 0) await flushOfflineQueue()
+      await activateWorkspace(workspaceId)
+    },
+    archiveWorkspace: async (workspaceId) => {
+      if (!isCloud || !cloudUser || !user) return
+      await saveQueueRef.current.catch(() => undefined)
+      if (dataRef.current?.workspace.id === workspaceId && online && pendingSync > 0) {
+        await flushOfflineQueue()
+        const scope = workspaceScope(user.id, workspaceId)
+        if (loadOfflineQueue(scope).length) throw new Error('Sync pending changes before archiving this household.')
+      }
+      await archiveCloudWorkspace(workspaceId)
+      const catalog = await refreshWorkspaceCatalog()
+      if (dataRef.current?.workspace.id === workspaceId) {
+        const next = catalog.find((item) => !item.archivedAt && item.id !== workspaceId)
+        if (next) await activateWorkspace(next.id)
+        else {
+          clearSelectedWorkspaceId(user.id)
+          dataRef.current = null
+          setData(null)
+          setPendingSync(0)
+          setSyncConflicts([])
+        }
+      }
+    },
+    restoreWorkspace: async (workspaceId) => {
+      if (!isCloud || !cloudUser || !user) return
+      await restoreCloudWorkspace(workspaceId)
+      await refreshWorkspaceCatalog()
+      if (!dataRef.current) await activateWorkspace(workspaceId)
+    },
+    deleteWorkspace: async (workspaceId) => {
+      if (!isCloud || !cloudUser || !user) return
+      await deleteCloudWorkspace(workspaceId)
+      const scope = workspaceScope(user.id, workspaceId)
+      clearCloudCache(scope)
+      saveOfflineQueue(scope, [])
+      clearSyncConflicts(scope)
+      const catalog = await refreshWorkspaceCatalog()
+      if (dataRef.current?.workspace.id === workspaceId) {
+        const next = catalog.find((item) => !item.archivedAt && item.id !== workspaceId)
+        if (next) await activateWorkspace(next.id)
+        else {
+          clearSelectedWorkspaceId(user.id)
+          dataRef.current = null
+          setData(null)
+          setPendingSync(0)
+          setSyncConflicts([])
+        }
+      }
+    },
     createWorkspace: async (name, ownerName, timezone) => {
       if (!user) return
       const created = isCloud && cloudUser
@@ -345,9 +498,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         : createLocalWorkspace(name, ownerName, timezone)
       dataRef.current = created
       setData(created)
+      if (isCloud) {
+        saveSelectedWorkspaceId(user.id, created.workspace.id)
+        saveCloudCache(workspaceScope(user.id, created.workspace.id), created)
+      }
       await persist(created)
+      await refreshWorkspaceCatalog()
     },
-    updateWorkspace: async (patch) => commit((current) => currentMember?.role === 'owner' ? { ...current, workspace: { ...current.workspace, ...patch } } : current),
+    updateWorkspace: async (patch) => {
+      await commit((current) => currentMember?.role === 'owner' ? { ...current, workspace: { ...current.workspace, ...patch } } : current)
+      if (dataRef.current && (patch.name || patch.timezone)) {
+        setWorkspaces((current) => current.map((item) => item.id === dataRef.current!.workspace.id ? { ...item, name: dataRef.current!.workspace.name, timezone: dataRef.current!.workspace.timezone } : item))
+      }
+    },
     applyStarterPack: async (locale) => commit((current) => currentMember?.role === 'owner' ? buildStarterPack(current, locale) : current),
     addMember: async (displayName, email) => commit((current) => currentMember?.role !== 'owner' ? current : ({
       ...current,
@@ -576,7 +739,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         else saveLocalData(imported)
         dataRef.current = imported
         setData(imported)
-        if (isCloud && user?.id) saveCloudCache(user.id, imported)
+        if (isCloud && user?.id) saveCloudCache(workspaceScope(user.id, imported.workspace.id), imported)
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -590,8 +753,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       clearLocalData()
       dataRef.current = null
       setData(null)
+      setWorkspaces([])
     },
-  }), [data, loading, saving, error, online, pendingSync, syncConflicts, currentMember, user, isCloud, cloudUser, persist, commit, cancelFutureTasks, performRuntimeMutation])
+  }), [data, workspaces, loading, saving, error, online, pendingSync, syncConflicts, currentMember, user, isCloud, cloudUser, persist, commit, cancelFutureTasks, performRuntimeMutation, activateWorkspace, refreshWorkspaceCatalog, flushOfflineQueue])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

@@ -1,4 +1,4 @@
-const VERSION = 'v6'
+const VERSION = 'v7'
 const SHELL_CACHE = `house-care-shell-${VERSION}`
 const RUNTIME_CACHE = `house-care-runtime-${VERSION}`
 const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png']

@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useI18n } from '../contexts/I18nContext'
 import { useData } from '../contexts/DataContext'
 import { localDateInZone } from '../lib/date'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
 const nav = [
   { to: '/', key: 'today', glyph: '✓' },
@@ -46,7 +47,7 @@ export function AppShell() {
     <div className="app-shell">
       <header className="topbar">
         <div>
-          <strong>{data?.workspace.name ?? 'House Care'}</strong>
+          <WorkspaceSwitcher />
           {saving && <span className="sync-state">{t('saving')}</span>}
           {!saving && pendingSync > 0 && <span className="sync-state">{pendingSync} {t('waitingToSync')}</span>}
         </div>

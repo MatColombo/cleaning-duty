@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import type { WorkspaceData } from '../types/domain'
+import type { WorkspaceData, WorkspaceSummary } from '../types/domain'
 import { normalizeWorkspaceData } from './dataMigrations'
 import { supabase } from './supabase'
 import { newId, nowIso } from './id'
@@ -10,16 +10,46 @@ function client() {
   return supabase
 }
 
-export async function loadCloudData(user: User): Promise<WorkspaceData | null> {
+export async function listCloudWorkspaces(user: User): Promise<WorkspaceSummary[]> {
+  const db = client()
+  const { error: claimError } = await db.rpc('claim_workspace_invites')
+  if (claimError) throw claimError
+  const { data: memberships, error: membershipError } = await db
+    .from('workspace_members')
+    .select('workspace_id, role')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+  if (membershipError) throw membershipError
+  const rows = memberships ?? []
+  if (!rows.length) return []
+  const roleByWorkspace = new Map(rows.map((row) => [row.workspace_id as string, row.role as WorkspaceSummary['role']]))
+  const { data: workspaces, error: workspaceError } = await db
+    .from('workspaces')
+    .select('id, name, timezone, owner_user_id, archived_at, created_at')
+    .in('id', [...roleByWorkspace.keys()])
+    .order('created_at')
+  if (workspaceError) throw workspaceError
+  return (workspaces ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    timezone: row.timezone,
+    role: roleByWorkspace.get(row.id) ?? 'member',
+    ownerUserId: row.owner_user_id ?? undefined,
+    archivedAt: row.archived_at ?? undefined,
+    createdAt: row.created_at,
+  }))
+}
+
+export async function loadCloudData(user: User, requestedWorkspaceId?: string): Promise<WorkspaceData | null> {
   const db = client()
   await db.rpc('claim_workspace_invites')
-  const { data: membership, error: membershipError } = await db
+  let membershipQuery = db
     .from('workspace_members')
     .select('workspace_id')
     .eq('user_id', user.id)
     .eq('status', 'active')
-    .limit(1)
-    .maybeSingle()
+  if (requestedWorkspaceId) membershipQuery = membershipQuery.eq('workspace_id', requestedWorkspaceId)
+  const { data: membership, error: membershipError } = await membershipQuery.limit(1).maybeSingle()
   if (membershipError) throw membershipError
   if (!membership) return null
   const workspaceId = membership.workspace_id as string
@@ -69,6 +99,7 @@ export async function loadCloudData(user: User): Promise<WorkspaceData | null> {
       timezone: workspaceRow.timezone,
       careSensitivity: workspaceRow.care_sensitivity ?? 'balanced',
       ownerUserId: workspaceRow.owner_user_id ?? undefined,
+      archivedAt: workspaceRow.archived_at ?? undefined,
       createdAt: workspaceRow.created_at,
     },
     members: members.map((row) => ({
@@ -307,6 +338,22 @@ export async function replaceCloudData(data: WorkspaceData, actorUserId?: string
   await saveCloudData(data, actorUserId)
 }
 
+
+
+export async function archiveCloudWorkspace(workspaceId: string): Promise<void> {
+  const { error } = await client().rpc('archive_workspace', { target_workspace_id: workspaceId })
+  if (error) throw error
+}
+
+export async function restoreCloudWorkspace(workspaceId: string): Promise<void> {
+  const { error } = await client().rpc('restore_workspace', { target_workspace_id: workspaceId })
+  if (error) throw error
+}
+
+export async function deleteCloudWorkspace(workspaceId: string): Promise<void> {
+  const { error } = await client().rpc('delete_workspace_permanently', { target_workspace_id: workspaceId })
+  if (error) throw error
+}
 
 export interface CloudMutationResult {
   applied: boolean

@@ -1,4 +1,4 @@
-# House Care v1.0 - browser-only deployment (no admin rights / no Node.js)
+# House Care v1.0.1 - browser-only deployment (no admin rights / no Node.js)
 
 This route requires only a normal web browser plus the ability to extract a ZIP file. Node.js, Git, Docker, Supabase CLI and Wrangler are not required on your computer.
 
@@ -9,12 +9,12 @@ Create free accounts if you do not already have them:
 - Cloudflare
 
 ## 1. Put the source on GitHub
-1. Extract `cleaning-duty-pwa-v1.0-browser-deploy.zip` using your operating system's built-in ZIP support.
+1. Extract `cleaning-duty-pwa-v1.0.1-browser-deploy.zip` using your operating system's built-in ZIP support.
 2. Open the `cleaning-duty-pwa` folder inside it.
 3. In GitHub, create a new repository. Private is fine. Do not initialize it with a README/license/gitignore.
 4. Open the empty repository and choose `uploading an existing file` / `Add file -> Upload files`.
 5. Drag the CONTENTS of `cleaning-duty-pwa` into the browser upload area. Do not upload the outer folder as one ZIP.
-6. Commit directly to `main` with message `House Care v1.0`.
+6. Commit directly to `main` with message `House Care v1.0.1`.
 
 The repository has fewer than 100 files, so it fits GitHub's current browser-upload limit in one upload. If your browser refuses a folder drag, upload the top-level files and folders in two batches.
 

@@ -1,4 +1,4 @@
-# House Care PWA — v1.0
+# House Care PWA — v1.0.1
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
