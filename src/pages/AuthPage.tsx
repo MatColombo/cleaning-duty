@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../contexts/I18nContext'
 import { FormField } from '../components/FormField'
+import { logClientError, normalizeError } from '../lib/errorLog'
 
 export function AuthPage() {
   const { signIn, signUp } = useAuth()
@@ -18,7 +19,7 @@ export function AuthPage() {
     try {
       if (mode === 'signin') await signIn(email, password)
       else setMessage(await signUp(email, password))
-    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
+    } catch (error) { logClientError(error, { area: mode === 'signin' ? 'sign in' : 'sign up' }); setMessage(normalizeError(error)) }
     finally { setBusy(false) }
   }
 

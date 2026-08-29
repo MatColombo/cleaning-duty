@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import { FormField } from '../components/FormField'
 import { Sheet } from '../components/Sheet'
 import { useAuth } from '../contexts/AuthContext'
@@ -9,9 +10,12 @@ import { currentPushCapability, disablePush, enablePush, type PushCapability } f
 import { isStandalone, promptInstall } from '../lib/pwa'
 import type { CareSensitivity, MetadataFieldDefinition, MetadataFieldType, MetadataTarget, WorkspaceMember } from '../types/domain'
 import { dateTimeLocalValue, localInputToUtc } from '../lib/date'
+import { ErrorLogPanel } from '../components/ErrorLogPanel'
+import { logClientError, normalizeError } from '../lib/errorLog'
 
 export function SettingsPage() {
   const { data, currentMember, addMember, updateMemberAssignmentProfile, updateWorkspace, applyStarterPack, addFieldDefinition, updateFieldDefinition, archiveFieldDefinition, importBackup, resetLocal } = useData()
+  const location = useLocation()
   const { isCloud, signOut } = useAuth()
   const { t, locale, setLocale } = useI18n()
   const [memberOpen, setMemberOpen] = useState(false)
@@ -49,7 +53,7 @@ export function SettingsPage() {
       if (pushCapability === 'subscribed') await disablePush()
       else await enablePush(data!.workspace.id, currentMember.id)
       setPushCapability(await currentPushCapability(isCloud))
-    } catch (err) { setPushMessage(err instanceof Error ? err.message : String(err)); setPushCapability(await currentPushCapability(isCloud)) }
+    } catch (err) { logClientError(err, { area: 'notification settings' }); setPushMessage(normalizeError(err)); setPushCapability(await currentPushCapability(isCloud)) }
   }
 
   async function installApp() {
@@ -87,7 +91,8 @@ export function SettingsPage() {
       setCareSensitivity(backup.data.workspace.careSensitivity ?? 'balanced')
       setBackupMessage(t('importSuccess'))
     } catch (err) {
-      setBackupMessage(err instanceof Error ? err.message : String(err))
+      logClientError(err, { area: 'import backup file' })
+      setBackupMessage(normalizeError(err))
     }
   }
 
@@ -112,6 +117,8 @@ export function SettingsPage() {
     <section className="card section-card"><div className="section-header"><h2>{t('installApp')}</h2></div><p className="muted compact-text">{standalone ? t('appInstalled') : installAvailable ? t('installHint') : t('installManualHint')}</p>{!standalone && installAvailable && <button className="button secondary" onClick={() => void installApp()}>{t('installApp')}</button>}</section>
 
     <section className="card section-card"><div className="section-header"><h2>{t('backup')}</h2></div><p className="muted compact-text">{t('importWarning')}</p><div className="backup-actions"><button className="button secondary" onClick={exportBackup}>{t('exportJson')}</button><button className="button secondary" disabled={!canManageHousehold} onClick={() => importRef.current?.click()}>{t('importJson')}</button><input ref={importRef} hidden type="file" accept="application/json,.json" onChange={(event) => void importFile(event)} /></div>{backupMessage && <div className={backupMessage === t('importSuccess') ? 'notice' : 'error-banner'}>{backupMessage}</div>}</section>
+
+    <ErrorLogPanel autoOpen={new URLSearchParams(location.search).get('errors') === '1'} />
 
     <section className="card section-card"><h2>{isCloud ? t('cloudMode') : t('localMode')}</h2>{isCloud ? <button className="button secondary" onClick={() => void signOut()}>{t('signOut')}</button> : <button className="button danger-outline" onClick={() => { if (confirm(t('confirmReset'))) resetLocal() }}>{t('resetLocal')}</button>}</section>
     {memberOpen && <MemberSheet onClose={() => setMemberOpen(false)} />}

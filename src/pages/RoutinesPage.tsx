@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { FormField } from '../components/FormField'
 import { Sheet } from '../components/Sheet'
@@ -11,6 +11,7 @@ import { useI18n } from '../contexts/I18nContext'
 import { formatTaskDateTime, localDateInZone } from '../lib/date'
 import { previewDueAts } from '../lib/scheduler'
 import type { AdvancedAssignmentPolicy, AdvancedTargetSelector, AssignmentPolicy, RecurrenceRule, ReminderPolicy, Routine, ScheduleMode } from '../types/domain'
+import { logClientError, normalizeError } from '../lib/errorLog'
 
 const weekdayOrder = [1, 2, 3, 4, 5, 6, 0]
 const weekdayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
@@ -106,6 +107,8 @@ export function RoutinesPage() {
     const [supplyChoice, setSupplyChoice] = useState<SupplyChoice>(initialSupplyChoice)
     const [customSupplyIds, setCustomSupplyIds] = useState<string[]>(routine?.supplyIdsOverride ?? [])
     const [formError, setFormError] = useState<string | null>(null)
+    const [submitting, setSubmitting] = useState(false)
+    const submittingRef = useRef(false)
 
     const recurrence: RecurrenceRule = kind === 'once'
       ? { kind: 'once', date: onceDate }
@@ -163,6 +166,7 @@ export function RoutinesPage() {
 
     async function submit(event: FormEvent) {
       event.preventDefault(); setFormError(null)
+      if (submittingRef.current) return
       if (!actionId) return setFormError(t('chooseAction'))
       if (!targets.length && !advancedTargetSelector?.conditions.length) return setFormError(t('chooseTargets'))
       if (kind === 'weekdays' && !weekdays.length) return setFormError(locale === 'it' ? 'Scegli almeno un giorno della settimana.' : 'Choose at least one weekday.')
@@ -176,8 +180,18 @@ export function RoutinesPage() {
         actionId, targetEntityIds: targets, includeDescendantTargetIds, advancedTargetSelector, recurrence, timeOfDay: time, scheduleMode,
         exceptions: { excludedDates, includedDateTimes }, assignment, reminder, supplyIdsOverride,
       }
-      if (routine) await updateRoutine(routine.id, input); else await addRoutine(input)
-      onClose()
+      submittingRef.current = true
+      setSubmitting(true)
+      try {
+        if (routine) await updateRoutine(routine.id, input); else await addRoutine(input)
+        onClose()
+      } catch (error) {
+        logClientError(error, { area: routine ? 'update routine' : 'create routine' })
+        setFormError(normalizeError(error))
+      } finally {
+        submittingRef.current = false
+        setSubmitting(false)
+      }
     }
 
     const selectedAction = actions.find((item) => item.id === actionId)
@@ -213,7 +227,7 @@ export function RoutinesPage() {
       </div></details>
 
       {formError && <div className="error-banner">{formError}</div>}
-      <button className="button primary">{t('save')}</button>
+      <button className="button primary" disabled={submitting}>{submitting ? t('saving') : t('save')}</button>
     </form></Sheet>
   }
 

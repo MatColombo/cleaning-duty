@@ -27,7 +27,7 @@ export async function listCloudWorkspaces(user: User): Promise<WorkspaceSummary[
     .from('workspaces')
     .select('id, name, timezone, owner_user_id, archived_at, created_at')
     .in('id', [...roleByWorkspace.keys()])
-    .order('created_at')
+    .order('created_at', { ascending: false })
   if (workspaceError) throw workspaceError
   return (workspaces ?? []).map((row) => ({
     id: row.id,

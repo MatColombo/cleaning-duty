@@ -1,4 +1,4 @@
-# House Care PWA — v1.0.1
+# House Care PWA — v1.0.2
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
@@ -7,6 +7,14 @@ Release notes: `docs/RELEASE_NOTES.md`.
 ## No administrator rights / no Node.js
 
 Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
+
+## v1.0.2 maintenance fixes
+
+- Mobile home switcher is rendered as a safe-area-aware bottom sheet outside the sticky header.
+- Last home and language are remembered per cloud account; if no saved home is valid, the newest active home opens automatically.
+- Routine creation is guarded against accidental duplicate submits; generated Task occurrence IDs are deterministic and cached duplicate occurrences are normalized.
+- Client diagnostics are local-only, capped at 40 entries, group repeated errors, and record page/home/connection plus recent UI actions without storing form values.
+- No database migration, Edge Function change, secret change, or Cloudflare variable change is required for v1.0.2.
 
 ## v1 scope
 

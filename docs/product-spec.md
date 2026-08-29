@@ -2036,3 +2036,14 @@ Do not maintain competing product specifications unless a later architecture/des
 - Geometry inputs now buffer edits and commit on blur/Enter rather than persisting every keystroke.
 - Mobile form controls use at least 16px text to prevent iOS Safari focus zoom.
 - Added migration `20260828170000_v1_0_1_workspace_management.sql`; backup schema remains v6 and application version is 1.0.1.
+
+### 1.8 — 2026-08-29 — v1.0.2 maintenance release
+
+- Moved modal sheets, including the home selector, to a document-level portal and added iOS safe-area/dynamic-viewport constraints so mobile menus remain visible in portrait orientation.
+- Persisted the selected home per cloud account using Supabase Auth user metadata, with per-device fallback for offline startup. When no valid remembered home exists, the newest active home is selected; home creation is shown only when there are no active homes.
+- Persisted English/Italian locale per cloud account using Auth user metadata, retaining local per-user and browser-locale fallbacks.
+- Hardened Routine creation against repeated submit gestures and identical duplicate definitions. Generated Task occurrence IDs are deterministic and cached duplicate occurrences are normalized while preserving the stronger historical record.
+- Replaced generic object stringification in user-facing errors with structured error normalization.
+- Added bounded local-only diagnostics: maximum 40 entries, 30-second repeat grouping, recent UI action context, route/home/user/online context, and no form-value/password capture. Diagnostics are never sent to Supabase.
+- No database migration is required; application version is 1.0.2 and backup schema remains v6.
+

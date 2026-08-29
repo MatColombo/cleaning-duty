@@ -14,9 +14,16 @@ import { TodayPage } from './pages/TodayPage'
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
-  const { data, loading: dataLoading } = useData()
+  const { data, workspaces, loading: dataLoading, error } = useData()
   if (authLoading || (user && dataLoading)) return <div className="boot-screen">House Care</div>
   if (!user) return <AuthPage />
+  const activeHomes = workspaces.filter((workspace) => !workspace.archivedAt)
+  if (!data && activeHomes.length > 0) {
+    return <main className="center-page"><section className="card auth-card stack" role={error ? 'alert' : undefined}>
+      <div><div className="eyebrow">House Care</div><h1>{error ? 'Home unavailable' : 'Opening your home…'}</h1><p className="muted">{error ?? 'Loading the last home used by this account.'}</p></div>
+      {error && <button className="button primary" onClick={() => location.reload()}>Reload</button>}
+    </section></main>
+  }
   if (!data) return <SetupPage />
   return <Routes>
     <Route element={<AppShell />}>

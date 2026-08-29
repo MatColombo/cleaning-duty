@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useI18n } from '../contexts/I18nContext'
 import { useData } from '../contexts/DataContext'
 import { localDateInZone } from '../lib/date'
@@ -17,7 +17,8 @@ const nav = [
 
 export function AppShell() {
   const { t } = useI18n()
-  const { data, currentMember, saving, error, online, pendingSync, syncConflicts, dismissSyncConflicts } = useData()
+  const { data, currentMember, saving, error, clearError, online, pendingSync, syncConflicts, dismissSyncConflicts } = useData()
+  const navigate = useNavigate()
   const [updateReady, setUpdateReady] = useState(false)
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function AppShell() {
       {!online && <div className="runtime-banner offline-banner">{t('offlineMode')}</div>}
       {syncConflicts.length > 0 && <div className="runtime-banner conflict-banner"><span>{t('syncConflict')} · {syncConflicts.length}</span><button onClick={dismissSyncConflicts}>{t('dismiss')}</button></div>}
       {updateReady && <div className="runtime-banner update-banner"><span>{t('updateReady')}</span><button onClick={applyUpdate}>{t('updateNow')}</button></div>}
-      {error && <div className="error-banner" role="alert">{error}</div>}
+      {error && <div className="error-banner app-error-banner" role="alert"><span>{error}</span><div className="runtime-actions"><button onClick={() => navigate('/settings?errors=1')}>{t('details')}</button><button onClick={clearError}>{t('dismiss')}</button></div></div>}
       <main className="page"><Outlet /></main>
       <nav className="bottom-nav" aria-label="Primary">
         {nav.map((item) => (

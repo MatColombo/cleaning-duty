@@ -50,6 +50,7 @@ export const translations = {
     starterPack: 'Starter pack', starterPackHint: 'For an empty household, add example types, rooms, actions, supplies and a simple floor layout. It creates no routines or notifications.', starterPackConfirm: 'Load starter content into this empty household?', loadStarterPack: 'Load starter pack',
     event_SUPPLY_CREATED: 'Supply created', event_SUPPLY_UPDATED: 'Supply updated', event_STOCK_CHANGED: 'Stock changed', event_SUPPLY_ARCHIVED: 'Supply archived',
     saving: 'saving…', waitingToSync: 'waiting to sync', offlineMode: 'Offline · daily task actions will sync when the connection returns.', syncConflict: 'A newer change from another device was kept', dismiss: 'Dismiss', updateReady: 'An app update is ready.', updateNow: 'Update',
+    diagnostics: 'Diagnostics', errorLog: 'Error log', errorLogHint: 'Recent app errors are kept only on this device with page and action context.', errorLogLocalOnly: 'Local only · capped at 40 entries · repeated errors are grouped. Nothing is sent to the database.', viewErrorLog: 'View error log', clearLog: 'Clear log', clearErrorLogConfirm: 'Clear the local error log?', noLoggedErrors: 'No errors logged on this device.', errorArea: 'Area', route: 'Page', details: 'Details', hint: 'Hint', recentActions: 'Recent actions', technicalDetails: 'Technical details', online: 'Online', offline: 'Offline',
   },
   it: {
     today: 'Oggi', home: 'Casa', actions: 'Azioni', routines: 'Routine', supplies: 'Scorte', settings: 'Impostazioni',
@@ -100,6 +101,7 @@ export const translations = {
     starterPack: 'Pacchetto iniziale', starterPackHint: 'Per una casa vuota, aggiunge tipi, stanze, azioni, scorte e una semplice pianta di esempio. Non crea routine né notifiche.', starterPackConfirm: 'Caricare il contenuto iniziale in questa casa vuota?', loadStarterPack: 'Carica pacchetto iniziale',
     event_SUPPLY_CREATED: 'Scorta creata', event_SUPPLY_UPDATED: 'Scorta aggiornata', event_STOCK_CHANGED: 'Stato scorta cambiato', event_SUPPLY_ARCHIVED: 'Scorta archiviata',
     saving: 'salvataggio…', waitingToSync: 'in attesa di sincronizzazione', offlineMode: 'Offline · le azioni giornaliere verranno sincronizzate al ritorno della connessione.', syncConflict: 'È stata mantenuta una modifica più recente da un altro dispositivo', dismiss: 'Chiudi', updateReady: 'È disponibile un aggiornamento dell’app.', updateNow: 'Aggiorna',
+    diagnostics: 'Diagnostica', errorLog: 'Registro errori', errorLogHint: 'Gli errori recenti restano solo su questo dispositivo con contesto della pagina e delle azioni.', errorLogLocalOnly: 'Solo locale · massimo 40 voci · gli errori ripetuti vengono raggruppati. Nulla viene inviato al database.', viewErrorLog: 'Apri registro errori', clearLog: 'Svuota registro', clearErrorLogConfirm: 'Svuotare il registro errori locale?', noLoggedErrors: 'Nessun errore registrato su questo dispositivo.', errorArea: 'Area', route: 'Pagina', details: 'Dettagli', hint: 'Suggerimento', recentActions: 'Azioni recenti', technicalDetails: 'Dettagli tecnici', online: 'Online', offline: 'Offline',
   },
 } as const
 

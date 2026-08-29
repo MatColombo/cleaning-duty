@@ -456,3 +456,66 @@ textarea { resize: vertical; }
 }
 .handle-hit-area { fill: transparent; stroke: none; cursor: nwse-resize; touch-action: none; }
 .home-layout-canvas.editing { -webkit-user-select: none; -webkit-touch-callout: none; }
+
+/* v1.0.2 — safe mobile sheets, account continuity and local diagnostics */
+.topbar {
+  height: auto;
+  min-height: calc(52px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+}
+.app-shell > .error-banner { top: calc(52px + env(safe-area-inset-top)); }
+.sheet-backdrop {
+  padding-top: calc(env(safe-area-inset-top) + 10px);
+  overscroll-behavior: contain;
+}
+.sheet {
+  max-height: calc(100dvh - env(safe-area-inset-top) - 10px);
+  overscroll-behavior: contain;
+}
+.app-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.app-error-banner > span { min-width: 0; overflow-wrap: anywhere; }
+.runtime-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.runtime-actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: .35rem .55rem;
+  background: rgb(255 255 255 / .72);
+  color: inherit;
+  font: inherit;
+  font-weight: 750;
+}
+.diagnostics-actions { margin-top: 12px; flex-wrap: wrap; }
+.error-log-list { display: grid; gap: 8px; }
+.error-log-entry { border: 1px solid var(--line); border-radius: 13px; background: white; overflow: hidden; }
+.error-log-entry > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; padding: 11px 12px; list-style: none; }
+.error-log-entry > summary::-webkit-details-marker { display: none; }
+.error-log-entry > summary > span { min-width: 0; display: grid; gap: 3px; }
+.error-log-entry > summary strong { font-size: .82rem; line-height: 1.35; overflow-wrap: anywhere; }
+.error-log-entry > summary small { color: var(--muted); font-size: .7rem; }
+.error-log-entry > summary code { align-self: start; max-width: 110px; overflow: hidden; text-overflow: ellipsis; color: var(--danger); font-size: .68rem; }
+.error-log-context { display: grid; gap: 9px; padding: 0 12px 12px; border-top: 1px solid #edf0ed; }
+.error-context-row { display: grid; gap: 3px; padding-top: 9px; font-size: .78rem; }
+.error-context-row > strong { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+.error-context-row > span { overflow-wrap: anywhere; line-height: 1.4; }
+.error-context-row ol { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.error-context-row li span, .error-context-row li small { display: block; overflow-wrap: anywhere; }
+.error-context-row li small { color: var(--muted); font-size: .66rem; }
+.technical-details summary { cursor: pointer; color: var(--muted); font-size: .75rem; font-weight: 700; }
+.technical-details pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 9px; border-radius: 9px; background: #f3f5f2; font-size: .68rem; line-height: 1.4; }
+
+@supports not (height: 100dvh) {
+  .sheet { max-height: calc(100vh - env(safe-area-inset-top) - 10px); }
+}
+
+@media (max-width: 760px) {
+  .sheet-backdrop { align-items: flex-end; }
+  .sheet { width: 100%; border-radius: 20px 20px 0 0; }
+  .workspace-switcher-sheet { padding-bottom: 8px; }
+  .app-error-banner { align-items: flex-start; flex-direction: column; }
+  .runtime-actions { align-self: flex-end; }
+}

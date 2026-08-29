@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
 import { Sheet } from './Sheet'
 import { FormField } from './FormField'
+import { logClientError, normalizeError } from '../lib/errorLog'
 
 export function WorkspaceSwitcher() {
   const { isCloud, user } = useAuth()
@@ -26,7 +27,8 @@ export function WorkspaceSwitcher() {
       await action()
       if (closeAfter) setOpen(false)
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : String(err))
+      logClientError(err, { area: 'home management' })
+      window.alert(normalizeError(err))
     } finally { setBusyId('') }
   }
 
@@ -39,6 +41,9 @@ export function WorkspaceSwitcher() {
       await createWorkspace(name, user.displayName, Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome')
       setNewName('')
       setOpen(false)
+    } catch (err) {
+      logClientError(err, { area: 'create home' })
+      window.alert(normalizeError(err))
     } finally { setCreating(false) }
   }
 

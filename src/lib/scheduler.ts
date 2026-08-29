@@ -11,7 +11,7 @@ import {
   weeksBetween,
   zonedLocalToUtc,
 } from './date'
-import { newId, nowIso } from './id'
+import { newId, nowIso, stableId } from './id'
 import { resolveAssignment } from './assignment'
 import { resolvedRoutineTargets, selectorSummary } from './targeting'
 
@@ -184,7 +184,7 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
   })
   if (!targets.length) return data
 
-  const taskId = newId()
+  const taskId = stableId(`task:${data.workspace.id}:${routine.id}:${routine.revision}:${dueAt}`)
   const assignmentResolution = resolveAssignment(data, routine, occurrenceIndex, dueAt)
   const assigneeMemberId = assignmentResolution.memberId
   const createdAt = nowIso()

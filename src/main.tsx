@@ -7,9 +7,11 @@ import { DataProvider } from './contexts/DataContext'
 import { I18nProvider } from './contexts/I18nContext'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { registerInstallPromptCapture } from './lib/pwa'
+import { installClientDiagnostics } from './lib/errorLog'
 import './styles.css'
 
 registerInstallPromptCapture()
+installClientDiagnostics()
 
 const enableServiceWorker = import.meta.env.PROD || import.meta.env.VITE_ENABLE_SW_DEV === 'true'
 if ('serviceWorker' in navigator && enableServiceWorker) {
@@ -24,18 +26,18 @@ if ('serviceWorker' in navigator && enableServiceWorker) {
         }
       })
     })
-  }).catch(console.error))
+  }).catch((error) => console.error(error)))
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AppErrorBoundary>
-        <I18nProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <I18nProvider>
             <DataProvider><App /></DataProvider>
-          </AuthProvider>
-        </I18nProvider>
+          </I18nProvider>
+        </AuthProvider>
       </AppErrorBoundary>
     </BrowserRouter>
   </StrictMode>,
