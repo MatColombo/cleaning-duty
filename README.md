@@ -1,4 +1,4 @@
-# House Care PWA — v1.1.1
+# House Care PWA — v1.1.2
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
@@ -7,6 +7,16 @@ Release notes: `docs/RELEASE_NOTES.md`.
 ## No administrator rights / no Node.js
 
 Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
+
+
+## v1.1.2 task lifecycle integrity
+
+- Prevents stale configuration saves from reopening completed/skipped tasks.
+- Repairs legacy scheduled tasks whose immutable history or target completion shows they are terminal.
+- Today treats terminal history as authoritative even before cloud repair is persisted.
+- Pending push jobs are cancelled for repaired terminal tasks, and all-complete targets cannot be re-notified.
+
+Existing cloud installations must run `supabase/migrations/20260829213000_v1_1_2_task_state_integrity.sql` once before deploying the frontend.
 
 ## v1.1.1 Today correctness release
 

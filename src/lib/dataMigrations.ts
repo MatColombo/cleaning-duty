@@ -54,6 +54,27 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
     return [{ ...event, taskId }]
   })
 
+  // v1.1.2 lifecycle repair: a stale whole-household save could previously race a
+  // Complete/Skip RPC and leave the occurrence scheduled while its target/event
+  // history was already terminal. Treat immutable history as authoritative.
+  const latestLifecycle = new Map<string, (typeof taskEvents)[number]>()
+  for (const event of taskEvents) {
+    if (!['COMPLETED', 'SKIPPED', 'CANCELLED', 'REOPENED'].includes(event.type)) continue
+    const previous = latestLifecycle.get(event.taskId)
+    if (!previous || new Date(event.at).getTime() > new Date(previous.at).getTime()) latestLifecycle.set(event.taskId, event)
+  }
+  const reconciledTasks = deduped.tasks.map((task) => {
+    if (task.state !== 'scheduled') return task
+    const lifecycle = latestLifecycle.get(task.id)
+    if (lifecycle?.type === 'COMPLETED') return { ...task, state: 'completed' as const }
+    if (lifecycle?.type === 'SKIPPED') return { ...task, state: 'skipped' as const }
+    if (lifecycle?.type === 'CANCELLED') return { ...task, state: 'cancelled' as const }
+    if (task.targets.length > 0 && task.targets.every((target) => Boolean(target.completedAt))) {
+      return { ...task, state: 'completed' as const }
+    }
+    return task
+  })
+
   return {
     ...input,
     workspace: { ...input.workspace, careSensitivity: input.workspace?.careSensitivity ?? 'balanced' },
@@ -88,7 +109,7 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
       reminder: routine.reminder ?? { mode: 'none' },
       careLevel: routine.careLevel ?? 'routine',
     }))),
-    tasks: deduped.tasks,
+    tasks: reconciledTasks,
     taskEvents: dedupeById(taskEvents),
     supplies: Array.isArray(raw.supplies) ? dedupeById((raw.supplies as WorkspaceData['supplies']).map((supply) => ({ ...supply, version: supply.version ?? 1 }))) : [],
     supplyEvents: Array.isArray(raw.supplyEvents) ? dedupeById(raw.supplyEvents as WorkspaceData['supplyEvents']) : [],

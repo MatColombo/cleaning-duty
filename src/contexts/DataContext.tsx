@@ -379,7 +379,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     setSaving(true)
     try {
-      const result = await applyCloudMutation(mutation)
+      // Runtime mutations and whole-household configuration saves share one cloud
+      // write queue. This prevents an older snapshot from landing after Complete/
+      // Skip/Postpone/Reassign and rolling the task back to stale runtime values.
+      const write = saveQueueRef.current.catch(() => undefined).then(() => applyCloudMutation(mutation))
+      saveQueueRef.current = write.then(() => undefined)
+      const result = await write
       if (result.conflict || !result.applied) recordConflict(mutation)
       await refreshFromCloud()
       setError(result.conflict ? 'A change from another device won a sync conflict. Cloud data was kept.' : null)

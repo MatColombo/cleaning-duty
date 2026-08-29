@@ -2,7 +2,7 @@ import type { AssignmentPolicy, WorkspaceData, WorkspaceMember } from '../types/
 import { normalizeWorkspaceData } from './dataMigrations'
 
 export const BACKUP_SCHEMA_VERSION = 7
-export const APPLICATION_VERSION = '1.1.1'
+export const APPLICATION_VERSION = '1.1.2'
 
 export interface HouseholdBackup {
   schema_version: number

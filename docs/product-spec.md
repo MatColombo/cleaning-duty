@@ -1,7 +1,7 @@
 # Cleaning Duties PWA — Product & Development Specification
 
-**Document version:** 2.1  
-**Status:** v1.1.1 maintenance release; source of truth  
+**Document version:** 2.2  
+**Status:** v1.1.2 maintenance release; source of truth  
 **Date:** 2026-08-29  
 **Initial deployment:** One household, two people, zero-cost target  
 **Initial languages:** English, Italian
@@ -2082,3 +2082,13 @@ Do not maintain competing product specifications unless a later architecture/des
 - Today performs an additional defensive deduplication by task ID and natural occurrence key before rendering.
 - Backup schema remains v7; application version is 1.1.1. No database migration, Edge Function, Web Push, cron, or Cloudflare variable change is required.
 
+
+### 2.2 — 2026-08-29 — v1.1.2 task lifecycle integrity
+
+- Terminal occurrence history is authoritative: a stale whole-household save cannot reopen a completed, skipped, or cancelled task with an older/equal version.
+- Client normalization repairs scheduled occurrences from terminal lifecycle events and from fully completed target snapshots.
+- Today derives effective terminal state defensively and never exposes such tasks as actionable.
+- Runtime task mutations share the cloud write queue with configuration persistence to remove the stale-save race.
+- Push scheduling cancels stale jobs first and refuses to schedule tasks whose complete target snapshot is already done.
+- Upgrade migration repairs previously affected task rows and cancels their pending reminder jobs.
+- Backup schema remains v7; application version is 1.1.2.

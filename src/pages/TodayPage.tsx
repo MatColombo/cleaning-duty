@@ -51,21 +51,29 @@ export function TodayPage() {
   const selected = data.tasks.find((task) => task.id === selectedId)
   const activePeople = data.members.filter((member) => member.status === 'active')
 
-  const terminalAtByTask = useMemo(() => {
-    const result = new Map<string, string>()
+  const terminalByTask = useMemo(() => {
+    const result = new Map<string, { at: string; type: 'COMPLETED' | 'SKIPPED' }>()
     for (const event of data.taskEvents) {
       if (event.type !== 'COMPLETED' && event.type !== 'SKIPPED') continue
       const previous = result.get(event.taskId)
-      if (!previous || new Date(event.at).getTime() > new Date(previous).getTime()) result.set(event.taskId, event.at)
+      if (!previous || new Date(event.at).getTime() > new Date(previous.at).getTime()) result.set(event.taskId, { at: event.at, type: event.type })
     }
     return result
   }, [data.taskEvents])
 
   const scopedTasks = useMemo(() => {
-    const canonical = dedupeVisibleTasks(data.tasks).filter((task) => task.state !== 'cancelled')
+    const canonical = dedupeVisibleTasks(data.tasks)
+      .map((task) => {
+        if (task.state !== 'scheduled') return task
+        const terminal = terminalByTask.get(task.id)
+        if (terminal) return { ...task, state: terminal.type === 'COMPLETED' ? 'completed' as const : 'skipped' as const }
+        if (task.targets.length > 0 && task.targets.every((target) => Boolean(target.completedAt))) return { ...task, state: 'completed' as const }
+        return task
+      })
+      .filter((task) => task.state !== 'cancelled')
     if (scope === 'household' || !currentMember) return canonical
     return canonical.filter((task) => !task.assigneeMemberId || task.assigneeMemberId === currentMember.id)
-  }, [data.tasks, currentMember, scope])
+  }, [data.tasks, currentMember, scope, terminalByTask])
 
   const dueNow = useMemo(() => scopedTasks
     .filter((task) => task.state === 'scheduled' && new Date(task.dueAt).getTime() <= now)
@@ -78,15 +86,15 @@ export function TodayPage() {
   const completedToday = useMemo(() => scopedTasks
     .filter((task) => {
       if (task.state !== 'completed' && task.state !== 'skipped') return false
-      const terminalAt = terminalAtByTask.get(task.id)
+      const terminalAt = terminalByTask.get(task.id)?.at
       const reference = terminalAt ?? task.dueAt
       return localDateInZone(timezone, new Date(reference)) === today
     })
     .sort((a, b) => {
-      const aAt = terminalAtByTask.get(a.id) ?? a.dueAt
-      const bAt = terminalAtByTask.get(b.id) ?? b.dueAt
+      const aAt = terminalByTask.get(a.id)?.at ?? a.dueAt
+      const bAt = terminalByTask.get(b.id)?.at ?? b.dueAt
       return new Date(bAt).getTime() - new Date(aAt).getTime()
-    }), [scopedTasks, terminalAtByTask, timezone, today])
+    }), [scopedTasks, terminalByTask, timezone, today])
 
   const todoCount = dueNow.length + laterToday.length
   const visibleCount = view === 'todo' ? todoCount : view === 'completed' ? completedToday.length : todoCount + completedToday.length
