@@ -1,4 +1,4 @@
-# House Care PWA — v1.1.0
+# House Care PWA — v1.1.1
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
@@ -7,6 +7,17 @@ Release notes: `docs/RELEASE_NOTES.md`.
 ## No administrator rights / no Node.js
 
 Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
+
+## v1.1.1 Today correctness release
+
+- Today defaults to **To do** and no longer mixes completed/skipped work into the normal work queue.
+- Added **To do / Completed / All** plus **For me / Household** filters.
+- Open work is separated into **Due now** and **Later today** so a newly generated next occurrence is not mistaken for the task just completed.
+- Routine name is the primary task title; Action + concrete targets are secondary context.
+- Editing a Routine retires every still-open occurrence from the previous revision, including already-overdue ones. Startup also repairs stale scheduled occurrences from superseded Routine revisions.
+- Today defensively deduplicates visible task occurrences by task ID and natural occurrence key.
+- Task details are visually distinct from the Today card and include a whole-task Complete action while the task is scheduled.
+- Frontend-only release: no Supabase SQL, Edge Function, secrets, cron, or Cloudflare-variable changes.
 
 ## v1.1.0 feature release
 

@@ -3,7 +3,7 @@ import type { Locale } from '../types/domain'
 export const translations = {
   en: {
     today: 'Today', home: 'Home', actions: 'Actions', routines: 'Routines', supplies: 'Supplies', settings: 'Settings',
-    dueToday: 'Activities for today', noTasks: 'Nothing due today.', overdue: 'Overdue', completed: 'Completed', skipped: 'Skipped',
+    dueToday: 'Activities for today', noTasks: 'Nothing due today.', overdue: 'Overdue', completed: 'Completed', skipped: 'Skipped', toDo: 'To do', completedToday: 'Completed today', noCompletedToday: 'Nothing completed today.', dueNow: 'Due now', laterToday: 'Later today', myTasks: 'For me', householdTasks: 'Household', filters: 'Today filters', taskDetails: 'Task details', routine: 'Routine',
     complete: 'Complete', more: 'More', postpone: 'Postpone', reassign: 'Reassign', skip: 'Skip', history: 'History', close: 'Close',
     household: 'Household', householdName: 'Household name', yourName: 'Your name', createHousehold: 'Create household',
     homes: 'Homes', switchHome: 'Switch home', chooseHome: 'Choose home', activeHomes: 'Active homes', currentHome: 'Current home', archivedHomes: 'Archived homes', restore: 'Restore', deletePermanently: 'Delete permanently', createAnotherHome: 'Create another home', archiveHomeConfirm: 'Archive home', deleteHomeConfirm: 'This permanently deletes the home, layout, routines, tasks and history. Type the home name exactly to confirm.', typeHomeName: 'Home name', homeManagementOnline: 'Switching to a previously cached home works offline. Creating, archiving, restoring and deleting require a connection.',
@@ -54,7 +54,7 @@ export const translations = {
   },
   it: {
     today: 'Oggi', home: 'Casa', actions: 'Azioni', routines: 'Routine', supplies: 'Scorte', settings: 'Impostazioni',
-    dueToday: 'Attività di oggi', noTasks: 'Nessuna attività prevista oggi.', overdue: 'In ritardo', completed: 'Completata', skipped: 'Saltata',
+    dueToday: 'Attività di oggi', noTasks: 'Nessuna attività prevista oggi.', overdue: 'In ritardo', completed: 'Completata', skipped: 'Saltata', toDo: 'Da fare', completedToday: 'Completate oggi', noCompletedToday: 'Nessuna attività completata oggi.', dueNow: 'Da fare ora', laterToday: 'Più tardi oggi', myTasks: 'Per me', householdTasks: 'Casa', filters: 'Filtri attività', taskDetails: 'Dettagli attività', routine: 'Routine',
     complete: 'Completa', more: 'Altro', postpone: 'Posticipa', reassign: 'Riassegna', skip: 'Salta', history: 'Cronologia', close: 'Chiudi',
     household: 'Casa', householdName: 'Nome della casa', yourName: 'Il tuo nome', createHousehold: 'Crea casa',
     homes: 'Case', switchHome: 'Cambia casa', chooseHome: 'Scegli casa', activeHomes: 'Case attive', currentHome: 'Casa corrente', archivedHomes: 'Case archiviate', restore: 'Ripristina', deletePermanently: 'Elimina definitivamente', createAnotherHome: 'Crea un’altra casa', archiveHomeConfirm: 'Archiviare la casa', deleteHomeConfirm: 'Questa operazione elimina definitivamente casa, pianta, routine, attività e cronologia. Digita esattamente il nome della casa per confermare.', typeHomeName: 'Nome casa', homeManagementOnline: 'Il passaggio a una casa già memorizzata può funzionare offline. Creazione, archiviazione, ripristino ed eliminazione richiedono una connessione.',

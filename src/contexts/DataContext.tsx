@@ -443,14 +443,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [flushOfflineQueue, loading])
 
   const cancelFutureTasks = useCallback((current: WorkspaceData, routineId: string): WorkspaceData => {
-    const now = Date.now()
     const actorMemberId = currentMember?.id
-    const routine = current.routines.find((item) => item.id === routineId)
-    const cancelAllPending = routine?.scheduleMode === 'after_completion'
     const cancelledIds: string[] = []
     const tasks = current.tasks.map((task) => {
       if (task.routineId !== routineId || task.state !== 'scheduled') return task
-      if (!cancelAllPending && new Date(task.dueAt).getTime() < now) return task
       cancelledIds.push(task.id)
       return { ...task, state: 'cancelled' as const, version: task.version + 1 }
     })

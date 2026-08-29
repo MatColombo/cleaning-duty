@@ -1,7 +1,7 @@
 # Cleaning Duties PWA — Product & Development Specification
 
-**Document version:** 2.0  
-**Status:** v1.1.0 feature release; source of truth  
+**Document version:** 2.1  
+**Status:** v1.1.1 maintenance release; source of truth  
 **Date:** 2026-08-29  
 **Initial deployment:** One household, two people, zero-cost target  
 **Initial languages:** English, Italian
@@ -2069,4 +2069,16 @@ Do not maintain competing product specifications unless a later architecture/des
 - Added per-placement visual presentation: fill color, automatically darker contour, text color, optional text background color, label position (top/center/bottom), and label rotation presets for horizontal/diagonal/vertical presentation. Existing font-size, width and wrapping controls remain.
 - Added per-scene background color. These visual settings do not alter semantic home entities, Routine targets or history.
 - Added migration `20260829190000_v1_1_dual_care_layout_style.sql`, backup schema v7, and application version 1.1.0. No notification Edge Function, Web Push secret, cron, or Cloudflare environment changes are required.
+
+### 2.1 — 2026-08-29 — v1.1.1 Today correctness and occurrence reconciliation
+
+- Reworked Today into explicit **To do / Completed / All** views. Completed/skipped work is excluded from the default queue instead of sharing the same work list.
+- Added optional **For me / Household** scope. Unassigned tasks remain visible in For me because any household member may act on them.
+- Split open work into **Due now** (including overdue work) and **Later today**, making newly generated recurrence occurrences visually distinct from the task just completed.
+- Routine name is now the primary Today title; Action and concrete target snapshots remain visible as secondary context.
+- Task details use a distinct Task Details sheet and expose whole-task Complete for scheduled tasks.
+- Routine edits now cancel all still-scheduled occurrences of the previous definition, including overdue occurrences. Completed/skipped history is never rewritten.
+- Startup/materialization automatically retires stale scheduled occurrences whose Routine revision has been superseded or archived, repairing old-time/new-time duplicates produced by earlier clients.
+- Today performs an additional defensive deduplication by task ID and natural occurrence key before rendering.
+- Backup schema remains v7; application version is 1.1.1. No database migration, Edge Function, Web Push, cron, or Cloudflare variable change is required.
 

@@ -260,6 +260,30 @@ function nextAfterCompletionDueAt(data: WorkspaceData, routine: Routine): string
   return zonedLocalToUtc(nextDate, routine.timeOfDay, data.workspace.timezone)
 }
 
+function retireSupersededScheduledTasks(input: WorkspaceData): WorkspaceData {
+  const routineById = new Map(input.routines.map((routine) => [routine.id, routine]))
+  const alreadyCancelled = new Set(input.taskEvents
+    .filter((event) => event.type === 'CANCELLED')
+    .map((event) => event.taskId))
+  const cancelledIds: string[] = []
+  const tasks = input.tasks.map((task) => {
+    if (task.state !== 'scheduled') return task
+    const routine = routineById.get(task.routineId)
+    if (routine && !routine.archivedAt && task.routineRevision === routine.revision) return task
+    cancelledIds.push(task.id)
+    return { ...task, state: 'cancelled' as const, version: task.version + 1 }
+  })
+  if (!cancelledIds.length) return input
+  const at = nowIso()
+  const events: TaskEvent[] = cancelledIds
+    .filter((taskId) => !alreadyCancelled.has(taskId))
+    .map((taskId) => ({
+      id: newId(), workspaceId: input.workspace.id, taskId, type: 'CANCELLED' as const, at,
+      metadata: { reason: 'routine_superseded' },
+    }))
+  return { ...input, tasks, taskEvents: [...input.taskEvents, ...events] }
+}
+
 function materializeAfterCompletion(data: WorkspaceData, routine: Routine): WorkspaceData {
   const existingScheduled = data.tasks.some((task) => task.routineId === routine.id && task.routineRevision === routine.revision && task.state === 'scheduled')
   if (existingScheduled) return data
@@ -272,10 +296,10 @@ function materializeAfterCompletion(data: WorkspaceData, routine: Routine): Work
 }
 
 export function materializeTasks(input: WorkspaceData, horizonDays = 45): WorkspaceData {
-  const today = localDateInZone(input.workspace.timezone)
+  let data = retireSupersededScheduledTasks(input)
+  const today = localDateInZone(data.workspace.timezone)
   const from = addDays(today, -1)
-  const activeRoutines = input.routines.filter((routine) => !routine.archivedAt)
-  let data = input
+  const activeRoutines = data.routines.filter((routine) => !routine.archivedAt)
 
   for (const routine of activeRoutines) {
     if (routine.scheduleMode === 'after_completion') {
