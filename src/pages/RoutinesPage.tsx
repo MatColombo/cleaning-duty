@@ -10,7 +10,7 @@ import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
 import { formatTaskDateTime, localDateInZone } from '../lib/date'
 import { previewDueAts } from '../lib/scheduler'
-import type { AdvancedAssignmentPolicy, AdvancedTargetSelector, AssignmentPolicy, RecurrenceRule, ReminderPolicy, Routine, ScheduleMode } from '../types/domain'
+import type { AdvancedAssignmentPolicy, AdvancedTargetSelector, AssignmentPolicy, CareLevel, RecurrenceRule, ReminderPolicy, Routine, ScheduleMode } from '../types/domain'
 import { logClientError, normalizeError } from '../lib/errorLog'
 
 const weekdayOrder = [1, 2, 3, 4, 5, 6, 0]
@@ -49,7 +49,7 @@ export function RoutinesPage() {
     const supplyNames = resolvedSupplyIds.map((id) => supplies.find((item) => item.id === id)?.name).filter(Boolean)
     return <article className="card routine-card">
       <div className="routine-top"><div><div className="eyebrow">{action?.name}</div><h2>{routine.name}</h2></div><div className="row-actions"><button className="icon-button" onClick={() => { setEditing(routine); setOpen(true) }}>{t('edit')}</button><button className="icon-button danger-text" onClick={() => void archiveRoutine(routine.id)}>{t('archive')}</button></div></div>
-      <div className="routine-details"><span>{targetNames.join(', ')}{routine.advancedTargetSelector?.conditions.length ? `${targetNames.length ? ' · ' : ''}${t('dynamicTargets')}` : ''}</span><span>{scheduleText(routine.recurrence)} · {routine.timeOfDay}</span><span>{routine.scheduleMode === 'after_completion' ? t('afterCompletion') : t('fixedCalendar')}</span><span>{assignmentText(routine.assignment)}</span>{supplyNames.length > 0 && <span>{supplyNames.join(', ')}</span>}</div>
+      <div className="routine-details"><span>{targetNames.join(', ')}{routine.advancedTargetSelector?.conditions.length ? `${targetNames.length ? ' · ' : ''}${t('dynamicTargets')}` : ''}</span><span>{scheduleText(routine.recurrence)} · {routine.timeOfDay}</span><span className={`care-level-tag ${routine.careLevel === 'deep' ? 'deep' : 'routine'}`}>{routine.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span><span>{routine.scheduleMode === 'after_completion' ? t('afterCompletion') : t('fixedCalendar')}</span><span>{assignmentText(routine.assignment)}</span>{supplyNames.length > 0 && <span>{supplyNames.join(', ')}</span>}</div>
     </article>
   }
 
@@ -64,6 +64,7 @@ export function RoutinesPage() {
 
     const [name, setName] = useState(routine?.name ?? '')
     const [actionId, setActionId] = useState(routine?.actionId ?? actions[0]?.id ?? '')
+    const [careLevel, setCareLevel] = useState<CareLevel>(routine?.careLevel ?? 'routine')
     const [targets, setTargets] = useState<string[]>(routine?.targetEntityIds ?? [])
     const [includeDescendantTargetIds, setIncludeDescendantTargetIds] = useState<string[]>(routine?.includeDescendantTargetIds ?? [])
     const [kind, setKind] = useState<BuilderKind>(initialKind)
@@ -140,7 +141,7 @@ export function RoutinesPage() {
     const previewRoutine: Routine = {
       id: routine?.id ?? 'preview', workspaceId: data!.workspace.id, name: name || 'Routine', actionId,
       targetEntityIds: targets, includeDescendantTargetIds, advancedTargetSelector, recurrence, timeOfDay: time, scheduleMode, exceptions: { excludedDates, includedDateTimes },
-      assignment, reminder, supplyIdsOverride, revision: routine?.revision ?? 1, createdAt: routine?.createdAt ?? new Date().toISOString(),
+      assignment, reminder, careLevel, supplyIdsOverride, revision: routine?.revision ?? 1, createdAt: routine?.createdAt ?? new Date().toISOString(),
     }
     const preview = previewDueAts(data!, previewRoutine, 5)
 
@@ -178,7 +179,7 @@ export function RoutinesPage() {
       const input = {
         name: name.trim() || `${action?.name ?? 'Action'} · ${target?.name ?? 'Target'}`,
         actionId, targetEntityIds: targets, includeDescendantTargetIds, advancedTargetSelector, recurrence, timeOfDay: time, scheduleMode,
-        exceptions: { excludedDates, includedDateTimes }, assignment, reminder, supplyIdsOverride,
+        exceptions: { excludedDates, includedDateTimes }, assignment, reminder, careLevel, supplyIdsOverride,
       }
       submittingRef.current = true
       setSubmitting(true)
@@ -196,7 +197,7 @@ export function RoutinesPage() {
 
     const selectedAction = actions.find((item) => item.id === actionId)
     return <Sheet title={routine ? t('edit') : t('addRoutine')} onClose={onClose}><form className="stack routine-builder" onSubmit={submit}>
-      <section className="builder-step"><div className="step-number">1</div><div className="step-content"><h3>{t('what')}</h3><FormField label={t('action')}><select required value={actionId} onChange={(e) => setActionId(e.target.value)}>{actions.map((action) => <option value={action.id} key={action.id}>{action.name}</option>)}</select></FormField><FormField label={t('name')} hint={locale === 'it' ? 'Opzionale' : 'Optional'}><input value={name} onChange={(e) => setName(e.target.value)} /></FormField></div></section>
+      <section className="builder-step"><div className="step-number">1</div><div className="step-content"><h3>{t('what')}</h3><FormField label={t('action')}><select required value={actionId} onChange={(e) => setActionId(e.target.value)}>{actions.map((action) => <option value={action.id} key={action.id}>{action.name}</option>)}</select></FormField><FormField label={t('cleaningLevel')}><div className="care-level-choice"><button type="button" className={careLevel === 'routine' ? 'choice-card selected' : 'choice-card'} onClick={() => setCareLevel('routine')}><strong>{t('routineCleaning')}</strong><small>{t('routineCleaningHint')}</small></button><button type="button" className={careLevel === 'deep' ? 'choice-card selected deep-choice' : 'choice-card deep-choice'} onClick={() => setCareLevel('deep')}><strong>{t('deepCleaning')}</strong><small>{t('deepCleaningHint')}</small></button></div></FormField><FormField label={t('name')} hint={locale === 'it' ? 'Opzionale' : 'Optional'}><input value={name} onChange={(e) => setName(e.target.value)} /></FormField></div></section>
 
       <section className="builder-step"><div className="step-number">2</div><div className="step-content"><h3>{t('where')}</h3><RoutineTargetPicker data={data!} targets={targets} includeDescendantTargetIds={includeDescendantTargetIds} onChange={(nextTargets, nextScopes) => { setTargets(nextTargets); setIncludeDescendantTargetIds(nextScopes) }} /></div></section>
 

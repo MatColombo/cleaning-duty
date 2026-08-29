@@ -43,6 +43,7 @@ export function simulateRoutine(data: WorkspaceData, routine: Routine, days = 30
       routineRevision: routine.revision,
       routineNameSnapshot: routine.name,
       actionNameSnapshot: 'Simulation',
+      careLevel: routine.careLevel ?? 'routine',
       originalDueAt: slot.dueAt,
       dueAt: slot.dueAt,
       state: 'scheduled',

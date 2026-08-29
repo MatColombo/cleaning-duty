@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { careEstimateForEntity, scheduledTasksForEntity, supplyAlertsForEntity } from '../lib/home'
 import type { LayoutElement, WorkspaceData } from '../types/domain'
 
@@ -18,6 +18,8 @@ interface Props {
   onOpenScene?: (sceneId: string) => void
   compact?: boolean
   zoom?: number
+  /** Increment to explicitly recalculate the content-fit camera. */
+  fitRequest?: number
 }
 
 type Interaction = {
@@ -32,6 +34,7 @@ type Interaction = {
 
 const VIEW_W = 1000
 const VIEW_H = 700
+const VIEW_ASPECT = VIEW_W / VIEW_H
 const GRID = 20
 
 function clamp(value: number, min: number, max: number) {
@@ -42,15 +45,74 @@ function snap(value: number, enabled: boolean) {
   return enabled ? Math.round(value / GRID) * GRID : value
 }
 
-function careClass(status: string) {
-  return `care-${status.replace('_', '-')}`
-}
-
 function polygonPoints(element: LayoutElement) {
   const points = element.points?.length && element.points.length >= 3
     ? element.points
     : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]
   return points.map((point) => `${element.x + point.x * element.width},${element.y + point.y * element.height}`).join(' ')
+}
+
+function darkenHex(value: string, amount = 0.28) {
+  const match = /^#([0-9a-f]{6})$/i.exec(value)
+  if (!match) return '#65736b'
+  const hex = match[1]
+  const channel = (offset: number) => Math.round(parseInt(hex.slice(offset, offset + 2), 16) * (1 - amount)).toString(16).padStart(2, '0')
+  return `#${channel(0)}${channel(2)}${channel(4)}`
+}
+
+function elementFill(element: LayoutElement) {
+  return element.fillColor ?? (element.role === 'area' ? '#f1f4ef' : '#ffffff')
+}
+
+function fittedBaseViewBox(elements: LayoutElement[]) {
+  if (!elements.length) return { x: 0, y: 0, width: VIEW_W, height: VIEW_H }
+  const pad = 70
+  const minX = clamp(Math.min(...elements.map((item) => item.x)) - pad, 0, VIEW_W)
+  const minY = clamp(Math.min(...elements.map((item) => item.y)) - pad, 0, VIEW_H)
+  const maxX = clamp(Math.max(...elements.map((item) => item.x + item.width)) + pad, 0, VIEW_W)
+  const maxY = clamp(Math.max(...elements.map((item) => item.y + item.height)) + pad, 0, VIEW_H)
+  let width = Math.max(260, maxX - minX)
+  let height = Math.max(182, maxY - minY)
+  const centerX = (minX + maxX) / 2
+  const centerY = (minY + maxY) / 2
+  if (width / height > VIEW_ASPECT) height = width / VIEW_ASPECT
+  else width = height * VIEW_ASPECT
+  width = Math.min(width, VIEW_W)
+  height = Math.min(height, VIEW_H)
+  return { x: clamp(centerX - width / 2, 0, VIEW_W - width), y: clamp(centerY - height / 2, 0, VIEW_H - height), width, height }
+}
+
+function zoomedViewBox(base: { x: number; y: number; width: number; height: number }, zoom: number) {
+  const safeZoom = clamp(zoom, 0.75, 2.5)
+  const centerX = base.x + base.width / 2
+  const centerY = base.y + base.height / 2
+  let width = Math.min(VIEW_W, base.width / safeZoom)
+  let height = Math.min(VIEW_H, base.height / safeZoom)
+  if (width / height > VIEW_ASPECT) height = width / VIEW_ASPECT
+  else width = height * VIEW_ASPECT
+  width = Math.min(width, VIEW_W)
+  height = Math.min(height, VIEW_H)
+  return { x: clamp(centerX - width / 2, 0, VIEW_W - width), y: clamp(centerY - height / 2, 0, VIEW_H - height), width, height }
+}
+
+function CareBars({ x, y, routine, deep }: { x: number; y: number; routine: number | null; deep?: number | null }) {
+  const barWidth = 82
+  const trackX = x + 16
+  const rows = deep == null ? [{ key: 'R', score: routine, className: 'routine' }] : [
+    { key: 'R', score: routine, className: 'routine' },
+    { key: 'D', score: deep, className: 'deep' },
+  ]
+  return <g className="care-health-bars" pointerEvents="none">
+    {rows.map((row, index) => {
+      if (row.score == null) return null
+      const rowY = y + index * 14
+      return <g key={row.key} className={`care-health-row ${row.className}`}>
+        <text x={x} y={rowY + 8}>{row.key}</text>
+        <rect className="care-health-track" x={trackX} y={rowY} width={barWidth} height="9" rx="4.5" />
+        <rect className="care-health-fill" x={trackX} y={rowY} width={barWidth * clamp(row.score / 100, 0, 1)} height="9" rx="4.5" />
+      </g>
+    })}
+  </g>
 }
 
 export function HomeLayoutCanvas({
@@ -67,6 +129,7 @@ export function HomeLayoutCanvas({
   onOpenScene,
   compact = false,
   zoom = 1,
+  fitRequest = 0,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [interaction, setInteraction] = useState<Interaction | null>(null)
@@ -75,11 +138,17 @@ export function HomeLayoutCanvas({
   const elements = useMemo(() => data.layoutElements
     .filter((item) => !item.archivedAt && item.sceneId === sceneId)
     .sort((a, b) => a.zIndex - b.zIndex), [data.layoutElements, sceneId])
+  const elementIdentityKey = elements.map((item) => item.id).join('|')
+  const [baseCamera, setBaseCamera] = useState(() => fittedBaseViewBox(elements))
+  useEffect(() => { setBaseCamera(fittedBaseViewBox(elements)) }, [sceneId, fitRequest, elementIdentityKey])
   const entities = useMemo(() => new Map(data.entities.filter((item) => !item.archivedAt).map((item) => [item.id, item])), [data.entities])
   const types = useMemo(() => new Map(data.entityTypes.filter((item) => !item.archivedAt).map((item) => [item.id, item])), [data.entityTypes])
   const displayed = draft ? elements.map((item) => item.id === draft.id ? draft : item) : elements
   const byEntity = new Map(displayed.map((item) => [item.entityId, item]))
   const relations = data.entityRelations.filter((item) => !item.archivedAt && byEntity.has(item.fromEntityId))
+  const scene = data.layoutScenes.find((item) => item.id === sceneId && !item.archivedAt)
+  const sceneBackground = scene?.backgroundColor ?? '#f8f9f6'
+  const camera = zoomedViewBox(baseCamera, zoom)
 
   function localPoint(event: ReactPointerEvent<SVGSVGElement | SVGElement>) {
     const svg = svgRef.current
@@ -113,26 +182,19 @@ export function HomeLayoutCanvas({
     const dy = point.y - interaction.startY
     const original = interaction.original
     if (interaction.mode === 'move') {
-      setDraft({
-        ...original,
-        x: clamp(original.x + dx, 0, VIEW_W - original.width),
-        y: clamp(original.y + dy, 0, VIEW_H - original.height),
-      })
+      setDraft({ ...original, x: clamp(original.x + dx, 0, VIEW_W - original.width), y: clamp(original.y + dy, 0, VIEW_H - original.height) })
       return
     }
     if (interaction.mode === 'resize') {
-      setDraft({
-        ...original,
-        width: clamp(original.width + dx, 60, VIEW_W - original.x),
-        height: clamp(original.height + dy, 50, VIEW_H - original.y),
-      })
+      setDraft({ ...original, width: clamp(original.width + dx, 60, VIEW_W - original.x), height: clamp(original.height + dy, 50, VIEW_H - original.y) })
       return
     }
     if (interaction.mode === 'vertex' && interaction.vertexIndex != null) {
       const points = [...(original.points?.length ? original.points : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }])]
-      const localX = clamp((point.x - original.x) / original.width, 0, 1)
-      const localY = clamp((point.y - original.y) / original.height, 0, 1)
-      points[interaction.vertexIndex] = { x: localX, y: localY }
+      points[interaction.vertexIndex] = {
+        x: clamp((point.x - original.x) / original.width, 0, 1),
+        y: clamp((point.y - original.y) / original.height, 0, 1),
+      }
       setDraft({ ...original, points })
     }
   }
@@ -148,12 +210,7 @@ export function HomeLayoutCanvas({
     const finalGeometry = snapToGrid ? (() => {
       const x = clamp(snap(changed.x, true), 0, VIEW_W - changed.width)
       const y = clamp(snap(changed.y, true), 0, VIEW_H - changed.height)
-      return {
-        ...changed,
-        x, y,
-        width: clamp(snap(changed.width, true), 60, VIEW_W - x),
-        height: clamp(snap(changed.height, true), 50, VIEW_H - y),
-      }
+      return { ...changed, x, y, width: clamp(snap(changed.width, true), 60, VIEW_W - x), height: clamp(snap(changed.height, true), 50, VIEW_H - y) }
     })() : changed
     await onGeometryCommit(finalGeometry.id, {
       x: finalGeometry.x, y: finalGeometry.y, width: finalGeometry.width, height: finalGeometry.height,
@@ -166,151 +223,108 @@ export function HomeLayoutCanvas({
     onSelectEntity?.(element.entityId)
   }
 
-  const safeZoom = clamp(zoom, 0.75, 2.5)
+  return <div className={`layout-canvas-wrap${compact ? ' compact' : ''}`} style={{ background: sceneBackground }}>
+    <div className="layout-scroll-frame" style={{ background: sceneBackground }}>
+      <svg
+        ref={svgRef}
+        className={`home-layout-canvas ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}`}
+        viewBox={`${camera.x} ${camera.y} ${camera.width} ${camera.height}`}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Home layout"
+        onPointerMove={moveInteraction}
+        onPointerUp={endInteraction}
+        onPointerCancel={endInteraction}
+        onPointerDown={(event) => { if (event.target === event.currentTarget) { onSelectElement?.(''); onSelectEntity?.('') } }}
+      >
+        {editMode && <defs><pattern id={`grid-${sceneId}`} width={GRID} height={GRID} patternUnits="userSpaceOnUse"><path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} className="layout-grid-line" fill="none" /></pattern></defs>}
+        <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={sceneBackground} />
+        {editMode && <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={`url(#grid-${sceneId})`} pointerEvents="none" />}
 
-  return <div className={`layout-canvas-wrap${compact ? ' compact' : ''}`}>
-    <div className="layout-scroll-frame">
-    <svg
-      ref={svgRef}
-      className={`home-layout-canvas ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}`}
-      style={{ width: `${safeZoom * 100}%` }}
-      viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-      role="img"
-      aria-label="Home layout"
-      onPointerMove={moveInteraction}
-      onPointerUp={endInteraction}
-      onPointerCancel={endInteraction}
-      onPointerDown={(event) => { if (event.target === event.currentTarget) { onSelectElement?.(''); onSelectEntity?.('') } }}
-    >
-      {editMode && <defs><pattern id={`grid-${sceneId}`} width={GRID} height={GRID} patternUnits="userSpaceOnUse"><path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} className="layout-grid-line" fill="none" /></pattern></defs>}
-      <rect x="0" y="0" width={VIEW_W} height={VIEW_H} className="layout-background" />
-      {editMode && <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={`url(#grid-${sceneId})`} pointerEvents="none" />}
-
-      <g className="layout-relations">
-        {relations.map((relation) => {
-          const from = byEntity.get(relation.fromEntityId)
-          const to = relation.toEntityId ? byEntity.get(relation.toEntityId) : undefined
-          if (!from) return null
-          const x1 = from.x + from.width / 2
-          const y1 = from.y + from.height / 2
-          if (to) {
-            const x2 = to.x + to.width / 2
-            const y2 = to.y + to.height / 2
-            return <g key={relation.id} className={`layout-relation relation-${relation.kind}`}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} />
-              <circle cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} r="10" />
-            </g>
-          }
-          if (relation.targetSceneId) {
-            const targetScene = data.layoutScenes.find((item) => item.id === relation.targetSceneId && !item.archivedAt)
-            return <g key={relation.id} className="scene-link-marker" role="button" onClick={(event) => { event.stopPropagation(); onOpenScene?.(relation.targetSceneId!) }}>
-              <circle cx={x1} cy={y1} r="18" />
-              <text x={x1} y={y1 + 5} textAnchor="middle">↕</text>
-              {!compact && <text className="scene-link-label" x={x1 + 24} y={y1 + 5}>{relation.label || targetScene?.name || ''}</text>}
-            </g>
-          }
-          return null
-        })}
-      </g>
-
-      {displayed.map((element) => {
-        const entity = entities.get(element.entityId)
-        if (!entity) return null
-        const type = types.get(entity.typeId)
-        const care = overlay === 'care' ? careEstimateForEntity(data, entity.id) : null
-        const taskCount = overlay === 'tasks' ? scheduledTasksForEntity(data, entity.id).length : 0
-        const supplyAlerts = overlay === 'supplies' ? supplyAlertsForEntity(data, entity.id).length : 0
-        const selected = selectedElementId === element.id || selectedEntityIds.has(entity.id)
-        const overlayClass = care ? careClass(care.status) : ''
-        const centerX = element.x + element.width / 2
-        const centerY = element.y + element.height / 2
-        const transform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined
-        const points = element.points?.length ? element.points : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]
-        const labelFontSize = clamp(element.labelFontSize ?? (compact ? 17 : 19), 10, 48)
-        const labelWrap = element.labelWrap ?? false
-        const labelWidth = clamp(element.labelWidth ?? Math.max(120, element.width), 40, VIEW_W)
-        const labelBaseline = element.labelPosition === 'top' ? element.y + 24 : centerY + (element.role === 'object' ? 22 : 5)
-        const labelBlockHeight = Math.max(56, labelFontSize * 4.8)
-        const resizeOffsetX = element.x + element.width <= VIEW_W - 38 ? 28 : -28
-        const resizeOffsetY = element.y + element.height <= VIEW_H - 38 ? 28 : -28
-        const resizeX = element.x + element.width + resizeOffsetX
-        const resizeY = element.y + element.height + resizeOffsetY
-        return <g
-          key={element.id}
-          className={`layout-element role-${element.role} ${overlayClass} ${selected ? 'selected' : ''}`}
-          transform={transform}
-          onClick={(event) => { event.stopPropagation(); selectElement(element) }}
-          onPointerDown={(event) => beginInteraction(event, element, 'move')}
-          role="button"
-          aria-label={entity.name}
-        >
-          {element.shape === 'polygon'
-            ? <polygon points={polygonPoints(element)} className="layout-shape" />
-            : <rect x={element.x} y={element.y} width={element.width} height={element.height} rx={element.role === 'area' ? 8 : 16} className="layout-shape" />}
-
-          {element.role === 'object' && <circle cx={centerX} cy={centerY - 14} r="18" className="object-icon-bg" />}
-          {element.role === 'object' && <text x={centerX} y={centerY - 8} textAnchor="middle" className="object-icon">{type?.icon || '·'}</text>}
-          {labelWrap ? <foreignObject
-            x={centerX - labelWidth / 2}
-            y={labelBaseline - labelFontSize}
-            width={labelWidth}
-            height={labelBlockHeight}
-            className="layout-label-foreign"
-            pointerEvents="none"
-          ><div className="layout-label-wrap" style={{ fontSize: `${labelFontSize}px` }}>{entity.name}</div></foreignObject>
-            : <text x={centerX} y={labelBaseline} textAnchor="middle" className="layout-label" style={{ fontSize: `${labelFontSize}px` }}>{entity.name}</text>}
-
-          {care && care.score != null && <g className="layout-badge care-badge">
-            <rect x={element.x + 9} y={element.y + 9} width="48" height="24" rx="12" />
-            <text x={element.x + 33} y={element.y + 26} textAnchor="middle">{care.score}</text>
-          </g>}
-          {overlay === 'tasks' && taskCount > 0 && <g className="layout-badge task-badge">
-            <circle cx={element.x + element.width - 18} cy={element.y + 18} r="15" />
-            <text x={element.x + element.width - 18} y={element.y + 23} textAnchor="middle">{taskCount}</text>
-          </g>}
-          {overlay === 'supplies' && supplyAlerts > 0 && <g className="layout-badge supply-badge">
-            <circle cx={element.x + element.width - 18} cy={element.y + 18} r="15" />
-            <text x={element.x + element.width - 18} y={element.y + 23} textAnchor="middle">{supplyAlerts}</text>
-          </g>}
-          {overlay === 'objects' && !compact && <text x={centerX} y={element.y + element.height - 12} textAnchor="middle" className="layout-type-label">{type?.name || ''}</text>}
-
-          {editMode && selected && <>
-            <rect x={element.x - 4} y={element.y - 4} width={element.width + 8} height={element.height + 8} className="selection-outline" />
-            <line x1={element.x + element.width} y1={element.y + element.height} x2={resizeX} y2={resizeY} className="resize-handle-link" pointerEvents="none" />
-            <circle
-              cx={resizeX}
-              cy={resizeY}
-              r={compact ? 28 : 54}
-              className="handle-hit-area"
-              onPointerDown={(event) => beginInteraction(event, element, 'resize')}
-            />
-            <circle
-              cx={resizeX}
-              cy={resizeY}
-              r={compact ? 13 : 18}
-              className="resize-handle handle-visual"
-              pointerEvents="none"
-            />
-            {element.shape === 'polygon' && points.map((point, index) => <g key={index}>
-              <circle
-                cx={element.x + point.x * element.width}
-                cy={element.y + point.y * element.height}
-                r={compact ? 24 : 48}
-                className="handle-hit-area"
-                onPointerDown={(event) => beginInteraction(event, element, 'vertex', index)}
-              />
-              <circle
-                cx={element.x + point.x * element.width}
-                cy={element.y + point.y * element.height}
-                r={compact ? 11 : 15}
-                className="vertex-handle handle-visual"
-                pointerEvents="none"
-              />
-            </g>)}
-          </>}
+        <g className="layout-relations">
+          {relations.map((relation) => {
+            const from = byEntity.get(relation.fromEntityId)
+            const to = relation.toEntityId ? byEntity.get(relation.toEntityId) : undefined
+            if (!from) return null
+            const x1 = from.x + from.width / 2
+            const y1 = from.y + from.height / 2
+            if (to) {
+              const x2 = to.x + to.width / 2
+              const y2 = to.y + to.height / 2
+              return <g key={relation.id} className={`layout-relation relation-${relation.kind}`}><line x1={x1} y1={y1} x2={x2} y2={y2} /><circle cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} r="10" /></g>
+            }
+            if (relation.targetSceneId) {
+              const targetScene = data.layoutScenes.find((item) => item.id === relation.targetSceneId && !item.archivedAt)
+              return <g key={relation.id} className="scene-link-marker" role="button" onClick={(event) => { event.stopPropagation(); onOpenScene?.(relation.targetSceneId!) }}><circle cx={x1} cy={y1} r="18" /><text x={x1} y={y1 + 5} textAnchor="middle">↕</text>{!compact && <text className="scene-link-label" x={x1 + 24} y={y1 + 5}>{relation.label || targetScene?.name || ''}</text>}</g>
+            }
+            return null
+          })}
         </g>
-      })}
-    </svg>
+
+        {displayed.map((element) => {
+          const entity = entities.get(element.entityId)
+          if (!entity) return null
+          const type = types.get(entity.typeId)
+          const care = overlay === 'care' ? careEstimateForEntity(data, entity.id) : null
+          const taskCount = overlay === 'tasks' ? scheduledTasksForEntity(data, entity.id).length : 0
+          const supplyAlerts = overlay === 'supplies' ? supplyAlertsForEntity(data, entity.id).length : 0
+          const selected = selectedElementId === element.id || selectedEntityIds.has(entity.id)
+          const centerX = element.x + element.width / 2
+          const centerY = element.y + element.height / 2
+          const transform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined
+          const points = element.points?.length ? element.points : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]
+          const labelFontSize = clamp(element.labelFontSize ?? (compact ? 17 : 19), 10, 48)
+          const labelWrap = element.labelWrap ?? false
+          const labelWidth = clamp(element.labelWidth ?? Math.max(120, element.width), 40, VIEW_W)
+          const labelBlockHeight = labelWrap ? Math.max(60, labelFontSize * 5) : Math.max(42, labelFontSize * 2.2)
+          const labelCenterY = element.labelPosition === 'top'
+            ? element.y + Math.max(24, labelFontSize)
+            : element.labelPosition === 'bottom'
+              ? element.y + element.height - Math.max(24, labelFontSize)
+              : centerY + (element.role === 'object' ? 24 : 0)
+          const labelRotation = clamp(element.labelRotation ?? 0, -180, 180)
+          const labelStyle: CSSProperties = {
+            fontSize: `${labelFontSize}px`, color: element.textColor ?? '#24332b', whiteSpace: labelWrap ? 'normal' : 'nowrap',
+            overflowWrap: labelWrap ? 'anywhere' : undefined, wordBreak: labelWrap ? 'break-word' : undefined,
+            textShadow: element.textBackgroundColor ? 'none' : '0 0 2px white, 0 0 2px white',
+          }
+          const fill = elementFill(element)
+          const stroke = selected ? 'var(--primary)' : darkenHex(fill)
+          const resizeOffsetX = element.x + element.width <= VIEW_W - 38 ? 28 : -28
+          const resizeOffsetY = element.y + element.height <= VIEW_H - 38 ? 28 : -28
+          const resizeX = element.x + element.width + resizeOffsetX
+          const resizeY = element.y + element.height + resizeOffsetY
+
+          return <g key={element.id} className={`layout-element role-${element.role} ${selected ? 'selected' : ''}`} transform={transform} onClick={(event) => { event.stopPropagation(); selectElement(element) }} onPointerDown={(event) => beginInteraction(event, element, 'move')} role="button" aria-label={entity.name}>
+            {element.shape === 'polygon'
+              ? <polygon points={polygonPoints(element)} className="layout-shape" style={{ fill, stroke }} />
+              : <rect x={element.x} y={element.y} width={element.width} height={element.height} rx={element.role === 'area' ? 8 : 16} className="layout-shape" style={{ fill, stroke }} />}
+
+            {element.role === 'object' && <circle cx={centerX} cy={centerY - 14} r="18" className="object-icon-bg" />}
+            {element.role === 'object' && <text x={centerX} y={centerY - 8} textAnchor="middle" className="object-icon">{type?.icon || '·'}</text>}
+
+            <foreignObject x={centerX - labelWidth / 2} y={labelCenterY - labelBlockHeight / 2} width={labelWidth} height={labelBlockHeight} className="layout-label-foreign" pointerEvents="none" transform={labelRotation ? `rotate(${labelRotation} ${centerX} ${labelCenterY})` : undefined}>
+              <div className="layout-label-wrap" style={labelStyle}><span style={{ backgroundColor: element.textBackgroundColor ?? 'transparent' }}>{entity.name}</span></div>
+            </foreignObject>
+
+            {care && (care.routine.score != null || care.deep?.score != null) && <CareBars x={element.x + 9} y={element.y + 9} routine={care.routine.score} deep={care.deep?.score} />}
+            {overlay === 'tasks' && taskCount > 0 && <g className="layout-badge task-badge"><circle cx={element.x + element.width - 18} cy={element.y + 18} r="15" /><text x={element.x + element.width - 18} y={element.y + 23} textAnchor="middle">{taskCount}</text></g>}
+            {overlay === 'supplies' && supplyAlerts > 0 && <g className="layout-badge supply-badge"><circle cx={element.x + element.width - 18} cy={element.y + 18} r="15" /><text x={element.x + element.width - 18} y={element.y + 23} textAnchor="middle">{supplyAlerts}</text></g>}
+            {overlay === 'objects' && !compact && element.labelPosition !== 'bottom' && <text x={centerX} y={element.y + element.height - 12} textAnchor="middle" className="layout-type-label">{type?.name || ''}</text>}
+
+            {editMode && selected && <>
+              <rect x={element.x - 4} y={element.y - 4} width={element.width + 8} height={element.height + 8} className="selection-outline" />
+              <line x1={element.x + element.width} y1={element.y + element.height} x2={resizeX} y2={resizeY} className="resize-handle-link" pointerEvents="none" />
+              <circle cx={resizeX} cy={resizeY} r={compact ? 28 : 54} className="handle-hit-area" onPointerDown={(event) => beginInteraction(event, element, 'resize')} />
+              <circle cx={resizeX} cy={resizeY} r={compact ? 13 : 18} className="resize-handle handle-visual" pointerEvents="none" />
+              {element.shape === 'polygon' && points.map((point, index) => <g key={index}>
+                <circle cx={element.x + point.x * element.width} cy={element.y + point.y * element.height} r={compact ? 24 : 48} className="handle-hit-area" onPointerDown={(event) => beginInteraction(event, element, 'vertex', index)} />
+                <circle cx={element.x + point.x * element.width} cy={element.y + point.y * element.height} r={compact ? 11 : 15} className="vertex-handle handle-visual" pointerEvents="none" />
+              </g>)}
+            </>}
+          </g>
+        })}
+      </svg>
     </div>
   </div>
 }

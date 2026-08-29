@@ -1,8 +1,8 @@
 import type { AssignmentPolicy, WorkspaceData, WorkspaceMember } from '../types/domain'
 import { normalizeWorkspaceData } from './dataMigrations'
 
-export const BACKUP_SCHEMA_VERSION = 6
-export const APPLICATION_VERSION = '1.0.3'
+export const BACKUP_SCHEMA_VERSION = 7
+export const APPLICATION_VERSION = '1.1.0'
 
 export interface HouseholdBackup {
   schema_version: number
@@ -32,7 +32,7 @@ export function parseHouseholdBackup(text: string): HouseholdBackup {
   try { parsed = JSON.parse(text) } catch { throw new Error('The selected file is not valid JSON.') }
   if (!isObject(parsed)) throw new Error('Invalid backup file.')
   const schemaVersion = Number(parsed.schema_version)
-  if (![2, 3, 4, 5, BACKUP_SCHEMA_VERSION].includes(schemaVersion)) {
+  if (![2, 3, 4, 5, 6, BACKUP_SCHEMA_VERSION].includes(schemaVersion)) {
     throw new Error(`Unsupported backup schema version. Supported: 2-${BACKUP_SCHEMA_VERSION}.`)
   }
   if (!isObject(parsed.data)) throw new Error('Backup data is missing.')

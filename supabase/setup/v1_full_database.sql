@@ -970,3 +970,29 @@ alter table public.layout_elements drop constraint if exists layout_elements_lab
 alter table public.layout_elements add constraint layout_elements_label_font_size_check check (label_font_size between 10 and 48);
 alter table public.layout_elements drop constraint if exists layout_elements_label_width_check;
 alter table public.layout_elements add constraint layout_elements_label_width_check check (label_width is null or label_width between 40 and 1000);
+
+-- House Care v1.1.0 — dual routine/deep care and layout presentation preferences
+alter table public.routines add column if not exists care_level text not null default 'routine';
+alter table public.routines drop constraint if exists routines_care_level_check;
+alter table public.routines add constraint routines_care_level_check check (care_level in ('routine', 'deep'));
+alter table public.task_occurrences add column if not exists care_level text not null default 'routine';
+alter table public.task_occurrences drop constraint if exists task_occurrences_care_level_check;
+alter table public.task_occurrences add constraint task_occurrences_care_level_check check (care_level in ('routine', 'deep'));
+alter table public.layout_scenes add column if not exists background_color text not null default '#f8f9f6';
+alter table public.layout_elements
+  add column if not exists label_rotation numeric not null default 0,
+  add column if not exists fill_color text,
+  add column if not exists text_color text,
+  add column if not exists text_background_color text;
+alter table public.layout_elements drop constraint if exists layout_elements_label_position_check;
+alter table public.layout_elements add constraint layout_elements_label_position_check check (label_position in ('center', 'top', 'bottom'));
+alter table public.layout_elements drop constraint if exists layout_elements_label_rotation_check;
+alter table public.layout_elements add constraint layout_elements_label_rotation_check check (label_rotation between -180 and 180);
+alter table public.layout_scenes drop constraint if exists layout_scenes_background_color_check;
+alter table public.layout_scenes add constraint layout_scenes_background_color_check check (background_color ~ '^#[0-9A-Fa-f]{6}$');
+alter table public.layout_elements drop constraint if exists layout_elements_fill_color_check;
+alter table public.layout_elements add constraint layout_elements_fill_color_check check (fill_color is null or fill_color ~ '^#[0-9A-Fa-f]{6}$');
+alter table public.layout_elements drop constraint if exists layout_elements_text_color_check;
+alter table public.layout_elements add constraint layout_elements_text_color_check check (text_color is null or text_color ~ '^#[0-9A-Fa-f]{6}$');
+alter table public.layout_elements drop constraint if exists layout_elements_text_background_color_check;
+alter table public.layout_elements add constraint layout_elements_text_background_color_check check (text_background_color is null or text_background_color ~ '^#[0-9A-Fa-f]{6}$');

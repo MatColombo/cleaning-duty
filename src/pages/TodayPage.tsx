@@ -75,7 +75,7 @@ export function TodayPage() {
       <div className="task-main">
         <div className="task-time">{formatTaskTime(task.dueAt, locale, timezone)}{overdue && <span className="status danger">{t('overdue')}</span>}{supplyAttention && <span className="status warn">{t('stock')}</span>}</div>
         <h2>{task.actionNameSnapshot} · {task.targets.map((target) => target.entityName).join(', ')}</h2>
-        <div className="task-meta">{assignee?.displayName ?? t('anyone')}{completedTargets > 0 && task.state === 'scheduled' ? ` · ${completedTargets}/${task.targets.length} ${t('targetsDone')}` : ''}</div>
+        <div className="task-meta"><span className={`care-level-tag ${task.careLevel === 'deep' ? 'deep' : 'routine'}`}>{task.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span> · {assignee?.displayName ?? t('anyone')}{completedTargets > 0 && task.state === 'scheduled' ? ` · ${completedTargets}/${task.targets.length} ${t('targetsDone')}` : ''}</div>
       </div>
       <div className="task-actions">
         {onComplete && <button className="button primary complete-button" onClick={onComplete}>{t('complete')}</button>}
@@ -89,7 +89,7 @@ export function TodayPage() {
     const [assignee, setAssignee] = useState(task.assigneeMemberId ?? '')
     return <Sheet title={task.routineNameSnapshot} onClose={onClose}>
       <div className="stack">
-        <div className="summary-block"><strong>{task.actionNameSnapshot}</strong><span>{task.targets.map((target) => `${target.entityName} · ${target.entityTypeName}`).join(', ')}</span><span>{formatTaskDateTime(task.dueAt, locale, timezone)}</span></div>
+        <div className="summary-block"><strong>{task.actionNameSnapshot}</strong><span className={`care-level-tag ${task.careLevel === 'deep' ? 'deep' : 'routine'}`}>{task.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span><span>{task.targets.map((target) => `${target.entityName} · ${target.entityTypeName}`).join(', ')}</span><span>{formatTaskDateTime(task.dueAt, locale, timezone)}</span></div>
         <section className="action-section"><div className="section-header"><h3>{t('taskTargets')}</h3><small>{task.targets.filter((target) => target.completedAt).length}/{task.targets.length}</small></div><div className="target-progress-list">{task.targets.map((target) => <div className={target.completedAt ? 'target-progress-row done' : 'target-progress-row'} key={target.entityId}><div><strong>{target.entityName}</strong><small>{target.entityTypeName}</small></div>{target.completedAt ? <span className="status">{t('completed')}</span> : task.state === 'scheduled' ? <button className="button secondary small" onClick={() => void onCompleteTarget(target.entityId)}>{t('markDone')}</button> : null}</div>)}</div></section>
         <details className="explain-box"><summary>{t('whyThisTask')}</summary><div className="stack compact-text"><div><strong>{t('schedule')}</strong><p>{task.explanation.schedule}</p></div><div><strong>{t('assignment')}</strong><p>{task.explanation.assignment}</p></div><div><strong>{t('targets')}</strong><p>{task.explanation.targetSummary}</p>{task.targets.map((target) => <p key={target.entityId}><strong>{target.entityName}:</strong> {target.matchReasons.join(' · ')}</p>)}</div></div></details>
         {task.supplies.length > 0 && <section className="action-section"><h3>{t('reportStock')}</h3><div className="task-supplies">{task.supplies.map((snapshot) => {

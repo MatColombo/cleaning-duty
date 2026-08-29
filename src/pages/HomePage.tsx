@@ -37,6 +37,7 @@ export function HomePage() {
   const [selectedEntityId, setSelectedEntityId] = useState('')
   const [snapToGrid, setSnapToGrid] = useState(false)
   const [layoutZoom, setLayoutZoom] = useState(1)
+  const [fitRequest, setFitRequest] = useState(0)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [sceneEditOpen, setSceneEditOpen] = useState(false)
   const [placementRole, setPlacementRole] = useState<LayoutRole | null>(null)
@@ -71,6 +72,8 @@ export function HomePage() {
 
   function openScene(sceneId: string) {
     setActiveSceneId(sceneId)
+    setLayoutZoom(1)
+    setFitRequest((value) => value + 1)
     setSelectedElementId('')
     setSelectedEntityId('')
   }
@@ -115,7 +118,7 @@ export function HomePage() {
         <section className="layout-card card">
           <div className="layout-zoom-controls" aria-label={t('layoutZoom')}>
             <button type="button" className="icon-button" aria-label={t('zoomOut')} title={t('zoomOut')} disabled={layoutZoom <= 0.75} onClick={() => setLayoutZoom((value) => Math.max(0.75, Math.round((value - 0.25) * 100) / 100))}>−</button>
-            <button type="button" className="zoom-readout" title={t('resetZoom')} onClick={() => setLayoutZoom(1)}>{Math.round(layoutZoom * 100)}%</button>
+            <button type="button" className="zoom-readout" title={t('fitLayout')} onClick={() => { setLayoutZoom(1); setFitRequest((value) => value + 1) }}>{Math.round(layoutZoom * 100)}%</button>
             <button type="button" className="icon-button" aria-label={t('zoomIn')} title={t('zoomIn')} disabled={layoutZoom >= 2.5} onClick={() => setLayoutZoom((value) => Math.min(2.5, Math.round((value + 0.25) * 100) / 100))}>+</button>
           </div>
           {activeScene && <HomeLayoutCanvas
@@ -130,6 +133,7 @@ export function HomePage() {
             onGeometryCommit={(id, patch) => updateLayoutElement(id, patch)}
             onOpenScene={openScene}
             zoom={layoutZoom}
+            fitRequest={fitRequest}
           />}
           {!placedOnScene.length && <div className="layout-empty-overlay">{editMode ? t('addFirstArea') : t('layoutEmpty')}</div>}
         </section>
@@ -177,9 +181,10 @@ export function HomePage() {
     const type = types.find((item) => item.id === selectedEntity.typeId)
     return <div className="stack inspector-content">
       <div><div className="eyebrow">{type?.name}</div><h2>{selectedEntity.name}</h2></div>
-      <div className={`care-summary ${selectedCare.status}`}>
-        <div><span>{t('careEstimate')}</span><strong>{careLabel(selectedCare.status)}</strong></div>
-        {selectedCare.score != null && <div className="care-score">{selectedCare.score}</div>}
+      <div className="dual-care-summary">
+        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('routineCare')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b>{selectedCare.routine.score == null ? '—' : `${selectedCare.routine.score}%`}</b></div>
+        {selectedCare.deep && <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCare')}</span><strong>{careLabel(selectedCare.deep.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep.score ?? 0}%` }} /></div><b>{selectedCare.deep.score == null ? '—' : `${selectedCare.deep.score}%`}</b></div>}
+        {selectedCare.deep && selectedCare.overallScore != null && <p className="muted compact-text care-effective-note">{t('effectiveCare')}: {selectedCare.overallScore}%</p>}
       </div>
       <section className="inspector-section">
         <div className="section-header"><h3>{t('currentTasks')}</h3><span className="count-pill small-pill">{selectedTasks.length}</span></div>
@@ -224,14 +229,23 @@ export function HomePage() {
         <div className="segmented two"><button className={selectedElement.shape === 'rect' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { shape: 'rect' })}>{t('rectangle')}</button><button className={selectedElement.shape === 'polygon' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { shape: 'polygon', points: selectedElement.points?.length ? selectedElement.points : defaultPolygon() })}>{t('polygon')}</button></div>
         {selectedElement.shape === 'polygon' && <div className="inline-fields polygon-tools"><button className="button secondary small" onClick={() => void updateLayoutElement(selectedElement.id, { points: addCorner(selectedElement.points ?? defaultPolygon()) })}>+ {t('corner')}</button><button className="button ghost small" disabled={(selectedElement.points?.length ?? 4) <= 3} onClick={() => void updateLayoutElement(selectedElement.id, { points: (selectedElement.points ?? defaultPolygon()).slice(0, -1) })}>− {t('corner')}</button></div>}
       </fieldset>
+      <fieldset className="field-group compact-group"><legend>{t('appearance')}</legend>
+        <div className="color-settings-grid">
+          <FormField label={t('objectColor')}><input type="color" value={selectedElement.fillColor ?? (selectedElement.role === 'area' ? '#f1f4ef' : '#ffffff')} onChange={(event) => void updateLayoutElement(selectedElement.id, { fillColor: event.target.value })} /></FormField>
+          <FormField label={t('textColor')}><input type="color" value={selectedElement.textColor ?? '#24332b'} onChange={(event) => void updateLayoutElement(selectedElement.id, { textColor: event.target.value })} /></FormField>
+          <FormField label={t('textBackground')}><div className="color-with-clear"><input type="color" value={selectedElement.textBackgroundColor ?? '#ffffff'} onChange={(event) => void updateLayoutElement(selectedElement.id, { textBackgroundColor: event.target.value })} /><button type="button" className="button ghost tiny" onClick={() => void updateLayoutElement(selectedElement.id, { textBackgroundColor: undefined })}>{t('none')}</button></div></FormField>
+        </div>
+        <p className="muted compact-text">{t('contourColorHint')}</p>
+      </fieldset>
       <fieldset className="field-group compact-group"><legend>{t('label')}</legend>
-        <div className="segmented two"><button className={selectedElement.labelPosition === 'center' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'center' })}>{t('center')}</button><button className={selectedElement.labelPosition === 'top' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'top' })}>{t('top')}</button></div>
+        <div className="segmented three"><button className={selectedElement.labelPosition === 'top' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'top' })}>{t('top')}</button><button className={selectedElement.labelPosition === 'center' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'center' })}>{t('center')}</button><button className={selectedElement.labelPosition === 'bottom' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'bottom' })}>{t('bottom')}</button></div>
+        <div className="label-orientation-grid" aria-label={t('textOrientation')}><button type="button" className={(selectedElement.labelRotation ?? 0) === 0 ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelRotation: 0 })}>{t('horizontal')}</button><button type="button" className={(selectedElement.labelRotation ?? 0) === -45 ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelRotation: -45 })}>↗ {t('diagonal')}</button><button type="button" className={(selectedElement.labelRotation ?? 0) === 45 ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelRotation: 45 })}>↘ {t('diagonal')}</button><button type="button" className={(selectedElement.labelRotation ?? 0) === -90 ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelRotation: -90 })}>{t('vertical')}</button></div>
         <div className="geometry-grid label-settings-grid">
           <FormField label={t('textSize')}><CommittedNumberInput value={selectedElement.labelFontSize ?? 19} min={10} max={48} onCommit={(value) => updateLayoutElement(selectedElement.id, { labelFontSize: value })} /></FormField>
-          {selectedElement.labelWrap && <FormField label={t('textWidth')}><CommittedNumberInput value={selectedElement.labelWidth ?? Math.max(120, selectedElement.width)} min={40} max={1000} onCommit={(value) => updateLayoutElement(selectedElement.id, { labelWidth: value })} /></FormField>}
+          <FormField label={t('textWidth')}><CommittedNumberInput value={selectedElement.labelWidth ?? Math.max(120, selectedElement.width)} min={40} max={1000} onCommit={(value) => updateLayoutElement(selectedElement.id, { labelWidth: value })} /></FormField>
         </div>
         <label className="snap-toggle label-wrap-toggle"><input type="checkbox" checked={selectedElement.labelWrap ?? false} onChange={(event) => void updateLayoutElement(selectedElement.id, { labelWrap: event.target.checked })} /> {t('wrapText')}</label>
-        {selectedElement.labelWrap && <p className="muted compact-text">{t('wrapTextHint')}</p>}
+        <p className="muted compact-text">{selectedElement.labelWrap ? t('wrapTextHint') : t('textOverflowHint')}</p>
       </fieldset>
       {relations.length > 0 && <section className="inspector-section"><h3>{t('connections')}</h3><div className="mini-list">{relations.map((relation) => <div className="mini-list-row" key={relation.id}><span>{relation.kind}{relation.label ? ` · ${relation.label}` : ''}</span><button className="icon-button danger-text" onClick={() => void archiveEntityRelation(relation.id)}>×</button></div>)}</div></section>}
       <div className="action-section stack tight-stack">
@@ -264,10 +278,12 @@ export function HomePage() {
     const scene = activeScene
     const [name, setName] = useState(scene.name)
     const [kind, setKind] = useState<LayoutSceneKind>(scene.kind)
-    async function submit(event: FormEvent) { event.preventDefault(); await updateLayoutScene(scene.id, { name: name.trim(), kind }); onClose() }
+    const [backgroundColor, setBackgroundColor] = useState(scene.backgroundColor ?? '#f8f9f6')
+    async function submit(event: FormEvent) { event.preventDefault(); await updateLayoutScene(scene.id, { name: name.trim(), kind, backgroundColor }); onClose() }
     return <Sheet title={t('sceneSettings')} onClose={onClose}><form className="stack" onSubmit={submit}>
       <FormField label={t('name')}><input required value={name} onChange={(event) => setName(event.target.value)} /></FormField>
       <FormField label={t('sceneType')}><div className="segmented two"><button type="button" className={kind === 'floor' ? 'selected' : ''} onClick={() => setKind('floor')}>{t('floor')}</button><button type="button" className={kind === 'outdoor' ? 'selected' : ''} onClick={() => setKind('outdoor')}>{t('outdoor')}</button></div></FormField>
+      <FormField label={t('layoutBackground')}><input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} /></FormField>
       <div className="two-columns"><button type="button" className="button secondary" onClick={() => void updateLayoutScene(scene.id, { order: scene.order - 1 })}>{t('moveEarlier')}</button><button type="button" className="button secondary" onClick={() => void updateLayoutScene(scene.id, { order: scene.order + 1 })}>{t('moveLater')}</button></div>
       <button className="button primary">{t('save')}</button>
       <button type="button" className="button danger-outline" onClick={() => { if (window.confirm(t('confirmRemoveScene'))) { void archiveLayoutScene(scene.id); onClose() } }}>{t('removeScene')}</button>

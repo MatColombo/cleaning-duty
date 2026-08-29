@@ -1,4 +1,4 @@
-# House Care PWA — v1.0.3
+# House Care PWA — v1.1.0
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
@@ -8,14 +8,16 @@ Release notes: `docs/RELEASE_NOTES.md`.
 
 Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
 
-## v1.0.3 maintenance fixes
+## v1.1.0 feature release
 
-- Deduplicates every cloud bulk-upsert payload by its database conflict key, including legacy task/event/target data, preventing PostgreSQL `21000` startup failures caused by repeated rows in one request.
-- Persistence errors now identify the exact table in local Diagnostics.
-- Home layout has in-canvas 75–250% zoom buttons; browser/page zoom is not changed.
-- Per-placement labels support text size, optional wrapping, and configurable wrap width. Wrapped single words may break anywhere, and label width may extend beyond the object boundary.
-- Polygon resize uses a dedicated bounding-box handle separated from vertex handles, fixing the corner/resize gesture collision.
-- Requires one small Supabase SQL migration for the new label preference columns. No Edge Function, secret, cron, or Cloudflare-variable change is required.
+- Adds two care dimensions: **Routine care** for short-term upkeep and optional **Deep care** for long-term condition. Deep care appears only where an active Deep-cleaning Routine targets the place/item.
+- Routine creation now has one simple **Cleaning level** choice. Existing Routines and Tasks remain Routine cleaning after upgrade.
+- Deep-clean completion refreshes both care dimensions; Routine cleaning restores only Routine care. Effective care is derived so neglected Deep care reduces overall condition without hiding a freshly completed Routine clean.
+- Home cockpit and layout Care overlay show stacked game-style Routine/Deep health bars.
+- Home layout automatically centers and fits placed content when a scene opens; the 100% button refits the content. Zoom remains internal to the layout canvas.
+- Rooms/items can have fill color, automatically darker contour, text color, optional text background, label position (top/center/bottom), and label orientation (horizontal/diagonal/vertical).
+- Each floor/outdoor scene can have its own background color.
+- Requires one Supabase SQL migration. No Edge Function, push-secret, cron, or Cloudflare-variable changes are required.
 
 ## v1 scope
 
@@ -25,7 +27,7 @@ Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudfla
 - Simple assignment by default; optional advanced no-code targeting/assignment
 - Today workflow: Complete, partial target Done, Skip, Postpone, Reassign
 - Qualitative-first Supplies and stock history
-- Home cockpit with derived care status, task and supply overlays
+- Home cockpit with dual Routine/Deep care health bars, task and supply overlays
 - English / Italian
 - PWA install, Web Push, badges, offline daily actions and conflict-safe sync
 - JSON export/import
@@ -77,7 +79,7 @@ npm run deploy
 
 ## Backup
 
-**Settings → Backup → Export JSON**. v1 exports backup schema v6 and imports schemas v2-v6. Push subscriptions and derived notification jobs are runtime state and are excluded.
+**Settings → Backup → Export JSON**. v1.1 exports backup schema v7 and imports schemas v2-v7. Push subscriptions and derived notification jobs are runtime state and are excluded.
 
 ## Release boundary
 

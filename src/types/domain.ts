@@ -1,5 +1,6 @@
 export type Locale = 'en' | 'it'
 export type CareSensitivity = 'relaxed' | 'balanced' | 'strict'
+export type CareLevel = 'routine' | 'deep'
 export type MemberRole = 'owner' | 'member'
 export type MemberStatus = 'active' | 'invited'
 export type AdvancedAssignmentStrategy = 'round_robin' | 'least_recent' | 'weighted' | 'workload'
@@ -106,6 +107,8 @@ export interface LayoutScene {
   name: string
   kind: LayoutSceneKind
   order: number
+  /** Visual canvas background only. */
+  backgroundColor?: string
   archivedAt?: string
   createdAt: string
 }
@@ -134,11 +137,17 @@ export interface LayoutElement {
   zIndex: number
   /** Polygon points are local to the element box and stored as 0..1 ratios. */
   points?: LayoutPoint[]
-  labelPosition: 'center' | 'top'
+  labelPosition: 'center' | 'top' | 'bottom'
   /** Visual label preferences belong to the placement, not the semantic entity. */
   labelFontSize?: number
   labelWrap?: boolean
   labelWidth?: number
+  /** Label rotation in degrees: 0 horizontal, +/-45 diagonal, -90 vertical. */
+  labelRotation?: number
+  /** Optional per-placement presentation colors. Contour is derived darker from fillColor. */
+  fillColor?: string
+  textColor?: string
+  textBackgroundColor?: string
   archivedAt?: string
   createdAt: string
 }
@@ -241,6 +250,8 @@ export interface Routine {
   exceptions: ScheduleExceptions
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
+  /** Whether this routine maintains short-term or long-term/deep care. */
+  careLevel: CareLevel
   /** undefined = inherit Action defaults; [] = explicitly no supplies. */
   supplyIdsOverride?: string[]
   revision: number
@@ -276,6 +287,8 @@ export interface TaskOccurrence {
   routineRevision: number
   routineNameSnapshot: string
   actionNameSnapshot: string
+  /** Snapshot so historical care semantics do not change when a routine is edited. */
+  careLevel: CareLevel
   originalDueAt: string
   dueAt: string
   state: TaskState

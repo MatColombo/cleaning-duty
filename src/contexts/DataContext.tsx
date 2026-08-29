@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
   ActionDefinition,
+  CareLevel,
   AssignmentPolicy,
   Entity,
   EntityRelation,
@@ -58,11 +59,12 @@ interface RoutineInput {
   exceptions: ScheduleExceptions
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
+  careLevel: CareLevel
   supplyIdsOverride?: string[]
 }
 interface SupplyInput { name: string; icon?: string; status: StockStatus; quantity?: number; unit?: string; metadata: Record<string, MetadataValue> }
 interface FieldInput { target: MetadataTarget; name: string; fieldType: MetadataFieldType; options: string[] }
-interface LayoutElementInput { sceneId: string; entityId: string; role: LayoutRole; shape: LayoutShape; x: number; y: number; width: number; height: number; rotation: number; zIndex: number; points?: LayoutPoint[]; labelPosition: 'center' | 'top'; labelFontSize?: number; labelWrap?: boolean; labelWidth?: number }
+interface LayoutElementInput { sceneId: string; entityId: string; role: LayoutRole; shape: LayoutShape; x: number; y: number; width: number; height: number; rotation: number; zIndex: number; points?: LayoutPoint[]; labelPosition: 'center' | 'top' | 'bottom'; labelFontSize?: number; labelWrap?: boolean; labelWidth?: number; labelRotation?: number; fillColor?: string; textColor?: string; textBackgroundColor?: string }
 interface RelationInput { fromEntityId: string; toEntityId?: string; targetSceneId?: string; kind: RelationKind; label?: string }
 
 interface DataValue {
@@ -96,10 +98,10 @@ interface DataValue {
   updateEntity: (id: string, input: EntityInput) => Promise<void>
   archiveEntity: (id: string) => Promise<void>
   addLayoutScene: (name: string, kind: LayoutSceneKind) => Promise<string>
-  updateLayoutScene: (id: string, patch: Partial<Pick<LayoutScene, 'name' | 'kind' | 'order'>>) => Promise<void>
+  updateLayoutScene: (id: string, patch: Partial<Pick<LayoutScene, 'name' | 'kind' | 'order' | 'backgroundColor'>>) => Promise<void>
   archiveLayoutScene: (id: string) => Promise<void>
   addLayoutElement: (input: LayoutElementInput) => Promise<string>
-  updateLayoutElement: (id: string, patch: Partial<Pick<LayoutElement, 'sceneId' | 'shape' | 'x' | 'y' | 'width' | 'height' | 'rotation' | 'zIndex' | 'points' | 'labelPosition' | 'labelFontSize' | 'labelWrap' | 'labelWidth'>>) => Promise<void>
+  updateLayoutElement: (id: string, patch: Partial<Pick<LayoutElement, 'sceneId' | 'shape' | 'x' | 'y' | 'width' | 'height' | 'rotation' | 'zIndex' | 'points' | 'labelPosition' | 'labelFontSize' | 'labelWrap' | 'labelWidth' | 'labelRotation' | 'fillColor' | 'textColor' | 'textBackgroundColor'>>) => Promise<void>
   archiveLayoutElement: (id: string) => Promise<void>
   addEntityRelation: (input: RelationInput) => Promise<string>
   archiveEntityRelation: (id: string) => Promise<void>

@@ -1,8 +1,8 @@
 # Cleaning Duties PWA — Product & Development Specification
 
-**Document version:** 1.6  
-**Status:** v1.0 baseline complete; source of truth for maintenance  
-**Date:** 2026-08-28  
+**Document version:** 2.0  
+**Status:** v1.1.0 feature release; source of truth  
+**Date:** 2026-08-29  
 **Initial deployment:** One household, two people, zero-cost target  
 **Initial languages:** English, Italian
 
@@ -2056,3 +2056,17 @@ Do not maintain competing product specifications unless a later architecture/des
 - Added per-placement label font size, optional wrapping, and configurable wrapping width. Wrapping uses anywhere-break behavior so a single long word can wrap; label width may exceed object width so readability is not constrained to the object boundary.
 - Fixed polygon resizing after adding/moving vertices by moving bounding-box resize interaction away from polygon vertex handles. Width/height continue to scale normalized polygon points as a group.
 - Added migration `20260829183000_v1_0_3_layout_labels.sql` for the three visual label preference columns. Backup schema remains v6 and application version is 1.0.3.
+
+### 2.0 — 2026-08-29 — v1.1.0 dual care + layout presentation
+
+- Added one simple Routine classification: **Routine cleaning** or **Deep cleaning**. The classification is snapshotted onto generated Tasks so later Routine edits never reinterpret historical work. Existing Routines/Tasks migrate as Routine cleaning.
+- Split cockpit care into two derived dimensions. **Routine care** represents short-term upkeep. **Deep care** represents slower long-term condition and exists only when at least one active Deep Routine resolves to the selected entity/subtree. Places without Deep Routines do not show a meaningless Deep bar.
+- A completed Deep task can refresh the Routine physical-care estimate for the same scope without mutating or falsely completing older Routine task records. Routine completion never restores Deep care.
+- Effective overall condition is derived internally from Routine care and Deep deterioration (`Routine × (0.5 + 0.5 × Deep)` with normalized percentages when both dimensions exist). Users see health bars and status, not the formula or coefficients.
+- Care aggregation remains target-aware: a parent area aggregates only concrete Routine/Deep work that resolves into its subtree; descendants with no Deep requirement do not create Deep-care obligations. Partial target completion is respected per scope.
+- Added stacked game-style Routine/Deep health bars to the Home layout Care overlay and explicit dual bars in the selected-area inspector.
+- Added content-fit Home layout camera behavior. Opening a scene centers/fits its current placements with padding; zoom controls operate only on the SVG camera, and the 100% control recomputes the fit.
+- Added per-placement visual presentation: fill color, automatically darker contour, text color, optional text background color, label position (top/center/bottom), and label rotation presets for horizontal/diagonal/vertical presentation. Existing font-size, width and wrapping controls remain.
+- Added per-scene background color. These visual settings do not alter semantic home entities, Routine targets or history.
+- Added migration `20260829190000_v1_1_dual_care_layout_style.sql`, backup schema v7, and application version 1.1.0. No notification Edge Function, Web Push secret, cron, or Cloudflare environment changes are required.
+

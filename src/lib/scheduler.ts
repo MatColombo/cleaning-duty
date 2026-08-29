@@ -195,6 +195,7 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
     routineRevision: routine.revision,
     routineNameSnapshot: routine.name,
     actionNameSnapshot: action.name,
+    careLevel: routine.careLevel ?? 'routine',
     originalDueAt: dueAt,
     dueAt,
     state: 'scheduled' as const,
@@ -211,7 +212,7 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
   }
   const events: TaskEvent[] = [{
     id: newId(), workspaceId: data.workspace.id, taskId, type: 'TASK_CREATED' as const,
-    at: createdAt, metadata: { routineRevision: routine.revision, scheduleMode: routine.scheduleMode },
+    at: createdAt, metadata: { routineRevision: routine.revision, scheduleMode: routine.scheduleMode, careLevel: routine.careLevel ?? 'routine' },
   }]
   if (assigneeMemberId) {
     events.push({

@@ -41,6 +41,7 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
     ...task,
     targets: (task.targets ?? []).map((target) => ({ ...target, matchReasons: target.matchReasons ?? ['Legacy explicit target'] })),
     supplies: task.supplies ?? [],
+    careLevel: task.careLevel ?? 'routine',
     explanation: task.explanation ?? { schedule: 'Created by the saved routine schedule.', assignment: task.assigneeMemberId ? 'Assigned by the saved routine policy.' : 'No automatic assignee.', targetSummary: 'Targets were captured when this task was created.' },
   }))
   const deduped = dedupeTasks(normalizedTasks)
@@ -60,12 +61,16 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
     fieldDefinitions: Array.isArray(raw.fieldDefinitions) ? dedupeById(raw.fieldDefinitions as WorkspaceData['fieldDefinitions']) : [],
     entityTypes: dedupeById(input.entityTypes ?? []),
     entities: dedupeById((input.entities ?? []).map((entity) => ({ ...entity, metadata: entity.metadata ?? {} }))),
-    layoutScenes: Array.isArray(raw.layoutScenes) ? dedupeById(raw.layoutScenes as WorkspaceData['layoutScenes']) : [],
+    layoutScenes: Array.isArray(raw.layoutScenes) ? dedupeById((raw.layoutScenes as WorkspaceData['layoutScenes']).map((scene) => ({ ...scene, backgroundColor: scene.backgroundColor }))) : [],
     layoutElements: Array.isArray(raw.layoutElements) ? dedupeById((raw.layoutElements as WorkspaceData['layoutElements']).map((element) => ({
       ...element,
       labelFontSize: element.labelFontSize ?? 19,
       labelWrap: element.labelWrap ?? false,
       labelWidth: element.labelWidth,
+      labelRotation: element.labelRotation ?? 0,
+      fillColor: element.fillColor,
+      textColor: element.textColor,
+      textBackgroundColor: element.textBackgroundColor,
     }))) : [],
     entityRelations: Array.isArray(raw.entityRelations) ? dedupeById(raw.entityRelations as WorkspaceData['entityRelations']) : [],
     actions: dedupeById((input.actions ?? []).map((action) => ({
@@ -81,6 +86,7 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
       exceptions: routine.exceptions ?? { excludedDates: [], includedDateTimes: [] },
       assignment: routine.assignment?.mode === 'advanced' ? { mode: 'advanced', strategy: routine.assignment.strategy ?? 'round_robin', memberIds: routine.assignment.memberIds ?? [], requiredMemberLabels: routine.assignment.requiredMemberLabels ?? [], excludeUnavailable: routine.assignment.excludeUnavailable ?? true, weights: routine.assignment.weights ?? {} } : routine.assignment,
       reminder: routine.reminder ?? { mode: 'none' },
+      careLevel: routine.careLevel ?? 'routine',
     }))),
     tasks: deduped.tasks,
     taskEvents: dedupeById(taskEvents),

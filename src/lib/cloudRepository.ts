@@ -134,14 +134,15 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
     })),
     layoutScenes: layoutScenes.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, name: row.name, kind: row.scene_kind, order: row.scene_order,
-      archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
+      backgroundColor: row.background_color ?? undefined, archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     layoutElements: layoutElements.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, sceneId: row.scene_id, entityId: row.entity_id, role: row.layout_role ?? 'object', shape: row.shape,
       x: Number(row.x), y: Number(row.y), width: Number(row.width), height: Number(row.height), rotation: Number(row.rotation),
       zIndex: row.z_index, points: row.points ?? undefined, labelPosition: row.label_position ?? 'center',
       labelFontSize: row.label_font_size == null ? 19 : Number(row.label_font_size), labelWrap: row.label_wrap ?? false,
-      labelWidth: row.label_width == null ? undefined : Number(row.label_width),
+      labelWidth: row.label_width == null ? undefined : Number(row.label_width), labelRotation: row.label_rotation == null ? 0 : Number(row.label_rotation),
+      fillColor: row.fill_color ?? undefined, textColor: row.text_color ?? undefined, textBackgroundColor: row.text_background_color ?? undefined,
       archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     entityRelations: entityRelations.map((row) => ({
@@ -169,12 +170,12 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       includeDescendantTargetIds: routineTargets.filter((target) => target.routine_id === row.id && target.include_descendants).map((target) => target.entity_id),
       recurrence: row.recurrence, timeOfDay: String(row.time_of_day).slice(0, 5),
       scheduleMode: row.schedule_mode ?? 'fixed', exceptions: row.schedule_exceptions ?? { excludedDates: [], includedDateTimes: [] },
-      assignment: row.assignment, advancedTargetSelector: row.advanced_target_selector ?? undefined, reminder: row.reminder ?? { mode: 'none' }, supplyIdsOverride: row.supply_ids_override ?? undefined,
+      assignment: row.assignment, advancedTargetSelector: row.advanced_target_selector ?? undefined, reminder: row.reminder ?? { mode: 'none' }, careLevel: row.care_level ?? 'routine', supplyIdsOverride: row.supply_ids_override ?? undefined,
       revision: row.revision, archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     tasks: tasks.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, routineId: row.routine_id, routineRevision: row.routine_revision,
-      routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot,
+      routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot, careLevel: row.care_level ?? 'routine',
       originalDueAt: row.original_due_at, dueAt: row.due_at, state: row.state,
       assigneeMemberId: row.assignee_member_id ?? undefined,
       targets: taskTargets.filter((target) => target.task_id === row.id).map((target) => ({
@@ -253,7 +254,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
   }
   if (data.layoutScenes.length) {
     const { error } = await db.from('layout_scenes').upsert(dedupeBy(data.layoutScenes, (row) => row.id).map((row) => ({
-      id: row.id, workspace_id: workspaceId, name: row.name, scene_kind: row.kind, scene_order: row.order,
+      id: row.id, workspace_id: workspaceId, name: row.name, scene_kind: row.kind, scene_order: row.order, background_color: row.backgroundColor ?? '#f8f9f6',
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
     if (error) throw persistenceError('layout_scenes', error)
@@ -263,7 +264,8 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
       id: row.id, workspace_id: workspaceId, scene_id: row.sceneId, entity_id: row.entityId, layout_role: row.role, shape: row.shape,
       x: row.x, y: row.y, width: row.width, height: row.height, rotation: row.rotation, z_index: row.zIndex,
       points: row.points ?? null, label_position: row.labelPosition, label_font_size: row.labelFontSize ?? 19,
-      label_wrap: row.labelWrap ?? false, label_width: row.labelWidth ?? null, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
+      label_wrap: row.labelWrap ?? false, label_width: row.labelWidth ?? null, label_rotation: row.labelRotation ?? 0,
+      fill_color: row.fillColor ?? null, text_color: row.textColor ?? null, text_background_color: row.textBackgroundColor ?? null, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
     if (error) throw persistenceError('layout_elements', error)
   }
@@ -302,7 +304,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
     const { error } = await db.from('routines').upsert(dedupeBy(data.routines, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, action_id: row.actionId,
       recurrence: row.recurrence, time_of_day: row.timeOfDay, schedule_mode: row.scheduleMode,
-      schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder,
+      schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder, care_level: row.careLevel ?? 'routine',
       supply_ids_override: row.supplyIdsOverride ?? null, revision: row.revision,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
@@ -311,7 +313,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
   if (data.tasks.length) {
     const { error } = await db.from('task_occurrences').upsert(dedupeBy(data.tasks, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, routine_id: row.routineId, routine_revision: row.routineRevision,
-      routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot,
+      routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot, care_level: row.careLevel ?? 'routine',
       original_due_at: row.originalDueAt, due_at: row.dueAt, state: row.state,
       assignee_member_id: row.assigneeMemberId ?? null, supplies_snapshot: row.supplies, explanation_snapshot: row.explanation,
       version: row.version, created_at: row.createdAt,

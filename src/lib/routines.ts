@@ -1,4 +1,4 @@
-import type { AdvancedTargetSelector, AssignmentPolicy, RecurrenceRule, ReminderPolicy, ScheduleExceptions, ScheduleMode } from '../types/domain'
+import type { AdvancedTargetSelector, AssignmentPolicy, CareLevel, RecurrenceRule, ReminderPolicy, ScheduleExceptions, ScheduleMode } from '../types/domain'
 
 export interface RoutineDefinitionLike {
   name: string
@@ -12,6 +12,7 @@ export interface RoutineDefinitionLike {
   exceptions: ScheduleExceptions
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
+  careLevel: CareLevel
   supplyIdsOverride?: string[]
 }
 
@@ -40,6 +41,7 @@ export function routineDefinitionFingerprint(input: RoutineDefinitionLike): stri
     },
     assignment,
     reminder: input.reminder,
+    careLevel: input.careLevel,
     supplyIdsOverride: sorted(input.supplyIdsOverride),
   })
 }
