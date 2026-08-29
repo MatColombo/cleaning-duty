@@ -17,6 +17,7 @@ interface Props {
   onGeometryCommit?: (elementId: string, patch: Partial<LayoutElement>) => void | Promise<void>
   onOpenScene?: (sceneId: string) => void
   compact?: boolean
+  zoom?: number
 }
 
 type Interaction = {
@@ -65,6 +66,7 @@ export function HomeLayoutCanvas({
   onGeometryCommit,
   onOpenScene,
   compact = false,
+  zoom = 1,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [interaction, setInteraction] = useState<Interaction | null>(null)
@@ -164,10 +166,14 @@ export function HomeLayoutCanvas({
     onSelectEntity?.(element.entityId)
   }
 
+  const safeZoom = clamp(zoom, 0.75, 2.5)
+
   return <div className={`layout-canvas-wrap${compact ? ' compact' : ''}`}>
+    <div className="layout-scroll-frame">
     <svg
       ref={svgRef}
       className={`home-layout-canvas ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}`}
+      style={{ width: `${safeZoom * 100}%` }}
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       role="img"
       aria-label="Home layout"
@@ -220,6 +226,15 @@ export function HomeLayoutCanvas({
         const centerY = element.y + element.height / 2
         const transform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined
         const points = element.points?.length ? element.points : [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]
+        const labelFontSize = clamp(element.labelFontSize ?? (compact ? 17 : 19), 10, 48)
+        const labelWrap = element.labelWrap ?? false
+        const labelWidth = clamp(element.labelWidth ?? Math.max(120, element.width), 40, VIEW_W)
+        const labelBaseline = element.labelPosition === 'top' ? element.y + 24 : centerY + (element.role === 'object' ? 22 : 5)
+        const labelBlockHeight = Math.max(56, labelFontSize * 4.8)
+        const resizeOffsetX = element.x + element.width <= VIEW_W - 38 ? 28 : -28
+        const resizeOffsetY = element.y + element.height <= VIEW_H - 38 ? 28 : -28
+        const resizeX = element.x + element.width + resizeOffsetX
+        const resizeY = element.y + element.height + resizeOffsetY
         return <g
           key={element.id}
           className={`layout-element role-${element.role} ${overlayClass} ${selected ? 'selected' : ''}`}
@@ -235,7 +250,15 @@ export function HomeLayoutCanvas({
 
           {element.role === 'object' && <circle cx={centerX} cy={centerY - 14} r="18" className="object-icon-bg" />}
           {element.role === 'object' && <text x={centerX} y={centerY - 8} textAnchor="middle" className="object-icon">{type?.icon || '·'}</text>}
-          <text x={centerX} y={element.labelPosition === 'top' ? element.y + 24 : centerY + (element.role === 'object' ? 22 : 5)} textAnchor="middle" className="layout-label">{entity.name}</text>
+          {labelWrap ? <foreignObject
+            x={centerX - labelWidth / 2}
+            y={labelBaseline - labelFontSize}
+            width={labelWidth}
+            height={labelBlockHeight}
+            className="layout-label-foreign"
+            pointerEvents="none"
+          ><div className="layout-label-wrap" style={{ fontSize: `${labelFontSize}px` }}>{entity.name}</div></foreignObject>
+            : <text x={centerX} y={labelBaseline} textAnchor="middle" className="layout-label" style={{ fontSize: `${labelFontSize}px` }}>{entity.name}</text>}
 
           {care && care.score != null && <g className="layout-badge care-badge">
             <rect x={element.x + 9} y={element.y + 9} width="48" height="24" rx="12" />
@@ -253,16 +276,17 @@ export function HomeLayoutCanvas({
 
           {editMode && selected && <>
             <rect x={element.x - 4} y={element.y - 4} width={element.width + 8} height={element.height + 8} className="selection-outline" />
+            <line x1={element.x + element.width} y1={element.y + element.height} x2={resizeX} y2={resizeY} className="resize-handle-link" pointerEvents="none" />
             <circle
-              cx={element.x + element.width}
-              cy={element.y + element.height}
-              r={compact ? 28 : 58}
+              cx={resizeX}
+              cy={resizeY}
+              r={compact ? 28 : 54}
               className="handle-hit-area"
               onPointerDown={(event) => beginInteraction(event, element, 'resize')}
             />
             <circle
-              cx={element.x + element.width}
-              cy={element.y + element.height}
+              cx={resizeX}
+              cy={resizeY}
               r={compact ? 13 : 18}
               className="resize-handle handle-visual"
               pointerEvents="none"
@@ -287,5 +311,6 @@ export function HomeLayoutCanvas({
         </g>
       })}
     </svg>
+    </div>
   </div>
 }

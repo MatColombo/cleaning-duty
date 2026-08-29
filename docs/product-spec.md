@@ -2047,3 +2047,12 @@ Do not maintain competing product specifications unless a later architecture/des
 - Added bounded local-only diagnostics: maximum 40 entries, 30-second repeat grouping, recent UI action context, route/home/user/online context, and no form-value/password capture. Diagnostics are never sent to Supabase.
 - No database migration is required; application version is 1.0.2 and backup schema remains v6.
 
+
+### 1.9 — 2026-08-29 — v1.0.3 maintenance release
+
+- Hardened cloud persistence against legacy/cached duplicate records by deduplicating every bulk upsert payload using its actual conflict key before sending it to Supabase. Task/routine target payloads are deduplicated by their composite keys, and persisted failures now identify the exact table in local Diagnostics.
+- Kept duplicate repair client-side and non-destructive: existing database history is not mass-deleted or rewritten merely because an old client produced repeated in-memory rows.
+- Added Home-layout zoom controls from 75% to 250% with a one-tap reset to 100%. Zoom affects only the SVG layout canvas, never browser/page zoom.
+- Added per-placement label font size, optional wrapping, and configurable wrapping width. Wrapping uses anywhere-break behavior so a single long word can wrap; label width may exceed object width so readability is not constrained to the object boundary.
+- Fixed polygon resizing after adding/moving vertices by moving bounding-box resize interaction away from polygon vertex handles. Width/height continue to scale normalized polygon points as a group.
+- Added migration `20260829183000_v1_0_3_layout_labels.sql` for the three visual label preference columns. Backup schema remains v6 and application version is 1.0.3.

@@ -1,5 +1,11 @@
 import type { TaskOccurrence, WorkspaceData } from '../types/domain'
 
+function dedupeById<T extends { id: string }>(rows: T[]): T[] {
+  const byId = new Map<string, T>()
+  for (const row of rows) byId.set(row.id, row)
+  return [...byId.values()]
+}
+
 function compareTasks(a: TaskOccurrence, b: TaskOccurrence): number {
   const stateRank = (task: TaskOccurrence) => task.state === 'completed' ? 4 : task.state === 'skipped' ? 3 : task.state === 'scheduled' ? 2 : 1
   const byState = stateRank(a) - stateRank(b)
@@ -50,19 +56,24 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
   return {
     ...input,
     workspace: { ...input.workspace, careSensitivity: input.workspace?.careSensitivity ?? 'balanced' },
-    members: (input.members ?? []).map((member) => ({ ...member, labels: member.labels ?? [], unavailableUntil: member.unavailableUntil ?? undefined })),
-    fieldDefinitions: Array.isArray(raw.fieldDefinitions) ? raw.fieldDefinitions as WorkspaceData['fieldDefinitions'] : [],
-    entityTypes: input.entityTypes ?? [],
-    entities: (input.entities ?? []).map((entity) => ({ ...entity, metadata: entity.metadata ?? {} })),
-    layoutScenes: Array.isArray(raw.layoutScenes) ? raw.layoutScenes as WorkspaceData['layoutScenes'] : [],
-    layoutElements: Array.isArray(raw.layoutElements) ? raw.layoutElements as WorkspaceData['layoutElements'] : [],
-    entityRelations: Array.isArray(raw.entityRelations) ? raw.entityRelations as WorkspaceData['entityRelations'] : [],
-    actions: (input.actions ?? []).map((action) => ({
+    members: dedupeById((input.members ?? []).map((member) => ({ ...member, labels: member.labels ?? [], unavailableUntil: member.unavailableUntil ?? undefined }))),
+    fieldDefinitions: Array.isArray(raw.fieldDefinitions) ? dedupeById(raw.fieldDefinitions as WorkspaceData['fieldDefinitions']) : [],
+    entityTypes: dedupeById(input.entityTypes ?? []),
+    entities: dedupeById((input.entities ?? []).map((entity) => ({ ...entity, metadata: entity.metadata ?? {} }))),
+    layoutScenes: Array.isArray(raw.layoutScenes) ? dedupeById(raw.layoutScenes as WorkspaceData['layoutScenes']) : [],
+    layoutElements: Array.isArray(raw.layoutElements) ? dedupeById((raw.layoutElements as WorkspaceData['layoutElements']).map((element) => ({
+      ...element,
+      labelFontSize: element.labelFontSize ?? 19,
+      labelWrap: element.labelWrap ?? false,
+      labelWidth: element.labelWidth,
+    }))) : [],
+    entityRelations: Array.isArray(raw.entityRelations) ? dedupeById(raw.entityRelations as WorkspaceData['entityRelations']) : [],
+    actions: dedupeById((input.actions ?? []).map((action) => ({
       ...action,
       defaultSupplyIds: action.defaultSupplyIds ?? [],
       metadata: action.metadata ?? {},
-    })),
-    routines: (input.routines ?? []).map((routine) => ({
+    }))),
+    routines: dedupeById((input.routines ?? []).map((routine) => ({
       ...routine,
       includeDescendantTargetIds: routine.includeDescendantTargetIds ?? [],
       advancedTargetSelector: routine.advancedTargetSelector?.conditions?.length ? routine.advancedTargetSelector : undefined,
@@ -70,10 +81,10 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
       exceptions: routine.exceptions ?? { excludedDates: [], includedDateTimes: [] },
       assignment: routine.assignment?.mode === 'advanced' ? { mode: 'advanced', strategy: routine.assignment.strategy ?? 'round_robin', memberIds: routine.assignment.memberIds ?? [], requiredMemberLabels: routine.assignment.requiredMemberLabels ?? [], excludeUnavailable: routine.assignment.excludeUnavailable ?? true, weights: routine.assignment.weights ?? {} } : routine.assignment,
       reminder: routine.reminder ?? { mode: 'none' },
-    })),
+    }))),
     tasks: deduped.tasks,
-    taskEvents,
-    supplies: Array.isArray(raw.supplies) ? (raw.supplies as WorkspaceData['supplies']).map((supply) => ({ ...supply, version: supply.version ?? 1 })) : [],
-    supplyEvents: Array.isArray(raw.supplyEvents) ? raw.supplyEvents as WorkspaceData['supplyEvents'] : [],
+    taskEvents: dedupeById(taskEvents),
+    supplies: Array.isArray(raw.supplies) ? dedupeById((raw.supplies as WorkspaceData['supplies']).map((supply) => ({ ...supply, version: supply.version ?? 1 }))) : [],
+    supplyEvents: Array.isArray(raw.supplyEvents) ? dedupeById(raw.supplyEvents as WorkspaceData['supplyEvents']) : [],
   }
 }

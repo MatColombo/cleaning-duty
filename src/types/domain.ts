@@ -135,6 +135,10 @@ export interface LayoutElement {
   /** Polygon points are local to the element box and stored as 0..1 ratios. */
   points?: LayoutPoint[]
   labelPosition: 'center' | 'top'
+  /** Visual label preferences belong to the placement, not the semantic entity. */
+  labelFontSize?: number
+  labelWrap?: boolean
+  labelWidth?: number
   archivedAt?: string
   createdAt: string
 }

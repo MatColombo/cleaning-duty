@@ -36,6 +36,7 @@ export function HomePage() {
   const [selectedElementId, setSelectedElementId] = useState('')
   const [selectedEntityId, setSelectedEntityId] = useState('')
   const [snapToGrid, setSnapToGrid] = useState(false)
+  const [layoutZoom, setLayoutZoom] = useState(1)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [sceneEditOpen, setSceneEditOpen] = useState(false)
   const [placementRole, setPlacementRole] = useState<LayoutRole | null>(null)
@@ -112,6 +113,11 @@ export function HomePage() {
 
       <div className="home-workspace">
         <section className="layout-card card">
+          <div className="layout-zoom-controls" aria-label={t('layoutZoom')}>
+            <button type="button" className="icon-button" aria-label={t('zoomOut')} title={t('zoomOut')} disabled={layoutZoom <= 0.75} onClick={() => setLayoutZoom((value) => Math.max(0.75, Math.round((value - 0.25) * 100) / 100))}>−</button>
+            <button type="button" className="zoom-readout" title={t('resetZoom')} onClick={() => setLayoutZoom(1)}>{Math.round(layoutZoom * 100)}%</button>
+            <button type="button" className="icon-button" aria-label={t('zoomIn')} title={t('zoomIn')} disabled={layoutZoom >= 2.5} onClick={() => setLayoutZoom((value) => Math.min(2.5, Math.round((value + 0.25) * 100) / 100))}>+</button>
+          </div>
           {activeScene && <HomeLayoutCanvas
             data={data}
             sceneId={activeScene.id}
@@ -123,6 +129,7 @@ export function HomePage() {
             onSelectEntity={setSelectedEntityId}
             onGeometryCommit={(id, patch) => updateLayoutElement(id, patch)}
             onOpenScene={openScene}
+            zoom={layoutZoom}
           />}
           {!placedOnScene.length && <div className="layout-empty-overlay">{editMode ? t('addFirstArea') : t('layoutEmpty')}</div>}
         </section>
@@ -219,6 +226,12 @@ export function HomePage() {
       </fieldset>
       <fieldset className="field-group compact-group"><legend>{t('label')}</legend>
         <div className="segmented two"><button className={selectedElement.labelPosition === 'center' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'center' })}>{t('center')}</button><button className={selectedElement.labelPosition === 'top' ? 'selected' : ''} onClick={() => void updateLayoutElement(selectedElement.id, { labelPosition: 'top' })}>{t('top')}</button></div>
+        <div className="geometry-grid label-settings-grid">
+          <FormField label={t('textSize')}><CommittedNumberInput value={selectedElement.labelFontSize ?? 19} min={10} max={48} onCommit={(value) => updateLayoutElement(selectedElement.id, { labelFontSize: value })} /></FormField>
+          {selectedElement.labelWrap && <FormField label={t('textWidth')}><CommittedNumberInput value={selectedElement.labelWidth ?? Math.max(120, selectedElement.width)} min={40} max={1000} onCommit={(value) => updateLayoutElement(selectedElement.id, { labelWidth: value })} /></FormField>}
+        </div>
+        <label className="snap-toggle label-wrap-toggle"><input type="checkbox" checked={selectedElement.labelWrap ?? false} onChange={(event) => void updateLayoutElement(selectedElement.id, { labelWrap: event.target.checked })} /> {t('wrapText')}</label>
+        {selectedElement.labelWrap && <p className="muted compact-text">{t('wrapTextHint')}</p>}
       </fieldset>
       {relations.length > 0 && <section className="inspector-section"><h3>{t('connections')}</h3><div className="mini-list">{relations.map((relation) => <div className="mini-list-row" key={relation.id}><span>{relation.kind}{relation.label ? ` · ${relation.label}` : ''}</span><button className="icon-button danger-text" onClick={() => void archiveEntityRelation(relation.id)}>×</button></div>)}</div></section>}
       <div className="action-section stack tight-stack">

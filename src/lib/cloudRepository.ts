@@ -10,6 +10,20 @@ function client() {
   return supabase
 }
 
+function dedupeBy<T>(rows: T[], keyOf: (row: T) => string): T[] {
+  const unique = new Map<string, T>()
+  for (const row of rows) unique.set(keyOf(row), row)
+  return [...unique.values()]
+}
+
+function persistenceError(table: string, error: unknown): Error {
+  const record = error && typeof error === 'object' ? error as Record<string, unknown> : undefined
+  const message = typeof record?.message === 'string' ? record.message : String(error)
+  const code = typeof record?.code === 'string' ? ` (${record.code})` : ''
+  const detail = typeof record?.details === 'string' && record.details ? ` — ${record.details}` : ''
+  return new Error(`Could not save ${table}${code}: ${message}${detail}`, { cause: error })
+}
+
 export async function listCloudWorkspaces(user: User): Promise<WorkspaceSummary[]> {
   const db = client()
   const { error: claimError } = await db.rpc('claim_workspace_invites')
@@ -126,6 +140,8 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       id: row.id, workspaceId: row.workspace_id, sceneId: row.scene_id, entityId: row.entity_id, role: row.layout_role ?? 'object', shape: row.shape,
       x: Number(row.x), y: Number(row.y), width: Number(row.width), height: Number(row.height), rotation: Number(row.rotation),
       zIndex: row.z_index, points: row.points ?? undefined, labelPosition: row.label_position ?? 'center',
+      labelFontSize: row.label_font_size == null ? 19 : Number(row.label_font_size), labelWrap: row.label_wrap ?? false,
+      labelWidth: row.label_width == null ? undefined : Number(row.label_width),
       archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     entityRelations: entityRelations.map((row) => ({
@@ -204,129 +220,130 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
       id: workspaceId, name: data.workspace.name, timezone: data.workspace.timezone, care_sensitivity: data.workspace.careSensitivity,
       owner_user_id: data.workspace.ownerUserId ?? null, created_at: data.workspace.createdAt,
     })
-    if (workspaceError) throw workspaceError
+    if (workspaceError) throw persistenceError('workspaces', workspaceError)
     if (data.members.length) {
-      const { error } = await db.from('workspace_members').upsert(data.members.map((row) => ({
+      const { error } = await db.from('workspace_members').upsert(dedupeBy(data.members, (row) => row.id).map((row) => ({
         id: row.id, workspace_id: workspaceId, user_id: row.userId ?? null, display_name: row.displayName,
         email: row.email ?? null, role: row.role, status: row.status, labels: row.labels, unavailable_until: row.unavailableUntil ?? null, created_at: row.createdAt,
       })))
-      if (error) throw error
+      if (error) throw persistenceError('workspace_members', error)
     }
   }
 
   if (data.fieldDefinitions.length) {
-    const { error } = await db.from('metadata_field_definitions').upsert(data.fieldDefinitions.map((row) => ({
+    const { error } = await db.from('metadata_field_definitions').upsert(dedupeBy(data.fieldDefinitions, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, target: row.target, name: row.name, field_type: row.fieldType,
       options: row.options, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('metadata_field_definitions', error)
   }
   if (data.entityTypes.length) {
-    const { error } = await db.from('entity_types').upsert(data.entityTypes.map((row) => ({
+    const { error } = await db.from('entity_types').upsert(dedupeBy(data.entityTypes, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, icon: row.icon ?? null,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('entity_types', error)
   }
   if (data.entities.length) {
-    const { error } = await db.from('entities').upsert(data.entities.map((row) => ({
+    const { error } = await db.from('entities').upsert(dedupeBy(data.entities, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, type_id: row.typeId, parent_id: row.parentId ?? null,
       name: row.name, labels: row.labels, metadata: row.metadata, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('entities', error)
   }
   if (data.layoutScenes.length) {
-    const { error } = await db.from('layout_scenes').upsert(data.layoutScenes.map((row) => ({
+    const { error } = await db.from('layout_scenes').upsert(dedupeBy(data.layoutScenes, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, scene_kind: row.kind, scene_order: row.order,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('layout_scenes', error)
   }
   if (data.layoutElements.length) {
-    const { error } = await db.from('layout_elements').upsert(data.layoutElements.map((row) => ({
+    const { error } = await db.from('layout_elements').upsert(dedupeBy(data.layoutElements, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, scene_id: row.sceneId, entity_id: row.entityId, layout_role: row.role, shape: row.shape,
       x: row.x, y: row.y, width: row.width, height: row.height, rotation: row.rotation, z_index: row.zIndex,
-      points: row.points ?? null, label_position: row.labelPosition, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
+      points: row.points ?? null, label_position: row.labelPosition, label_font_size: row.labelFontSize ?? 19,
+      label_wrap: row.labelWrap ?? false, label_width: row.labelWidth ?? null, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('layout_elements', error)
   }
   if (data.entityRelations.length) {
-    const { error } = await db.from('entity_relations').upsert(data.entityRelations.map((row) => ({
+    const { error } = await db.from('entity_relations').upsert(dedupeBy(data.entityRelations, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, from_entity_id: row.fromEntityId, to_entity_id: row.toEntityId ?? null,
       target_scene_id: row.targetSceneId ?? null, relation_kind: row.kind, label: row.label ?? null,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('entity_relations', error)
   }
   if (data.supplies.length) {
-    const { error } = await db.from('supplies').upsert(data.supplies.map((row) => ({
+    const { error } = await db.from('supplies').upsert(dedupeBy(data.supplies, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, icon: row.icon ?? null, status: row.status,
       quantity: row.quantity ?? null, unit: row.unit ?? null, metadata: row.metadata, version: row.version,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('supplies', error)
   }
   if (data.supplyEvents.length) {
-    const { error } = await db.from('supply_events').upsert(data.supplyEvents.map((row) => ({
+    const { error } = await db.from('supply_events').upsert(dedupeBy(data.supplyEvents, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, supply_id: row.supplyId, event_type: row.type,
       event_at: row.at, actor_member_id: row.actorMemberId ?? null, metadata: row.metadata,
     })), { onConflict: 'id', ignoreDuplicates: true })
-    if (error) throw error
+    if (error) throw persistenceError('supply_events', error)
   }
   if (data.actions.length) {
-    const { error } = await db.from('action_definitions').upsert(data.actions.map((row) => ({
+    const { error } = await db.from('action_definitions').upsert(dedupeBy(data.actions, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, icon: row.icon ?? null,
       instructions: row.instructions ?? null, default_supply_ids: row.defaultSupplyIds, metadata: row.metadata,
       revision: row.revision, archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('action_definitions', error)
   }
   if (data.routines.length) {
-    const { error } = await db.from('routines').upsert(data.routines.map((row) => ({
+    const { error } = await db.from('routines').upsert(dedupeBy(data.routines, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, action_id: row.actionId,
       recurrence: row.recurrence, time_of_day: row.timeOfDay, schedule_mode: row.scheduleMode,
       schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder,
       supply_ids_override: row.supplyIdsOverride ?? null, revision: row.revision,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('routines', error)
   }
   if (data.tasks.length) {
-    const { error } = await db.from('task_occurrences').upsert(data.tasks.map((row) => ({
+    const { error } = await db.from('task_occurrences').upsert(dedupeBy(data.tasks, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, routine_id: row.routineId, routine_revision: row.routineRevision,
       routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot,
       original_due_at: row.originalDueAt, due_at: row.dueAt, state: row.state,
       assignee_member_id: row.assigneeMemberId ?? null, supplies_snapshot: row.supplies, explanation_snapshot: row.explanation,
       version: row.version, created_at: row.createdAt,
     })))
-    if (error) throw error
+    if (error) throw persistenceError('task_occurrences', error)
   }
   if (data.taskEvents.length) {
-    const { error } = await db.from('task_events').upsert(data.taskEvents.map((row) => ({
+    const { error } = await db.from('task_events').upsert(dedupeBy(data.taskEvents, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, task_id: row.taskId, event_type: row.type,
       event_at: row.at, actor_member_id: row.actorMemberId ?? null, metadata: row.metadata,
     })), { onConflict: 'id', ignoreDuplicates: true })
-    if (error) throw error
+    if (error) throw persistenceError('task_events', error)
   }
 
   const { error: deleteRoutineTargetsError } = await db.from('routine_targets').delete().eq('workspace_id', workspaceId)
-  if (deleteRoutineTargetsError) throw deleteRoutineTargetsError
-  const routineTargets = data.routines.flatMap((routine) => routine.targetEntityIds.map((entityId) => ({
+  if (deleteRoutineTargetsError) throw persistenceError('routine_targets cleanup', deleteRoutineTargetsError)
+  const routineTargets = dedupeBy(data.routines.flatMap((routine) => routine.targetEntityIds.map((entityId) => ({
     workspace_id: workspaceId, routine_id: routine.id, entity_id: entityId,
     include_descendants: routine.includeDescendantTargetIds.includes(entityId),
-  })))
+  }))), (row) => `${row.routine_id}:${row.entity_id}`)
   if (routineTargets.length) {
     const { error } = await db.from('routine_targets').insert(routineTargets)
-    if (error) throw error
+    if (error) throw persistenceError('routine_targets', error)
   }
 
-  const taskTargets = data.tasks.flatMap((task) => task.targets.map((target) => ({
+  const taskTargets = dedupeBy(data.tasks.flatMap((task) => task.targets.map((target) => ({
     workspace_id: workspaceId, task_id: task.id, entity_id: target.entityId,
     entity_name_snapshot: target.entityName, entity_type_name_snapshot: target.entityTypeName, match_reasons: target.matchReasons, completed_at: target.completedAt ?? null, completed_by_member_id: target.completedByMemberId ?? null,
-  })))
+  }))), (row) => `${row.task_id}:${row.entity_id}`)
   if (taskTargets.length) {
     const { error } = await db.from('task_targets').upsert(taskTargets, { onConflict: 'task_id,entity_id', ignoreDuplicates: true })
-    if (error) throw error
+    if (error) throw persistenceError('task_targets', error)
   }
 }
 

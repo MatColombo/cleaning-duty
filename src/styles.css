@@ -519,3 +519,22 @@ textarea { resize: vertical; }
   .app-error-banner { align-items: flex-start; flex-direction: column; }
   .runtime-actions { align-self: flex-end; }
 }
+
+/* v1.0.3 — in-layout zoom, readable labels and polygon resize affordance */
+.layout-scroll-frame { width: 100%; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; background: #f8f9f6; }
+.layout-scroll-frame .home-layout-canvas { max-width: none; transform-origin: top left; }
+.layout-zoom-controls { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 42px; padding: 5px 8px; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / .94); }
+.layout-zoom-controls .icon-button { width: 34px; height: 34px; min-width: 34px; min-height: 34px; font-size: 1.1rem; }
+.zoom-readout { min-width: 62px; min-height: 34px; padding: .35rem .55rem; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font-size: .76rem; font-weight: 800; }
+.layout-label-foreign { overflow: visible; pointer-events: none; }
+.layout-label-wrap { width: 100%; color: #24332b; font-weight: 750; line-height: 1.08; text-align: center; overflow-wrap: anywhere; word-break: break-word; text-shadow: 0 0 2px white, 0 0 2px white, 0 0 2px white; pointer-events: none; }
+.resize-handle-link { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; opacity: .75; }
+.label-settings-grid { margin-top: 4px; }
+.label-wrap-toggle { padding-left: 0; }
+.home-layout-canvas.editing { touch-action: pan-x pan-y; }
+.home-layout-canvas.editing .layout-element, .home-layout-canvas.editing .handle-hit-area { touch-action: none; }
+
+@media (max-width: 520px) {
+  .layout-zoom-controls { position: sticky; left: 0; right: 0; z-index: 3; }
+  .zoom-readout { min-width: 58px; }
+}

@@ -1,4 +1,4 @@
-# House Care PWA — v1.0.2
+# House Care PWA — v1.0.3
 
 Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
 Release notes: `docs/RELEASE_NOTES.md`.
@@ -8,13 +8,14 @@ Release notes: `docs/RELEASE_NOTES.md`.
 
 Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
 
-## v1.0.2 maintenance fixes
+## v1.0.3 maintenance fixes
 
-- Mobile home switcher is rendered as a safe-area-aware bottom sheet outside the sticky header.
-- Last home and language are remembered per cloud account; if no saved home is valid, the newest active home opens automatically.
-- Routine creation is guarded against accidental duplicate submits; generated Task occurrence IDs are deterministic and cached duplicate occurrences are normalized.
-- Client diagnostics are local-only, capped at 40 entries, group repeated errors, and record page/home/connection plus recent UI actions without storing form values.
-- No database migration, Edge Function change, secret change, or Cloudflare variable change is required for v1.0.2.
+- Deduplicates every cloud bulk-upsert payload by its database conflict key, including legacy task/event/target data, preventing PostgreSQL `21000` startup failures caused by repeated rows in one request.
+- Persistence errors now identify the exact table in local Diagnostics.
+- Home layout has in-canvas 75–250% zoom buttons; browser/page zoom is not changed.
+- Per-placement labels support text size, optional wrapping, and configurable wrap width. Wrapped single words may break anywhere, and label width may extend beyond the object boundary.
+- Polygon resize uses a dedicated bounding-box handle separated from vertex handles, fixing the corner/resize gesture collision.
+- Requires one small Supabase SQL migration for the new label preference columns. No Edge Function, secret, cron, or Cloudflare-variable change is required.
 
 ## v1 scope
 
@@ -53,7 +54,7 @@ The production stack is Supabase + Cloudflare Workers Static Assets + Web Push.
 
 ## Database migrations
 
-The v1 package contains six timestamped migrations under `supabase/migrations/` so a fresh project can use:
+The package contains timestamped migrations under `supabase/migrations/` so a fresh project can use:
 
 ```bash
 npx supabase@latest link --project-ref YOUR_PROJECT_REF

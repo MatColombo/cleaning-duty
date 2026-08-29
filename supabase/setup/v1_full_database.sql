@@ -960,3 +960,13 @@ revoke all on function public.delete_workspace_permanently(uuid) from public;
 grant execute on function public.archive_workspace(uuid) to authenticated;
 grant execute on function public.restore_workspace(uuid) to authenticated;
 grant execute on function public.delete_workspace_permanently(uuid) to authenticated;
+
+-- House Care v1.0.3 — layout label preferences
+alter table public.layout_elements
+  add column if not exists label_font_size numeric not null default 19,
+  add column if not exists label_wrap boolean not null default false,
+  add column if not exists label_width numeric;
+alter table public.layout_elements drop constraint if exists layout_elements_label_font_size_check;
+alter table public.layout_elements add constraint layout_elements_label_font_size_check check (label_font_size between 10 and 48);
+alter table public.layout_elements drop constraint if exists layout_elements_label_width_check;
+alter table public.layout_elements add constraint layout_elements_label_width_check check (label_width is null or label_width between 40 and 1000);
