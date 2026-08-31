@@ -63,14 +63,32 @@ function undoTaskMutation(current: WorkspaceData, mutation: OfflineMutation & { 
 function reopenTaskToToday(current: WorkspaceData, mutation: OfflineMutation & { kind: 'reopen_today' }): WorkspaceData {
   const task = current.tasks.find((item) => item.id === mutation.taskId)
   if (!task) return current
-  const source = mutation.sourceEventId ? current.taskEvents.find((event) => event.id === mutation.sourceEventId && event.taskId === mutation.taskId) : undefined
-  const latest = current.taskEvents
+
+  // Restore-to-today is a durable recovery action, not a short-lived Undo.
+  // Derive the action to reverse from the current canonical task state/history
+  // instead of requiring the client to name the exact latest event id. This
+  // keeps offline/cloud behavior stable when equally-timed lifecycle events or
+  // a refreshed cache reorder the event list.
+  const workflow = current.taskEvents
     .filter((event) => event.taskId === task.id && ['COMPLETED', 'SKIPPED', 'POSTPONED', 'REOPENED'].includes(event.type))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
-  if (source) {
-    if (!['COMPLETED', 'SKIPPED', 'POSTPONED'].includes(source.type) || !latest || latest.id !== source.id) return current
-  } else if (task.state !== 'completed' && task.state !== 'skipped') return current
-  const sourceType = source?.type ?? (task.state === 'completed' ? 'COMPLETED' : 'SKIPPED')
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))
+
+  let source = undefined as typeof workflow[number] | undefined
+  let sourceType: 'COMPLETED' | 'SKIPPED' | 'POSTPONED'
+  const latestWorkflow = workflow[0]
+  if (latestWorkflow?.type === 'COMPLETED' || latestWorkflow?.type === 'SKIPPED' || latestWorkflow?.type === 'POSTPONED') {
+    // Lifecycle history is authoritative. This also repairs the common stale-row
+    // case where the occurrence row still says scheduled after Skip/Complete.
+    source = latestWorkflow
+    sourceType = latestWorkflow.type
+  } else if (latestWorkflow?.type === 'REOPENED') {
+    return current
+  } else if (task.state === 'completed' || task.state === 'skipped') {
+    // Legacy terminal rows can exist without a lifecycle event.
+    sourceType = task.state === 'completed' ? 'COMPLETED' : 'SKIPPED'
+  } else {
+    return current
+  }
 
   const occurrenceSnapshotIds = new Set(current.completionSnapshots.filter((snapshot) => snapshot.occurrenceId === task.id).map((snapshot) => snapshot.id))
   let healthTrajectories = current.healthTrajectories
@@ -102,10 +120,11 @@ function reopenTaskToToday(current: WorkspaceData, mutation: OfflineMutation & {
       actorMemberId: mutation.actorMemberId, metadata: { reason: 'restore_to_today_successor', restoreOf: source?.id ?? null },
     })), {
       id: mutation.eventId, workspaceId: current.workspace.id, taskId: task.id, type: 'REOPENED', at: mutation.eventAt,
-      actorMemberId: mutation.actorMemberId, metadata: { restoreOf: source?.id ?? null, restoreType: sourceType, reason: 'restore_to_today' },
+      actorMemberId: mutation.actorMemberId, metadata: { restoreOf: source?.id ?? null, requestedRestoreOf: mutation.sourceEventId ?? null, restoreType: sourceType, reason: 'restore_to_today' },
     }],
   }
 }
+
 
 export function applyMutationLocally(current: WorkspaceData, mutation: OfflineMutation): WorkspaceData {
   if (mutation.kind === 'undo') return undoTaskMutation(current, mutation as OfflineMutation & { kind: 'undo' })

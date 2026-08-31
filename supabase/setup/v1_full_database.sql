@@ -1763,12 +1763,14 @@ set search_path = public
 as $$
 declare
   task_row public.task_occurrences%rowtype;
+  workflow_event public.task_events%rowtype;
   source_event public.task_events%rowtype;
-  latest_reversible_id uuid;
   source_type text;
   source_at timestamptz;
+  authoritative_source_id uuid;
   actor_member uuid;
   successor_id uuid;
+  new_version integer;
 begin
   select * into task_row
   from public.task_occurrences
@@ -1783,39 +1785,32 @@ begin
     return jsonb_build_object('applied', true, 'conflict', false, 'actualVersion', task_row.version);
   end if;
 
-  if source_event_id is not null then
-    select * into source_event
-    from public.task_events
-    where id = source_event_id
-      and task_id = target_task_id;
+  select * into workflow_event
+  from public.task_events e
+  where e.task_id = target_task_id
+    and e.event_type in ('COMPLETED', 'SKIPPED', 'POSTPONED', 'REOPENED')
+  order by e.event_at desc, e.id desc
+  limit 1;
 
-    if not found or source_event.event_type not in ('COMPLETED', 'SKIPPED', 'POSTPONED') then
-      return jsonb_build_object('applied', false, 'conflict', true, 'actualVersion', task_row.version);
-    end if;
-
-    select e.id into latest_reversible_id
-    from public.task_events e
-    where e.task_id = target_task_id
-      and e.event_type in ('COMPLETED', 'SKIPPED', 'POSTPONED', 'REOPENED')
-    order by e.event_at desc, e.id desc
-    limit 1;
-
-    if latest_reversible_id is distinct from source_event_id then
-      return jsonb_build_object('applied', false, 'conflict', true, 'actualVersion', task_row.version);
-    end if;
-
-    source_type := source_event.event_type;
-    source_at := source_event.event_at;
-  else
-    -- Legacy rows may have terminal task state without a corresponding lifecycle
-    -- event. Restoring them is still safe because this operation locks and reuses
-    -- the existing occurrence instead of creating another one.
-    if task_row.state not in ('completed', 'skipped') then
-      return jsonb_build_object('applied', false, 'conflict', true, 'actualVersion', task_row.version);
-    end if;
-
+  -- Lifecycle history is authoritative when present. This deliberately
+  -- mirrors Overview's canonical task-state rule and fixes the stale-row case
+  -- where task_occurrences still says scheduled after a committed Skip/Complete.
+  if found and workflow_event.event_type in ('COMPLETED', 'SKIPPED', 'POSTPONED') then
+    source_event := workflow_event;
+    source_type := workflow_event.event_type;
+    authoritative_source_id := workflow_event.id;
+    source_at := workflow_event.event_at;
+  elsif found and workflow_event.event_type = 'REOPENED' then
+    -- It is already actionable; restoring it again would be a true conflict.
+    return jsonb_build_object('applied', false, 'conflict', true, 'actualVersion', task_row.version);
+  elsif task_row.state in ('completed', 'skipped') then
+    -- Legacy terminal rows may have no lifecycle event at all. The locked row is
+    -- sufficient evidence and the existing occurrence is still reused.
     source_type := upper(task_row.state);
+    authoritative_source_id := null;
     source_at := coalesce(task_row.completed_at, task_row.effective_due_at, task_row.due_at, event_at);
+  else
+    return jsonb_build_object('applied', false, 'conflict', true, 'actualVersion', task_row.version);
   end if;
 
   select id into actor_member
@@ -1826,14 +1821,13 @@ begin
   limit 1;
 
   if source_type = 'COMPLETED' then
-    -- Restoring a fully completed activity means all of its targets are to do again.
     update public.task_targets
     set completed_at = null,
         completed_by_member_id = null
     where task_id = target_task_id;
 
-    -- Remove only live anchors currently owned by this occurrence. Completion
-    -- snapshots remain immutable audit records for Analysis/history.
+    -- Completion snapshots remain immutable audit records; only the currently
+    -- live health trajectory effect belonging to this occurrence is removed.
     delete from public.health_trajectories h
     where h.last_refresh_completion_id in (
       select c.id
@@ -1848,11 +1842,9 @@ begin
       effective_due_at = event_at,
       due_at = event_at,
       version = version + 1
-  where id = target_task_id;
+  where id = target_task_id
+  returning version into new_version;
 
-  -- Completion-relative routines create a successor as a consequence of Complete
-  -- or Skip. Reopening the source retires the currently actionable successor so
-  -- the routine cannot expose two simultaneous to-do rows.
   if source_type in ('COMPLETED', 'SKIPPED') and exists (
     select 1 from public.routines r
     where r.id = task_row.routine_id
@@ -1872,7 +1864,7 @@ begin
       insert into public.task_events(id, workspace_id, task_id, event_type, event_at, actor_member_id, metadata)
       values (
         gen_random_uuid(), task_row.workspace_id, successor_id, 'CANCELLED', event_at, actor_member,
-        jsonb_build_object('reason', 'restore_to_today_successor', 'restoreOf', source_event_id)
+        jsonb_build_object('reason', 'restore_to_today_successor', 'restoreOf', authoritative_source_id)
       );
     end loop;
   end if;
@@ -1880,10 +1872,16 @@ begin
   insert into public.task_events(id, workspace_id, task_id, event_type, event_at, actor_member_id, metadata)
   values (
     event_id, task_row.workspace_id, target_task_id, 'REOPENED', event_at, actor_member,
-    jsonb_build_object('restoreOf', source_event_id, 'restoreType', source_type, 'restoreSourceAt', source_at, 'reason', 'restore_to_today')
+    jsonb_build_object(
+      'restoreOf', authoritative_source_id,
+      'requestedRestoreOf', source_event_id,
+      'restoreType', source_type,
+      'restoreSourceAt', source_at,
+      'reason', 'restore_to_today'
+    )
   );
 
-  return jsonb_build_object('applied', true, 'conflict', false, 'actualVersion', task_row.version + 1);
+  return jsonb_build_object('applied', true, 'conflict', false, 'actualVersion', new_version);
 end;
 $$;
 

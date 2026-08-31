@@ -15,6 +15,13 @@ export interface CriticalCleanlinessItem {
   channel: CleanlinessChannel
 }
 
+export interface CriticalCleanlinessSummary {
+  itemId: string
+  name: string
+  roomName?: string
+  channels: CriticalCleanlinessItem[]
+}
+
 export interface OverviewGroups {
   overdue: TaskOccurrence[]
   dueNow: TaskOccurrence[]
@@ -37,7 +44,7 @@ export function canonicalTaskState(data: WorkspaceData, task: TaskOccurrence): T
   // Undo: an older COMPLETED/SKIPPED event must not keep the occurrence terminal.
   const lifecycle = data.taskEvents
     .filter((event) => event.taskId === task.id && ['COMPLETED', 'SKIPPED', 'CANCELLED', 'REOPENED'].includes(event.type))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))[0]
   if (lifecycle?.type === 'COMPLETED') return { ...task, state: 'completed' }
   if (lifecycle?.type === 'SKIPPED') return { ...task, state: 'skipped' }
   if (lifecycle?.type === 'CANCELLED') return { ...task, state: 'cancelled' }
@@ -67,13 +74,13 @@ export function dedupeOccurrences(data: WorkspaceData): TaskOccurrence[] {
 function latestWorkflowEvent(events: TaskEvent[], taskId: string): TaskEvent | undefined {
   return events
     .filter((event) => event.taskId === taskId && (event.type === 'COMPLETED' || event.type === 'SKIPPED' || event.type === 'POSTPONED' || event.type === 'REOPENED'))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))[0]
 }
 
 function latestTerminalAt(events: TaskEvent[], taskId: string): string | undefined {
   return events
     .filter((event) => event.taskId === taskId && (event.type === 'COMPLETED' || event.type === 'SKIPPED'))
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]?.at
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))[0]?.at
 }
 
 function roomNameForItem(data: WorkspaceData, itemId: string): string | undefined {
@@ -106,6 +113,18 @@ export function buildCriticalItems(data: WorkspaceData, now: Date, threshold: nu
     .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || new Date(a.theoreticalDueAt ?? 8640000000000000).getTime() - new Date(b.theoreticalDueAt ?? 8640000000000000).getTime() || a.name.localeCompare(b.name))
     .slice(0, perChannelLimit))
     .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || a.name.localeCompare(b.name))
+}
+
+export function mergeCriticalItemsByEntity(items: CriticalCleanlinessItem[]): CriticalCleanlinessSummary[] {
+  const byItem = new Map<string, CriticalCleanlinessSummary>()
+  for (const item of items) {
+    const existing = byItem.get(item.itemId)
+    if (existing) existing.channels.push(item)
+    else byItem.set(item.itemId, { itemId: item.itemId, name: item.name, roomName: item.roomName, channels: [item] })
+  }
+  return [...byItem.values()]
+    .map((item) => ({ ...item, channels: [...item.channels].sort((a, b) => a.channel === b.channel ? 0 : a.channel === 'regular' ? -1 : 1) }))
+    .sort((a, b) => Math.min(...a.channels.map((channel) => channel.score)) - Math.min(...b.channels.map((channel) => channel.score)) || a.name.localeCompare(b.name))
 }
 
 export function buildOverviewGroups(

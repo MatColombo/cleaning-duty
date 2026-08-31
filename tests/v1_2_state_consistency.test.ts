@@ -1,6 +1,6 @@
 import { normalizeWorkspaceData } from '../src/lib/dataMigrations'
 import { careEstimateForEntity } from '../src/lib/home'
-import { buildCriticalItems } from '../src/lib/overview'
+import { buildCriticalItems, mergeCriticalItemsByEntity } from '../src/lib/overview'
 import { applyMutationLocally } from '../src/lib/mutations'
 import type { TaskOccurrence, WorkspaceData } from '../src/types/domain'
 
@@ -48,6 +48,8 @@ const critical=buildCriticalItems(normalized,now,101,3)
 const overviewRegular=critical.find((item)=>item.itemId===eid&&item.channel==='regular')?.score
 assert(homeScore!=null && overviewRegular!=null && Math.abs(homeScore-overviewRegular)<1e-9,'Home and Overview must use the same regular cleanliness score')
 assert(critical.some((item)=>item.itemId===eid&&item.channel==='deep'),'Critical cleanliness must include deep-cleaning trajectories')
+const mergedCritical=mergeCriticalItemsByEntity(critical).find((item)=>item.itemId===eid)
+assert(mergedCritical?.channels.some((channel)=>channel.channel==='regular')&&mergedCritical.channels.some((channel)=>channel.channel==='deep'),'Critical cleanliness UI summary must label an item as both when routine and deep are below threshold')
 
 const skipped=normalizeWorkspaceData({...normalized,tasks:[task({completedAt:undefined})],taskEvents:[{id:'skip-source',workspaceId:wid,taskId,type:'SKIPPED',at:'2026-08-31T10:00:00.000Z',metadata:{}}]})
 const restoredSkip=applyMutationLocally(skipped,{id:'m1',workspaceId:wid,kind:'reopen_today',taskId,expectedVersion:999,sourceEventId:'skip-source',eventId:'restore-skip',eventAt:'2026-08-31T12:30:00.000Z'})
@@ -64,5 +66,15 @@ const legacyCompletedData: WorkspaceData={...normalized,tasks:[completedTask],ta
 const restoredLegacyComplete=applyMutationLocally(legacyCompletedData,{id:'m3',workspaceId:wid,kind:'reopen_today',taskId,expectedVersion:999,eventId:'restore-legacy-complete',eventAt:'2026-08-31T13:00:00.000Z'})
 assert(restoredLegacyComplete.tasks[0].state==='scheduled','Restore-to-today must support legacy completed rows without a lifecycle event')
 assert(!restoredLegacyComplete.tasks[0].completedAt,'Legacy completed restore must clear completed_at')
+
+
+const staleScheduledSkip: WorkspaceData={...normalized,tasks:[task({state:'scheduled',completedAt:undefined,version:7})],taskEvents:[
+  {id:'older-postpone',workspaceId:wid,taskId,type:'POSTPONED',at:'2026-08-31T10:00:00.000Z',metadata:{from:'2026-08-31T08:00:00.000Z',to:'2026-09-01T08:00:00.000Z'}},
+  {id:'authoritative-skip',workspaceId:wid,taskId,type:'SKIPPED',at:'2026-08-31T10:01:00.000Z',metadata:{}},
+]}
+const restoredStaleSkip=applyMutationLocally(staleScheduledSkip,{id:'m4',workspaceId:wid,kind:'reopen_today',taskId,expectedVersion:1,sourceEventId:'older-postpone',eventId:'restore-stale-skip',eventAt:'2026-08-31T13:15:00.000Z'})
+assert(restoredStaleSkip.tasks[0].state==='scheduled'&&restoredStaleSkip.tasks[0].effectiveDueAt==='2026-08-31T13:15:00.000Z','Restore-to-today must trust canonical skipped lifecycle history even when the persisted/cache row is stale scheduled')
+const restoreEvent=restoredStaleSkip.taskEvents.find((event)=>event.id==='restore-stale-skip')
+assert(restoreEvent?.metadata.restoreOf==='authoritative-skip','Restore-to-today must derive the authoritative source event rather than trusting a stale client source id')
 
 console.log('v1.2.0 state consistency tests passed')
