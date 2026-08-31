@@ -113,6 +113,26 @@ export function HomePage() {
     setRoomDeferredIds([])
   }
 
+  function groupNameForEntity(entity: Entity): string {
+    let current: Entity | undefined = entity
+    const visited = new Set<string>()
+    while (current?.parentId && !visited.has(current.parentId)) {
+      visited.add(current.parentId)
+      const parent = entities.find((candidate) => candidate.id === current!.parentId)
+      if (!parent) break
+      if (data!.layoutElements.some((element) => !element.archivedAt && element.entityId === parent.id && element.role === 'area')) return parent.name
+      current = parent
+    }
+    if (data!.layoutElements.some((element) => !element.archivedAt && element.entityId === entity.id && element.role === 'area')) return entity.name
+    return locale === 'it' ? 'Altro' : 'Other'
+  }
+
+  function groupedEntityOptions(items: Entity[]) {
+    const groups = new Map<string, Entity[]>()
+    for (const entity of items) { const label = groupNameForEntity(entity); groups.set(label, [...(groups.get(label) ?? []), entity]) }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([label, rows]) => <optgroup key={label} label={label}>{rows.sort((a, b) => a.name.localeCompare(b.name)).map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}</optgroup>)
+  }
+
   return <div className="stack page-stack home-page">
     <header className="page-title-row">
       <div><div className="eyebrow">{t('home')}</div><h1>{editMode ? t('editHome') : t('homeCockpit')}</h1></div>
@@ -175,10 +195,10 @@ export function HomePage() {
           {!placedOnScene.length && <div className="layout-empty-overlay">{editMode ? t('addFirstArea') : t('layoutEmpty')}</div>}
         </section>
 
-        <aside className={`home-inspector card${selectedIsRoom ? ' room-detail-open' : ''}`}>
-          {editMode ? <EditorInspector /> : <CockpitInspector />}
-        </aside>
       </div>
+      <section className={`home-inspector home-selection-details${selectedIsRoom ? ' room-detail-open' : ''}`}>
+        {editMode ? <EditorInspector /> : <CockpitInspector />}
+      </section>
     </>}
 
     {sceneOpen && <SceneSheet onClose={() => setSceneOpen(false)} />}
@@ -461,7 +481,7 @@ export function HomePage() {
       <FormField label={t('name')}><input autoFocus required value={name} onChange={(event) => setName(event.target.value)} /></FormField>
       <FormField label={t('type')}><select value={typeChoice} onChange={(event) => setTypeChoice(event.target.value)}>{types.map((type) => <option key={type.id} value={type.id}>{type.icon ? `${type.icon} ` : ''}{type.name}</option>)}<option value="__new__">+ {t('newType')}</option></select></FormField>
       {typeChoice === '__new__' && <div className="two-columns"><FormField label={t('newType')}><input required value={newTypeName} onChange={(event) => setNewTypeName(event.target.value)} /></FormField><FormField label={t('icon')}><input maxLength={4} value={newTypeIcon} onChange={(event) => setNewTypeIcon(event.target.value)} /></FormField></div>}
-      <FormField label={t('inside')}><select value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">{t('noParent')}</option>{entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}</select></FormField>
+      <FormField label={t('inside')}><select value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">{t('noParent')}</option>{groupedEntityOptions(entities)}</select></FormField>
       <FormField label={t('labels')} hint={t('commaSeparated')}><input value={labels} onChange={(event) => setLabels(event.target.value)} /></FormField>
       {role === 'area' && <FormField label={t('shape')}><div className="segmented two"><button type="button" className={shape === 'rect' ? 'selected' : ''} onClick={() => setShape('rect')}>{t('rectangle')}</button><button type="button" className={shape === 'polygon' ? 'selected' : ''} onClick={() => setShape('polygon')}>{t('polygon')}</button></div></FormField>}
       <button className="button primary">{t('addToLayout')}</button>
@@ -482,7 +502,7 @@ export function HomePage() {
       onClose()
     }
     return <Sheet title={t('placeExisting')} onClose={onClose}>{!available.length ? <EmptyState>{t('everythingPlaced')}</EmptyState> : <form className="stack" onSubmit={submit}>
-      <FormField label={t('itemsPlaces')}><select value={entityId} onChange={(event) => { const value = event.target.value; setEntityId(value); setRole(entities.some((item) => item.parentId === value) ? 'area' : 'object') }}>{available.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}</select></FormField>
+      <FormField label={t('itemsPlaces')}><select value={entityId} onChange={(event) => { const value = event.target.value; setEntityId(value); setRole(entities.some((item) => item.parentId === value) ? 'area' : 'object') }}>{groupedEntityOptions(available)}</select></FormField>
       <FormField label={t('displayAs')}><div className="segmented two"><button type="button" className={role === 'area' ? 'selected' : ''} onClick={() => setRole('area')}>{t('area')}</button><button type="button" className={role === 'object' ? 'selected' : ''} onClick={() => setRole('object')}>{t('item')}</button></div></FormField>
       <button className="button primary">{t('addToLayout')}</button>
     </form>}</Sheet>
@@ -510,8 +530,8 @@ export function HomePage() {
       ...scenes.filter((scene) => scene.id !== activeSceneId).map((scene) => ({ value: `scene:${scene.id}`, label: `↕ ${scene.name}` })),
     ]
     return <Sheet title={t('addConnection')} onClose={onClose}>{!destinations.length ? <EmptyState>{t('needConnectionDestination')}</EmptyState> : <form className="stack" onSubmit={submit}>
-      <FormField label={t('from')}><select value={fromEntityId} onChange={(event) => setFromEntityId(event.target.value)}>{placedEntities.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}</select></FormField>
-      <FormField label={t('to')}><select required value={destination} onChange={(event) => setDestination(event.target.value)}>{destinations.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></FormField>
+      <FormField label={t('from')}><select value={fromEntityId} onChange={(event) => setFromEntityId(event.target.value)}>{groupedEntityOptions(placedEntities)}</select></FormField>
+      <FormField label={t('to')}><select required value={destination} onChange={(event) => setDestination(event.target.value)}><optgroup label={locale === 'it' ? 'Stanze e oggetti' : 'Rooms and items'}>{destinations.filter((item) => item.value.startsWith('entity:')).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</optgroup><optgroup label={locale === 'it' ? 'Piani / aree' : 'Floors / areas'}>{destinations.filter((item) => item.value.startsWith('scene:')).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</optgroup></select></FormField>
       <FormField label={t('connectionType')}><select value={kind} onChange={(event) => setKind(event.target.value as RelationKind)}><option value="door">{t('door')}</option><option value="passage">{t('passage')}</option><option value="stairs">{t('stairs')}</option><option value="link">{t('link')}</option></select></FormField>
       <FormField label={t('label')}><input value={label} onChange={(event) => setLabel(event.target.value)} /></FormField>
       <button className="button primary">{t('save')}</button>
@@ -547,7 +567,7 @@ export function HomePage() {
     return <Sheet title={t('editDetails')} onClose={onClose}><form className="stack" onSubmit={submit}>
       <FormField label={t('name')}><input required autoFocus value={name} onChange={(event) => setName(event.target.value)} /></FormField>
       <FormField label={t('type')}><select value={typeId} onChange={(event) => setTypeId(event.target.value)}>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></FormField>
-      <FormField label={t('inside')}><select value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">{t('noParent')}</option>{entities.filter((item) => !unavailable.has(item.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FormField>
+      <FormField label={t('inside')}><select value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">{t('noParent')}</option>{groupedEntityOptions(entities.filter((item) => !unavailable.has(item.id)))}</select></FormField>
       <FormField label={t('labels')}><input value={labels} onChange={(event) => setLabels(event.target.value)} /></FormField>
       <MetadataFields definitions={fields} values={metadata} onChange={setMetadata} />
       <button className="button primary">{t('save')}</button>

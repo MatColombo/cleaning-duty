@@ -55,8 +55,8 @@ Deno.serve(async (request) => {
 
     const targetNames = (targets ?? []).map((target) => target.entity_name_snapshot).join(', ')
     const payload = JSON.stringify({
-      title: workspace?.name || 'House Care',
-      body: targetNames ? `${task.action_name_snapshot} · ${targetNames}` : task.routine_name_snapshot,
+      title: task.routine_name_snapshot || workspace?.name || 'House Care',
+      body: targetNames ? `${task.action_name_snapshot}\n${targetNames}` : task.action_name_snapshot,
       tag: `task-${task.id}`,
       url: `/task/${task.id}`,
       taskId: task.id,

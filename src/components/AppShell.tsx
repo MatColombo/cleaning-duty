@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowsClockwise, CalendarCheck, ChartLineUp, GearSix, House } from '@phosphor-icons/react'
+import { ArrowsClockwise, CalendarCheck, ChartLineUp, GearSix, House, Package, CheckSquare } from '@phosphor-icons/react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useI18n } from '../contexts/I18nContext'
 import { useData } from '../contexts/DataContext'
@@ -12,7 +12,9 @@ import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 const nav = [
   { to: '/', key: 'overview', icon: CalendarCheck },
   { to: '/home', key: 'home', icon: House },
+  { to: '/actions', key: 'actions', icon: CheckSquare },
   { to: '/routines', key: 'routines', icon: ArrowsClockwise },
+  { to: '/supplies', key: 'stock', icon: Package },
   { to: '/insights', key: 'insights', icon: ChartLineUp },
   { to: '/settings', key: 'settings', icon: GearSix },
 ] as const

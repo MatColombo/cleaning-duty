@@ -372,7 +372,7 @@ export function historyEntriesV12(data: WorkspaceData, days = 90, now = new Date
   const members = new Map(data.members.map((member) => [member.id, member.displayName]))
   const entities = new Map(data.entities.map((entity) => [entity.id, entity.name]))
   const supported = new Set(['COMPLETED', 'SKIPPED', 'POSTPONED', 'REOPENED'])
-  return data.taskEvents
+  const eventRows = data.taskEvents
     .filter((event) => supported.has(event.type) && new Date(event.at).getTime() >= cutoff && new Date(event.at).getTime() <= now.getTime())
     .flatMap((event) => {
       const task = tasks.get(event.taskId)
@@ -380,27 +380,16 @@ export function historyEntriesV12(data: WorkspaceData, days = 90, now = new Date
       const type: HistoryEntryV12['type'] = event.type === 'COMPLETED' ? 'completed' : event.type === 'SKIPPED' ? 'skipped' : event.type === 'POSTPONED' ? 'rescheduled' : 'reopened'
       const health = event.type === 'COMPLETED' ? data.completionSnapshots
         .filter((row) => row.occurrenceId === task.id && Math.abs(new Date(row.completedAt).getTime() - new Date(event.at).getTime()) < 1000)
-        .map((row) => ({
-          itemName: entities.get(row.itemId) ?? 'Item',
-          channel: row.cleanlinessChannel,
-          refreshLevelPctSnapshot: row.refreshLevelPctSnapshot,
-          cleanlinessBeforePct: row.cleanlinessBeforePct,
-          cleanlinessAfterPct: row.cleanlinessAfterPct,
-          healthRefreshApplied: row.healthRefreshApplied,
-        })) : []
-      return [{
-        id: event.id,
-        at: event.at,
-        taskId: task.id,
-        type,
-        activity: task.actionNameSnapshot,
-        room: taskRoomName(data, task),
-        routine: task.routineNameSnapshot,
-        actor: event.actorMemberId ? members.get(event.actorMemberId) : undefined,
-        previousDueAt: event.type === 'POSTPONED' && typeof event.metadata.from === 'string' ? event.metadata.from : undefined,
-        newDueAt: event.type === 'POSTPONED' && typeof event.metadata.to === 'string' ? event.metadata.to : undefined,
-        health,
-      }]
+        .map((row) => ({ itemName: entities.get(row.itemId) ?? 'Item', channel: row.cleanlinessChannel, refreshLevelPctSnapshot: row.refreshLevelPctSnapshot, cleanlinessBeforePct: row.cleanlinessBeforePct, cleanlinessAfterPct: row.cleanlinessAfterPct, healthRefreshApplied: row.healthRefreshApplied })) : []
+      return [{ id: event.id, at: event.at, taskId: task.id, type, activity: task.actionNameSnapshot, room: taskRoomName(data, task), routine: task.routineNameSnapshot, actor: event.actorMemberId ? members.get(event.actorMemberId) : undefined, previousDueAt: event.type === 'POSTPONED' && typeof event.metadata.from === 'string' ? event.metadata.from : undefined, newDueAt: event.type === 'POSTPONED' && typeof event.metadata.to === 'string' ? event.metadata.to : undefined, health }]
     })
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  const completedTaskIds = new Set(eventRows.filter((row) => row.type === 'completed').map((row) => row.taskId))
+  const fallbackRows: HistoryEntryV12[] = data.tasks.flatMap((task) => {
+    if (task.state !== 'completed' || !task.completedAt || completedTaskIds.has(task.id)) return []
+    const atMs = new Date(task.completedAt).getTime()
+    if (atMs < cutoff || atMs > now.getTime()) return []
+    const health = data.completionSnapshots.filter((row) => row.occurrenceId === task.id && Math.abs(new Date(row.completedAt).getTime() - atMs) < 1000).map((row) => ({ itemName: entities.get(row.itemId) ?? 'Item', channel: row.cleanlinessChannel, refreshLevelPctSnapshot: row.refreshLevelPctSnapshot, cleanlinessBeforePct: row.cleanlinessBeforePct, cleanlinessAfterPct: row.cleanlinessAfterPct, healthRefreshApplied: row.healthRefreshApplied }))
+    return [{ id: `completed-fallback:${task.id}:${task.completedAt}`, at: task.completedAt, taskId: task.id, type: 'completed' as const, activity: task.actionNameSnapshot, room: taskRoomName(data, task), routine: task.routineNameSnapshot, health }]
+  })
+  return [...eventRows, ...fallbackRows].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 }

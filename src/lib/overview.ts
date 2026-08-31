@@ -62,6 +62,13 @@ export function dedupeOccurrences(data: WorkspaceData): TaskOccurrence[] {
   return [...bySlot.values()]
 }
 
+
+function latestWorkflowEvent(events: TaskEvent[], taskId: string): TaskEvent | undefined {
+  return events
+    .filter((event) => event.taskId === taskId && (event.type === 'COMPLETED' || event.type === 'SKIPPED' || event.type === 'POSTPONED' || event.type === 'REOPENED'))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
+}
+
 function latestTerminalAt(events: TaskEvent[], taskId: string): string | undefined {
   return events
     .filter((event) => event.taskId === taskId && (event.type === 'COMPLETED' || event.type === 'SKIPPED'))
@@ -126,11 +133,17 @@ export function buildOverviewGroups(
     return localDateInZone(timezone, due) === today && due.getTime() > now.getTime()
   })
   const finished = tasks.filter((task) => {
-    if (task.state !== 'completed' && task.state !== 'skipped') return false
-    const at = latestTerminalAt(data.taskEvents, task.id) ?? task.completedAt ?? task.effectiveDueAt ?? task.dueAt
-    return localDateInZone(timezone, new Date(at)) === today
+    const latest = latestWorkflowEvent(data.taskEvents, task.id)
+    if (latest?.type === 'REOPENED') return false
+    if (task.state === 'completed' || task.state === 'skipped') {
+      const at = latestTerminalAt(data.taskEvents, task.id) ?? task.completedAt ?? task.effectiveDueAt ?? task.dueAt
+      return localDateInZone(timezone, new Date(at)) === today
+    }
+    return task.state === 'scheduled' && latest?.type === 'POSTPONED' && localDateInZone(timezone, new Date(latest.at)) === today
   })
+  const finishedIds = new Set(finished.map((task) => task.id))
   const upcoming = scheduled.filter((task) => {
+    if (finishedIds.has(task.id)) return false
     const due = new Date(task.effectiveDueAt ?? task.dueAt)
     const localDay = localDateInZone(timezone, due)
     return localDay > today && localDay <= upcomingEndDay

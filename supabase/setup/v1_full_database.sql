@@ -1540,6 +1540,7 @@ returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'UPDATE'
      and new.effective_due_at is not distinct from old.effective_due_at
+     and new.due_at is not distinct from old.due_at
      and new.state is not distinct from old.state
      and new.assignee_member_id is not distinct from old.assignee_member_id
      and new.routine_id is not distinct from old.routine_id then return new; end if;

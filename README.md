@@ -79,3 +79,9 @@ In the packaging environment used for this release, dependency installation did 
 ## Product boundary
 
 v1.2.0 remains a home-maintenance product. Shopping, household inventory, expenses, generic chat, IoT/sensor integrations, social features and gamification remain outside this release.
+
+## v1.2.0 corrective pass
+
+This package includes the post-release v1.2.0 corrections requested after initial rollout: restored Actions and Stock navigation, below-layout Home details, room-grouped Home selectors, routine-card overflow fixes, notification job repair and revised reminder copy, stock visibility in Overview, Analysis completion-history fallback, and Finished-item restoration to today's work.
+
+Cloud deployments upgrading from the earlier v1.2.0 package must run `supabase/migrations/20260831160000_v1_2_0_corrective_notifications.sql` once, then redeploy the `send-push` Edge Function so the revised notification payload is active.
