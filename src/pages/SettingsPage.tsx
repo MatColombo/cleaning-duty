@@ -12,11 +12,12 @@ import type { CareSensitivity, MetadataFieldDefinition, MetadataFieldType, Metad
 import { dateTimeLocalValue, localInputToUtc } from '../lib/date'
 import { ErrorLogPanel } from '../components/ErrorLogPanel'
 import { logClientError, normalizeError } from '../lib/errorLog'
+import { contrastIssues, themePreset, themePresets, themeTokenKeys, type ThemeId, type ThemePalette, type ThemeTokenKey } from '../lib/theme'
 
 export function SettingsPage() {
   const { data, currentMember, addMember, updateMemberAssignmentProfile, updateWorkspace, applyStarterPack, addFieldDefinition, updateFieldDefinition, archiveFieldDefinition, importBackup, resetLocal } = useData()
   const location = useLocation()
-  const { isCloud, signOut } = useAuth()
+  const { isCloud, signOut, overviewCriticalCount, overviewCriticalThreshold, setOverviewPreferences, appearanceThemeId, appearancePalette, setAppearancePreferences } = useAuth()
   const { t, locale, setLocale } = useI18n()
   const [memberOpen, setMemberOpen] = useState(false)
   const [fieldOpen, setFieldOpen] = useState(false)
@@ -25,12 +26,25 @@ export function SettingsPage() {
   const [houseName, setHouseName] = useState(data?.workspace.name ?? '')
   const [timezone, setTimezone] = useState(data?.workspace.timezone ?? 'Europe/Rome')
   const [careSensitivity, setCareSensitivity] = useState<CareSensitivity>(data?.workspace.careSensitivity ?? 'balanced')
+  const [criticalCount, setCriticalCount] = useState(overviewCriticalCount)
+  const [criticalThreshold, setCriticalThreshold] = useState(overviewCriticalThreshold)
+  const [themeId, setThemeId] = useState<ThemeId>(appearanceThemeId)
+  const [palette, setPalette] = useState<ThemePalette>(appearancePalette)
+  const [customizingPalette, setCustomizingPalette] = useState(appearanceThemeId === 'custom')
+  const [customBasePresetId, setCustomBasePresetId] = useState<Exclude<ThemeId, 'custom'>>(appearanceThemeId === 'custom' ? 'fresh-sage' : appearanceThemeId)
   const [backupMessage, setBackupMessage] = useState<string | null>(null)
   const [pushCapability, setPushCapability] = useState<PushCapability>('unsupported')
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [installAvailable, setInstallAvailable] = useState(() => Boolean(window.__houseCareInstallPrompt))
   const [standalone, setStandalone] = useState(() => isStandalone())
   const importRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setThemeId(appearanceThemeId)
+    setPalette(appearancePalette)
+    setCustomizingPalette(appearanceThemeId === 'custom')
+    if (appearanceThemeId !== 'custom') setCustomBasePresetId(appearanceThemeId)
+  }, [appearanceThemeId, appearancePalette])
 
   useEffect(() => {
     const refreshPush = () => { void currentPushCapability(isCloud).then(setPushCapability) }
@@ -112,6 +126,26 @@ export function SettingsPage() {
 
     <section className="card section-card"><h2>{t('language')}</h2><div className="segmented two"><button className={locale === 'en' ? 'selected' : ''} onClick={() => setLocale('en')}>{t('english')}</button><button className={locale === 'it' ? 'selected' : ''} onClick={() => setLocale('it')}>{t('italian')}</button></div></section>
 
+    <section className="card section-card"><div className="section-header"><h2>{t('overviewSettings')}</h2></div><p className="muted compact-text">{t('criticalSettingsHint')}</p><div className="two-columns"><FormField label={t('criticalItemsShown')}><input type="number" min={1} max={15} value={criticalCount} onChange={(event) => setCriticalCount(Number(event.target.value))} /></FormField><FormField label={t('criticalThreshold')}><div className="input-with-suffix"><input type="number" min={1} max={100} value={criticalThreshold} onChange={(event) => setCriticalThreshold(Number(event.target.value))} /><span>%</span></div></FormField></div><button className="button secondary align-start" onClick={() => void setOverviewPreferences(criticalCount, criticalThreshold)}>{t('save')}</button></section>
+
+    <section className="card section-card appearance-settings">
+      <div className="section-header"><div><h2>{t('appearanceSettings')}</h2><p className="muted compact-text">{t('appearanceHint')}</p></div></div>
+      <div className="theme-swatches" role="radiogroup" aria-label={t('themePreset')}>
+        {themePresets.map((preset) => <button type="button" role="radio" aria-checked={themeId === preset.id && !customizingPalette} key={preset.id} className={`theme-swatch${themeId === preset.id && !customizingPalette ? ' selected' : ''}`} onClick={() => { setThemeId(preset.id); setPalette(preset.palette); setCustomizingPalette(false); setCustomBasePresetId(preset.id); void setAppearancePreferences(preset.id, preset.palette) }}>
+          <span className="theme-swatch-colors"><i style={{ background: preset.palette.canvas }} /><i style={{ background: preset.palette.primary }} /><i style={{ background: preset.palette.due }} /><i style={{ background: preset.palette.overdue }} /></span>
+          <strong>{preset.name}</strong>
+        </button>)}
+        <button type="button" role="radio" aria-checked={customizingPalette} className={`theme-swatch custom${customizingPalette ? ' selected' : ''}`} onClick={() => { if (themeId !== 'custom') setCustomBasePresetId(themeId); setThemeId('custom'); setCustomizingPalette(true) }}>
+          <span className="theme-custom-mark">+</span><strong>{t('customTheme')}</strong>
+        </button>
+      </div>
+      {customizingPalette && <div className="custom-palette-editor">
+        <div className="palette-token-grid">{themeTokenKeys.map((key) => <label className="palette-token" key={key}><span>{paletteTokenLabel(key)}</span><span className="palette-input-row"><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value.toUpperCase() }))} /><code>{palette[key]}</code></span></label>)}</div>
+        {contrastIssues(palette).length > 0 && <div className="contrast-warning" role="alert"><strong>{t('paletteContrastWarning')}</strong><span>{t('paletteContrastBlocked')}</span><ul>{contrastIssues(palette).map((issue) => <li key={issue.pair}>{issue.pair}: {issue.ratio.toFixed(2)}:1</li>)}</ul></div>}
+        <div className="palette-actions"><button className="button secondary small" onClick={() => setPalette(themePreset(customBasePresetId).palette)}>{t('resetToPreset')}</button><button className="button secondary small" onClick={() => { const fresh = themePreset('fresh-sage'); setThemeId('fresh-sage'); setPalette(fresh.palette); setCustomizingPalette(false); setCustomBasePresetId('fresh-sage'); void setAppearancePreferences('fresh-sage', fresh.palette) }}>{t('resetToDefault')}</button><button className="button primary small" disabled={contrastIssues(palette).length > 0} onClick={() => void setAppearancePreferences('custom', palette)}>{t('saveAppearance')}</button></div>
+      </div>}
+    </section>
+
     <section className="card section-card"><div className="section-header"><h2>{t('notifications')}</h2></div><p className="muted compact-text">{pushCapability === 'cloud_required' ? t('pushNeedsCloud') : pushCapability === 'unsupported' ? t('pushUnsupported') : pushCapability === 'blocked' ? t('pushBlocked') : t('pushHint')}</p>{pushCapability !== 'cloud_required' && pushCapability !== 'unsupported' && pushCapability !== 'blocked' && <button className="button secondary" onClick={() => void togglePush()}>{pushCapability === 'subscribed' ? t('disableOnDevice') : t('enableOnDevice')}</button>}{pushMessage && <div className="error-banner">{pushMessage}</div>}</section>
 
     <section className="card section-card"><div className="section-header"><h2>{t('installApp')}</h2></div><p className="muted compact-text">{standalone ? t('appInstalled') : installAvailable ? t('installHint') : t('installManualHint')}</p>{!standalone && installAvailable && <button className="button secondary" onClick={() => void installApp()}>{t('installApp')}</button>}</section>
@@ -125,6 +159,19 @@ export function SettingsPage() {
     {editingMember && <MemberAssignmentSheet member={editingMember} onClose={() => setEditingMember(null)} />}
     {fieldOpen && <FieldSheet field={editingField} onClose={() => { setFieldOpen(false); setEditingField(null) }} />}
   </div>
+
+  function paletteTokenLabel(key: ThemeTokenKey) {
+    if (key === 'canvas') return t('canvasColor')
+    if (key === 'surface') return t('surfaceColor')
+    if (key === 'surfaceSoft') return t('surfaceSoftColor')
+    if (key === 'ink') return t('inkColor')
+    if (key === 'inkMuted') return t('inkMutedColor')
+    if (key === 'primary') return t('primaryColor')
+    if (key === 'primarySoft') return t('primarySoftColor')
+    if (key === 'due') return t('dueColor')
+    if (key === 'overdue') return t('overdueColor')
+    return t('dangerColor')
+  }
 
   function MemberSheet({ onClose }: { onClose: () => void }) {
     const [name, setName] = useState('')

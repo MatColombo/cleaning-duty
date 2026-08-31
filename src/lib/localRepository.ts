@@ -28,6 +28,6 @@ export function createLocalWorkspace(name: string, ownerName: string, timezone: 
   return {
     workspace: { id: workspaceId, name, timezone, careSensitivity: 'balanced', ownerUserId: USER_ID, createdAt },
     members: [{ id: memberId, workspaceId, userId: USER_ID, displayName: ownerName, role: 'owner', status: 'active', labels: [], createdAt }],
-    fieldDefinitions: [], entityTypes: [], entities: [], layoutScenes: [], layoutElements: [], entityRelations: [], actions: [], routines: [], tasks: [], taskEvents: [], supplies: [], supplyEvents: [],
+    fieldDefinitions: [], entityTypes: [], entities: [], layoutScenes: [], layoutElements: [], entityRelations: [], actions: [], routines: [], tasks: [], taskEvents: [], healthTrajectories: [], completionSnapshots: [], supplies: [], supplyEvents: [],
   }
 }

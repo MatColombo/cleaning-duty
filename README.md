@@ -1,59 +1,24 @@
-# House Care PWA — v1.1.2
+# House Care PWA — v1.2.0
 
-Configurable household-care PWA for a shared home. Product source of truth: `docs/product-spec.md`.
-Release notes: `docs/RELEASE_NOTES.md`.
+Configurable household-care PWA for a shared home. v1.2.0 implements the supplied `v1.2.0_FLOW_AND_FINISH_SPEC.md`: deterministic cadence-based Cleanliness, an operational Overview, a spatial Home workflow, explanatory Analysis, and the complete Flow & Finish visual system.
 
+Release notes: `docs/RELEASE_NOTES_v1.2.0.md`  
+Update from the Phase 3 build: `docs/UPDATE_v1.2.0.md`  
+Release traceability: `docs/V1_2_0_TRACEABILITY.md`
+
+## v1.2.0 release shape
+
+- **Cleanliness Engine v2** — Regular and Deep cleanliness are derived from recurrence cadence and effective refresh completions, not occurrence counts.
+- **Overview** — critical cleanliness, overdue/today work, collapsed Finished, exact-action Undo and 7-day Upcoming.
+- **Home** — aggregate cleanliness above the layout, fit/center framing, dotted due-today and dashed overdue room states, room details and Start room.
+- **Analysis** — today outcome summary, 7/30/90-day Regular/Deep cleanliness trends, activity outcomes and an expandable human-readable history timeline.
+- **Appearance** — Fresh Sage plus Warm Clay, Coastal Blue, Lavender Smoke and Charcoal Citrus presets; editable custom semantic palette with contrast guardrails.
+- **Flow & Finish** — Manrope typography, Phosphor icon language, semantic surfaces/radii, extensible SVG illustration registry, action-specific motion and reduced-motion behavior.
+- **Accessibility** — visible focus states, keyboard-focusable spatial layout controls, accessible modal sheets, practical mobile targets and non-colour-only room status.
 
 ## No administrator rights / no Node.js
 
-Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard. `tools/browser-deploy-helper.html` generates the Web Push secrets locally in your browser.
-
-
-## v1.1.2 task lifecycle integrity
-
-- Prevents stale configuration saves from reopening completed/skipped tasks.
-- Repairs legacy scheduled tasks whose immutable history or target completion shows they are terminal.
-- Today treats terminal history as authoritative even before cloud repair is persisted.
-- Pending push jobs are cancelled for repaired terminal tasks, and all-complete targets cannot be re-notified.
-
-Existing cloud installations must run `supabase/migrations/20260829213000_v1_1_2_task_state_integrity.sql` once before deploying the frontend.
-
-## v1.1.1 Today correctness release
-
-- Today defaults to **To do** and no longer mixes completed/skipped work into the normal work queue.
-- Added **To do / Completed / All** plus **For me / Household** filters.
-- Open work is separated into **Due now** and **Later today** so a newly generated next occurrence is not mistaken for the task just completed.
-- Routine name is the primary task title; Action + concrete targets are secondary context.
-- Editing a Routine retires every still-open occurrence from the previous revision, including already-overdue ones. Startup also repairs stale scheduled occurrences from superseded Routine revisions.
-- Today defensively deduplicates visible task occurrences by task ID and natural occurrence key.
-- Task details are visually distinct from the Today card and include a whole-task Complete action while the task is scheduled.
-- Frontend-only release: no Supabase SQL, Edge Function, secrets, cron, or Cloudflare-variable changes.
-
-## v1.1.0 feature release
-
-- Adds two care dimensions: **Routine care** for short-term upkeep and optional **Deep care** for long-term condition. Deep care appears only where an active Deep-cleaning Routine targets the place/item.
-- Routine creation now has one simple **Cleaning level** choice. Existing Routines and Tasks remain Routine cleaning after upgrade.
-- Deep-clean completion refreshes both care dimensions; Routine cleaning restores only Routine care. Effective care is derived so neglected Deep care reduces overall condition without hiding a freshly completed Routine clean.
-- Home cockpit and layout Care overlay show stacked game-style Routine/Deep health bars.
-- Home layout automatically centers and fits placed content when a scene opens; the 100% button refits the content. Zoom remains internal to the layout canvas.
-- Rooms/items can have fill color, automatically darker contour, text color, optional text background, label position (top/center/bottom), and label orientation (horizontal/diagonal/vertical).
-- Each floor/outdoor scene can have its own background color.
-- Requires one Supabase SQL migration. No Edge Function, push-secret, cron, or Cloudflare-variable changes are required.
-
-## v1 scope
-
-- Configurable home model, types, labels, metadata and visual floor/outdoor editor
-- Reusable Actions, Routines and concrete auditable Tasks
-- Flexible recurrence, exceptions and after-completion schedules
-- Simple assignment by default; optional advanced no-code targeting/assignment
-- Today workflow: Complete, partial target Done, Skip, Postpone, Reassign
-- Qualitative-first Supplies and stock history
-- Home cockpit with dual Routine/Deep care health bars, task and supply overlays
-- English / Italian
-- PWA install, Web Push, badges, offline daily actions and conflict-safe sync
-- JSON export/import
-- v1 Insights: audit explorer, completion trends, workload and cautious qualitative stock outlook
-- Optional starter household content and care-sensitivity tuning
+Use the browser-only deployment route in `docs/DEPLOYMENT_NO_ADMIN.md`. Cloudflare builds the Vite app remotely, while Supabase setup is performed through its dashboard.
 
 ## Local use — no account required
 
@@ -77,7 +42,7 @@ The production stack is Supabase + Cloudflare Workers Static Assets + Web Push.
 
 ## Database migrations
 
-The package contains timestamped migrations under `supabase/migrations/` so a fresh project can use:
+The package contains the v1.2 timestamped migrations under `supabase/migrations/` so a fresh project can use:
 
 ```bash
 npx supabase@latest link --project-ref YOUR_PROJECT_REF
@@ -85,9 +50,12 @@ npx supabase@latest db push --dry-run
 npx supabase@latest db push
 ```
 
+If the v1.2 Phase 1 and Phase 2 database updates are already installed, the final Phase 3/4 code requires **no additional SQL migration**.
+
 ## Build
 
 ```bash
+npm install
 npm run build
 ```
 
@@ -100,8 +68,14 @@ npm run deploy
 
 ## Backup
 
-**Settings → Backup → Export JSON**. v1.1 exports backup schema v7 and imports schemas v2-v7. Push subscriptions and derived notification jobs are runtime state and are excluded.
+**Settings → Backup → Export JSON**. v1.2.0 keeps backup schema v8 and imports schemas v2-v8. Push subscriptions, appearance/account preferences and derived notification jobs are runtime/account state and are excluded from household backup.
 
-## Release boundary
+## Verification
 
-v1 intentionally excludes CAD/3D, AI-generated schedules, sensor integrations, purchasing integrations, photos/video and large analytics dashboards. The stable primitives and audit model are designed so those can be evaluated later without replacing the core domain.
+The repository contains release-blocking pure TypeScript regression suites for Phases 1–4. They cover the canonical cleanliness formula and occurrence independence, Overview/Undo semantics, Home room status and Start-room convergence, Analysis reconstruction and appearance contrast presets.
+
+In the packaging environment used for this release, dependency installation did not complete, so a local Vite production build could not be executed there. The source tree passed the full pure TypeScript regression suite, TypeScript/TSX syntax transpilation, translation parity/type checking and CSS structural checks. Cloudflare should run the normal `npm install` + build against the declared dependencies during deployment.
+
+## Product boundary
+
+v1.2.0 remains a home-maintenance product. Shopping, household inventory, expenses, generic chat, IoT/sensor integrations, social features and gamification remain outside this release.

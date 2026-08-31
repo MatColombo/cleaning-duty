@@ -1,4 +1,4 @@
-import type { StockStatus, WorkspaceData } from '../types/domain'
+import type { CompletionHealthEffect, StockStatus, WorkspaceData } from '../types/domain'
 import { normalizeWorkspaceData } from './dataMigrations'
 
 const CACHE_PREFIX = 'house-care-cloud-cache-v1:'
@@ -9,16 +9,19 @@ export type OfflineMutation =
   | {
       id: string
       workspaceId: string
-      kind: 'complete' | 'skip' | 'postpone' | 'reassign' | 'complete_target'
+      kind: 'complete' | 'skip' | 'postpone' | 'reassign' | 'complete_target' | 'undo'
       taskId: string
       expectedVersion: number
       eventId: string
       eventAt: string
       actorMemberId?: string
       dueAt?: string
+      effectiveDueAt?: string
+      completionEffects?: CompletionHealthEffect[]
       assigneeMemberId?: string
       clearAssignee?: boolean
       targetEntityId?: string
+      sourceEventId?: string
     }
   | {
       id: string

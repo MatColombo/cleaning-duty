@@ -13,6 +13,8 @@ export interface RoutineDefinitionLike {
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
   careLevel: CareLevel
+  refreshLevelPct?: number
+  status?: 'active' | 'paused' | 'ended'
   supplyIdsOverride?: string[]
 }
 
@@ -42,6 +44,8 @@ export function routineDefinitionFingerprint(input: RoutineDefinitionLike): stri
     assignment,
     reminder: input.reminder,
     careLevel: input.careLevel,
+    refreshLevelPct: input.refreshLevelPct ?? 100,
+    status: input.status ?? 'active',
     supplyIdsOverride: sorted(input.supplyIdsOverride),
   })
 }

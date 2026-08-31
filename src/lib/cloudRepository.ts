@@ -24,6 +24,28 @@ function persistenceError(table: string, error: unknown): Error {
   return new Error(`Could not save ${table}${code}: ${message}${detail}`, { cause: error })
 }
 
+async function persistCleanlinessState(db: ReturnType<typeof client>, data: WorkspaceData): Promise<void> {
+  const workspaceId = data.workspace.id
+  if (data.completionSnapshots.length) {
+    const { error } = await db.from('completion_snapshots').upsert(dedupeBy(data.completionSnapshots, (row) => row.id).map((row) => ({
+      id: row.id, workspace_id: workspaceId, occurrence_id: row.occurrenceId, source_routine_id: row.sourceRoutineId, trajectory_routine_id: row.trajectoryRoutineId,
+      item_id: row.itemId, cleanliness_channel: row.cleanlinessChannel, completed_at: row.completedAt, refresh_level_pct_snapshot: row.refreshLevelPctSnapshot,
+      cleanliness_before_pct: row.cleanlinessBeforePct, cleanliness_after_pct: row.cleanlinessAfterPct, health_refresh_applied: row.healthRefreshApplied,
+      scheduled_slot_at: row.scheduledSlotAt, actor_member_id: row.actorMemberId ?? null,
+    })), { onConflict: 'id', ignoreDuplicates: true })
+    if (error) throw persistenceError('completion_snapshots', error)
+  }
+  if (data.healthTrajectories.length) {
+    const rows = dedupeBy(data.healthTrajectories, (row) => `${row.routineId}:${row.itemId}:${row.cleanlinessChannel}`).map((row) => ({
+      workspace_id: workspaceId, item_id: row.itemId, routine_id: row.routineId, cleanliness_channel: row.cleanlinessChannel,
+      health_anchor_at: row.healthAnchorAt, health_anchor_pct: row.healthAnchorPct, health_due_at: row.healthDueAt, health_overdue_end_at: row.healthOverdueEndAt,
+      last_refresh_completion_id: row.lastRefreshCompletionId ?? null, updated_at: row.updatedAt,
+    }))
+    const { error } = await db.from('health_trajectories').upsert(rows, { onConflict: 'routine_id,item_id,cleanliness_channel' })
+    if (error) throw persistenceError('health_trajectories', error)
+  }
+}
+
 export async function listCloudWorkspaces(user: User): Promise<WorkspaceSummary[]> {
   const db = client()
   const { error: claimError } = await db.rpc('claim_workspace_invites')
@@ -85,10 +107,12 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
     db.from('task_occurrences').select('*').eq('workspace_id', workspaceId).order('due_at'),
     db.from('task_targets').select('*').eq('workspace_id', workspaceId),
     db.from('task_events').select('*').eq('workspace_id', workspaceId).order('event_at'),
+    db.from('health_trajectories').select('*').eq('workspace_id', workspaceId),
+    db.from('completion_snapshots').select('*').eq('workspace_id', workspaceId).order('completed_at'),
   ])
   for (const result of results) if (result.error) throw result.error
 
-  const [workspaceResult, membersResult, fieldsResult, typesResult, entitiesResult, scenesResult, layoutElementsResult, relationsResult, suppliesResult, supplyEventsResult, actionsResult, routinesResult, routineTargetsResult, tasksResult, taskTargetsResult, eventsResult] = results
+  const [workspaceResult, membersResult, fieldsResult, typesResult, entitiesResult, scenesResult, layoutElementsResult, relationsResult, suppliesResult, supplyEventsResult, actionsResult, routinesResult, routineTargetsResult, tasksResult, taskTargetsResult, eventsResult, healthResult, completionSnapshotsResult] = results
   const workspaceRow = workspaceResult.data
   const members = membersResult.data ?? []
   const fields = fieldsResult.data ?? []
@@ -105,8 +129,10 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
   const tasks = tasksResult.data ?? []
   const taskTargets = taskTargetsResult.data ?? []
   const events = eventsResult.data ?? []
+  const healthTrajectories = healthResult.data ?? []
+  const completionSnapshots = completionSnapshotsResult.data ?? []
 
-  return normalizeWorkspaceData({
+  const normalized = normalizeWorkspaceData({
     workspace: {
       id: workspaceRow.id,
       name: workspaceRow.name,
@@ -168,15 +194,19 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       id: row.id, workspaceId: row.workspace_id, name: row.name, actionId: row.action_id,
       targetEntityIds: routineTargets.filter((target) => target.routine_id === row.id).map((target) => target.entity_id),
       includeDescendantTargetIds: routineTargets.filter((target) => target.routine_id === row.id && target.include_descendants).map((target) => target.entity_id),
-      recurrence: row.recurrence, timeOfDay: String(row.time_of_day).slice(0, 5),
+      recurrence: row.recurrence, timeOfDay: String(row.time_of_day).slice(0, 5), routineTimezone: row.routine_timezone ?? workspaceRow.timezone,
       scheduleMode: row.schedule_mode ?? 'fixed', exceptions: row.schedule_exceptions ?? { excludedDates: [], includedDateTimes: [] },
-      assignment: row.assignment, advancedTargetSelector: row.advanced_target_selector ?? undefined, reminder: row.reminder ?? { mode: 'none' }, careLevel: row.care_level ?? 'routine', supplyIdsOverride: row.supply_ids_override ?? undefined,
+      assignment: row.assignment, advancedTargetSelector: row.advanced_target_selector ?? undefined, reminder: row.reminder ?? { mode: 'none' },
+      cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
+      refreshLevelPct: Number(row.refresh_level_pct ?? 100), status: row.status ?? 'active', supplyIdsOverride: row.supply_ids_override ?? undefined,
       revision: row.revision, archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     tasks: tasks.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, routineId: row.routine_id, routineRevision: row.routine_revision,
-      routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot, careLevel: row.care_level ?? 'routine',
-      originalDueAt: row.original_due_at, dueAt: row.due_at, state: row.state,
+      routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot,
+      cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
+      scheduledSlotAt: row.scheduled_slot_at ?? row.original_due_at, effectiveDueAt: row.effective_due_at ?? row.due_at,
+      originalDueAt: row.scheduled_slot_at ?? row.original_due_at, dueAt: row.effective_due_at ?? row.due_at, completedAt: row.completed_at ?? undefined, state: row.state,
       assigneeMemberId: row.assignee_member_id ?? undefined,
       targets: taskTargets.filter((target) => target.task_id === row.id).map((target) => ({
         entityId: target.entity_id, entityName: target.entity_name_snapshot, entityTypeName: target.entity_type_name_snapshot, matchReasons: target.match_reasons ?? [], completedAt: target.completed_at ?? undefined, completedByMemberId: target.completed_by_member_id ?? undefined,
@@ -187,7 +217,33 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       id: row.id, workspaceId: row.workspace_id, taskId: row.task_id, type: row.event_type,
       at: row.event_at, actorMemberId: row.actor_member_id ?? undefined, metadata: row.metadata ?? {},
     })),
+    healthTrajectories: healthTrajectories.map((row) => ({
+      workspaceId: row.workspace_id, itemId: row.item_id, routineId: row.routine_id, cleanlinessChannel: row.cleanliness_channel,
+      healthAnchorAt: row.health_anchor_at, healthAnchorPct: Number(row.health_anchor_pct), healthDueAt: row.health_due_at, healthOverdueEndAt: row.health_overdue_end_at,
+      lastRefreshCompletionId: row.last_refresh_completion_id ?? undefined, updatedAt: row.updated_at,
+    })),
+    completionSnapshots: completionSnapshots.map((row) => ({
+      id: row.id, workspaceId: row.workspace_id, occurrenceId: row.occurrence_id, sourceRoutineId: row.source_routine_id, trajectoryRoutineId: row.trajectory_routine_id,
+      itemId: row.item_id, cleanlinessChannel: row.cleanliness_channel, completedAt: row.completed_at, refreshLevelPctSnapshot: Number(row.refresh_level_pct_snapshot),
+      cleanlinessBeforePct: Number(row.cleanliness_before_pct), cleanlinessAfterPct: Number(row.cleanliness_after_pct), healthRefreshApplied: row.health_refresh_applied,
+      scheduledSlotAt: row.scheduled_slot_at, actorMemberId: row.actor_member_id ?? undefined,
+    })),
   })
+  const rawHealthByKey = new Map(healthTrajectories.map((row) => [`${row.routine_id}:${row.item_id}:${row.cleanliness_channel}`, row]))
+  const healthStateChanged = normalized.healthTrajectories.length !== healthTrajectories.length || normalized.healthTrajectories.some((row) => {
+    const raw = rawHealthByKey.get(`${row.routineId}:${row.itemId}:${row.cleanlinessChannel}`) as Record<string, any> | undefined
+    return !raw
+      || raw.health_anchor_at !== row.healthAnchorAt
+      || Number(raw.health_anchor_pct) !== row.healthAnchorPct
+      || raw.health_due_at !== row.healthDueAt
+      || raw.health_overdue_end_at !== row.healthOverdueEndAt
+      || (raw.last_refresh_completion_id ?? undefined) !== row.lastRefreshCompletionId
+  })
+  const rawSnapshotIds = new Set(completionSnapshots.map((row) => row.id))
+  const completionStateChanged = normalized.completionSnapshots.length !== completionSnapshots.length
+    || normalized.completionSnapshots.some((row) => !rawSnapshotIds.has(row.id))
+  if (healthStateChanged || completionStateChanged) await persistCleanlinessState(db, normalized)
+  return normalized
 }
 
 export async function createCloudWorkspace(user: User, name: string, ownerName: string, timezone: string): Promise<WorkspaceData> {
@@ -207,7 +263,7 @@ export async function createCloudWorkspace(user: User, name: string, ownerName: 
   return {
     workspace: { id: workspaceId, name, timezone, careSensitivity: 'balanced', ownerUserId: user.id, createdAt },
     members: [{ id: memberId, workspaceId, userId: user.id, displayName: ownerName, email: user.email, role: 'owner', status: 'active', labels: [], createdAt }],
-    fieldDefinitions: [], entityTypes: [], entities: [], layoutScenes: [], layoutElements: [], entityRelations: [], actions: [], routines: [], tasks: [], taskEvents: [], supplies: [], supplyEvents: [],
+    fieldDefinitions: [], entityTypes: [], entities: [], layoutScenes: [], layoutElements: [], entityRelations: [], actions: [], routines: [], tasks: [], taskEvents: [], healthTrajectories: [], completionSnapshots: [], supplies: [], supplyEvents: [],
   }
 }
 
@@ -303,8 +359,10 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
   if (data.routines.length) {
     const { error } = await db.from('routines').upsert(dedupeBy(data.routines, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, name: row.name, action_id: row.actionId,
-      recurrence: row.recurrence, time_of_day: row.timeOfDay, schedule_mode: row.scheduleMode,
-      schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder, care_level: row.careLevel ?? 'routine',
+      recurrence: row.recurrence, time_of_day: row.timeOfDay, routine_timezone: row.routineTimezone ?? data.workspace.timezone, schedule_mode: row.scheduleMode,
+      schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder,
+      cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
+      refresh_level_pct: row.refreshLevelPct ?? 100, status: row.status ?? 'active',
       supply_ids_override: row.supplyIdsOverride ?? null, revision: row.revision,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
@@ -313,8 +371,10 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
   if (data.tasks.length) {
     const { error } = await db.from('task_occurrences').upsert(dedupeBy(data.tasks, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, routine_id: row.routineId, routine_revision: row.routineRevision,
-      routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot, care_level: row.careLevel ?? 'routine',
-      original_due_at: row.originalDueAt, due_at: row.dueAt, state: row.state,
+      routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot,
+      cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
+      scheduled_slot_at: row.scheduledSlotAt ?? row.originalDueAt, effective_due_at: row.effectiveDueAt ?? row.dueAt,
+      original_due_at: row.scheduledSlotAt ?? row.originalDueAt, due_at: row.effectiveDueAt ?? row.dueAt, completed_at: row.completedAt ?? null, state: row.state,
       assignee_member_id: row.assigneeMemberId ?? null, supplies_snapshot: row.supplies, explanation_snapshot: row.explanation,
       version: row.version, created_at: row.createdAt,
     })))
@@ -327,6 +387,8 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
     })), { onConflict: 'id', ignoreDuplicates: true })
     if (error) throw persistenceError('task_events', error)
   }
+
+  await persistCleanlinessState(db, data)
 
   const { error: deleteRoutineTargetsError } = await db.from('routine_targets').delete().eq('workspace_id', workspaceId)
   if (deleteRoutineTargetsError) throw persistenceError('routine_targets cleanup', deleteRoutineTargetsError)
@@ -394,6 +456,17 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
     if (error) throw error
     return data as CloudMutationResult
   }
+  if (mutation.kind === 'undo') {
+    const { data, error } = await db.rpc('undo_task_mutation', {
+      target_task_id: mutation.taskId,
+      expected_version: mutation.expectedVersion,
+      source_event_id: mutation.sourceEventId ?? null,
+      event_id: mutation.eventId,
+      event_at: mutation.eventAt,
+    })
+    if (error) throw error
+    return data as CloudMutationResult
+  }
   if (mutation.kind === 'complete_target') {
     const { data, error } = await db.rpc('apply_task_target_completion', {
       target_task_id: mutation.taskId,
@@ -401,6 +474,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
       expected_version: mutation.expectedVersion,
       event_id: mutation.eventId,
       event_at: mutation.eventAt,
+      completion_effects: mutation.completionEffects ?? [],
     })
     if (error) throw error
     return data as CloudMutationResult
@@ -411,7 +485,8 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
     mutation_kind: mutation.kind,
     event_id: mutation.eventId,
     event_at: mutation.eventAt,
-    new_due_at: mutation.kind === 'postpone' ? mutation.dueAt ?? null : null,
+    new_effective_due_at: mutation.kind === 'postpone' ? mutation.effectiveDueAt ?? mutation.dueAt ?? null : null,
+    completion_effects: mutation.kind === 'complete' ? mutation.completionEffects ?? [] : [],
     new_assignee_member_id: mutation.kind === 'reassign' ? mutation.assigneeMemberId ?? null : null,
     clear_assignee: mutation.kind === 'reassign' ? Boolean(mutation.clearAssignee) : false,
   })

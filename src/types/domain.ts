@@ -1,6 +1,8 @@
 export type Locale = 'en' | 'it'
 export type CareSensitivity = 'relaxed' | 'balanced' | 'strict'
 export type CareLevel = 'routine' | 'deep'
+export type CleanlinessChannel = 'regular' | 'deep'
+export type RoutineStatus = 'active' | 'paused' | 'ended'
 export type MemberRole = 'owner' | 'member'
 export type MemberStatus = 'active' | 'invited'
 export type AdvancedAssignmentStrategy = 'round_robin' | 'least_recent' | 'weighted' | 'workload'
@@ -246,12 +248,20 @@ export interface Routine {
   advancedTargetSelector?: AdvancedTargetSelector
   recurrence: RecurrenceRule
   timeOfDay: string
+  /** Canonical timezone used to resolve this routine's recurrence boundaries. */
+  routineTimezone: string
   scheduleMode: ScheduleMode
   exceptions: ScheduleExceptions
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
-  /** Whether this routine maintains short-term or long-term/deep care. */
+  /** Canonical v1.2 cleanliness channel. */
+  cleanlinessChannel: CleanlinessChannel
+  /** Legacy/UI compatibility through Phase 2. Mirrors cleanlinessChannel (regular => routine). */
   careLevel: CareLevel
+  /** Minimum cleanliness this routine can restore when an effective completion occurs. */
+  refreshLevelPct: number
+  /** v1.2 lifecycle state. Archived remains a separate destructive/configuration state. */
+  status: RoutineStatus
   /** undefined = inherit Action defaults; [] = explicitly no supplies. */
   supplyIdsOverride?: string[]
   revision: number
@@ -287,10 +297,18 @@ export interface TaskOccurrence {
   routineRevision: number
   routineNameSnapshot: string
   actionNameSnapshot: string
-  /** Snapshot so historical care semantics do not change when a routine is edited. */
+  /** Canonical v1.2 channel snapshot. */
+  cleanlinessChannel: CleanlinessChannel
+  /** Legacy/UI compatibility through Phase 2. */
   careLevel: CareLevel
+  /** Immutable theoretical cadence point. */
+  scheduledSlotAt: string
+  /** Mutable execution time used by the workflow and notifications. */
+  effectiveDueAt: string
+  /** Legacy aliases retained during the v1.2 transition; kept synchronized. */
   originalDueAt: string
   dueAt: string
+  completedAt?: string
   state: TaskState
   assigneeMemberId?: string
   targets: TaskTargetSnapshot[]
@@ -308,6 +326,56 @@ export interface TaskEvent {
   at: string
   actorMemberId?: string
   metadata: Record<string, unknown>
+}
+
+
+export interface HealthTrajectory {
+  workspaceId: string
+  itemId: string
+  routineId: string
+  cleanlinessChannel: CleanlinessChannel
+  healthAnchorAt: string
+  healthAnchorPct: number
+  healthDueAt: string
+  healthOverdueEndAt: string
+  lastRefreshCompletionId?: string
+  updatedAt: string
+}
+
+export interface CompletionHealthEffect {
+  snapshotId: string
+  sourceRoutineId: string
+  trajectoryRoutineId: string
+  itemId: string
+  cleanlinessChannel: CleanlinessChannel
+  refreshLevelPctSnapshot: number
+  cleanlinessBeforePct: number
+  cleanlinessAfterPct: number
+  healthRefreshApplied: boolean
+  scheduledSlotAt: string
+  healthAnchorAt?: string
+  healthAnchorPct?: number
+  healthDueAt?: string
+  healthOverdueEndAt?: string
+}
+
+export interface CompletionSnapshot {
+  id: string
+  workspaceId: string
+  occurrenceId: string
+  /** Routine whose completion caused this snapshot. */
+  sourceRoutineId: string
+  /** Routine trajectory that was evaluated/refreshed. Differs for deep -> regular carry-over. */
+  trajectoryRoutineId: string
+  itemId: string
+  cleanlinessChannel: CleanlinessChannel
+  completedAt: string
+  refreshLevelPctSnapshot: number
+  cleanlinessBeforePct: number
+  cleanlinessAfterPct: number
+  healthRefreshApplied: boolean
+  scheduledSlotAt: string
+  actorMemberId?: string
 }
 
 export interface Supply {
@@ -349,6 +417,8 @@ export interface WorkspaceData {
   routines: Routine[]
   tasks: TaskOccurrence[]
   taskEvents: TaskEvent[]
+  healthTrajectories: HealthTrajectory[]
+  completionSnapshots: CompletionSnapshot[]
   supplies: Supply[]
   supplyEvents: SupplyEvent[]
 }

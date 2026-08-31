@@ -10,7 +10,7 @@ import { RoutinesPage } from './pages/RoutinesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SuppliesPage } from './pages/SuppliesPage'
 import { SetupPage } from './pages/SetupPage'
-import { TodayPage } from './pages/TodayPage'
+import { OverviewPage } from './pages/OverviewPage'
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
@@ -27,8 +27,9 @@ export default function App() {
   if (!data) return <SetupPage />
   return <Routes>
     <Route element={<AppShell />}>
-      <Route index element={<TodayPage />} />
-      <Route path="task/:taskId" element={<TodayPage />} />
+      <Route index element={<OverviewPage />} />
+      <Route path="today" element={<Navigate to="/" replace />} />
+      <Route path="task/:taskId" element={<OverviewPage />} />
       <Route path="home" element={<HomePage />} />
       <Route path="insights" element={<InsightsPage />} />
       <Route path="actions" element={<ActionsPage />} />

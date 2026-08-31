@@ -21,6 +21,7 @@ import type {
   RecurrenceRule,
   ReminderPolicy,
   Routine,
+  RoutineStatus,
   AdvancedTargetSelector,
   ScheduleExceptions,
   ScheduleMode,
@@ -34,7 +35,7 @@ import type {
 import { useAuth } from './AuthContext'
 import { clearLocalData, createLocalWorkspace, loadLocalData, saveLocalData } from '../lib/localRepository'
 import { applyCloudMutation, archiveCloudWorkspace, createCloudWorkspace, deleteCloudWorkspace, listCloudWorkspaces, loadCloudData, replaceCloudData, restoreCloudWorkspace, saveCloudData } from '../lib/cloudRepository'
-import { materializeTasks } from '../lib/scheduler'
+import { materializeRoutineSlot, materializeTasks, nextTheoreticalSlotAfter } from '../lib/scheduler'
 import { newId, nowIso } from '../lib/id'
 import { normalizeWorkspaceData } from '../lib/dataMigrations'
 import { prepareImportedWorkspace, type HouseholdBackup } from '../lib/backup'
@@ -44,6 +45,7 @@ import { clearCloudCache, enqueueOfflineMutation, loadCloudCache, loadOfflineQue
 import { clearSelectedWorkspaceId, loadSelectedWorkspaceId, loadWorkspaceCatalog, saveSelectedWorkspaceId, saveWorkspaceCatalog, workspaceScope } from '../lib/workspaces'
 import { logClientError, normalizeError, setDiagnosticContext } from '../lib/errorLog'
 import { routineDefinitionFingerprint } from '../lib/routines'
+import { buildCompletionHealthEffects } from '../lib/cleanliness'
 
 interface EntityInput { name: string; typeId: string; parentId?: string; labels: string[]; metadata: Record<string, MetadataValue> }
 interface ActionInput { name: string; icon?: string; instructions?: string; defaultSupplyIds: string[]; metadata: Record<string, MetadataValue> }
@@ -60,12 +62,14 @@ interface RoutineInput {
   assignment: AssignmentPolicy
   reminder: ReminderPolicy
   careLevel: CareLevel
+  refreshLevelPct: number
   supplyIdsOverride?: string[]
 }
 interface SupplyInput { name: string; icon?: string; status: StockStatus; quantity?: number; unit?: string; metadata: Record<string, MetadataValue> }
 interface FieldInput { target: MetadataTarget; name: string; fieldType: MetadataFieldType; options: string[] }
 interface LayoutElementInput { sceneId: string; entityId: string; role: LayoutRole; shape: LayoutShape; x: number; y: number; width: number; height: number; rotation: number; zIndex: number; points?: LayoutPoint[]; labelPosition: 'center' | 'top' | 'bottom'; labelFontSize?: number; labelWrap?: boolean; labelWidth?: number; labelRotation?: number; fillColor?: string; textColor?: string; textBackgroundColor?: string }
 interface RelationInput { fromEntityId: string; toEntityId?: string; targetSceneId?: string; kind: RelationKind; label?: string }
+
 
 interface DataValue {
   data: WorkspaceData | null
@@ -115,11 +119,13 @@ interface DataValue {
   addRoutine: (input: RoutineInput) => Promise<void>
   updateRoutine: (id: string, input: RoutineInput) => Promise<void>
   archiveRoutine: (id: string) => Promise<void>
-  completeTask: (id: string) => Promise<void>
+  setRoutineStatus: (id: string, status: RoutineStatus) => Promise<void>
+  completeTask: (id: string) => Promise<string | null>
   completeTaskTarget: (id: string, entityId: string) => Promise<void>
-  skipTask: (id: string) => Promise<void>
-  postponeTask: (id: string, dueAt: string) => Promise<void>
-  reassignTask: (id: string, memberId?: string) => Promise<void>
+  skipTask: (id: string) => Promise<string | null>
+  postponeTask: (id: string, dueAt: string) => Promise<string | null>
+  reassignTask: (id: string, memberId?: string) => Promise<string | null>
+  undoTaskAction: (id: string, sourceEventId: string) => Promise<void>
   importBackup: (backup: HouseholdBackup) => Promise<void>
   resetLocal: () => void
 }
@@ -726,14 +732,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (duplicate) return current
       return {
         ...current,
-        routines: [...current.routines, { id: newId(), workspaceId: current.workspace.id, ...input, revision: 1, createdAt: nowIso() }],
+        routines: [...current.routines, {
+          id: newId(), workspaceId: current.workspace.id, ...input,
+          cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
+          routineTimezone: current.workspace.timezone,
+          refreshLevelPct: Math.max(10, Math.min(100, input.refreshLevelPct ?? 100)), status: 'active', revision: 1, createdAt: nowIso(),
+        }],
       }
     }),
     updateRoutine: async (id, input) => commit((current) => {
+      const existing = current.routines.find((item) => item.id === id)
+      if (!existing) return current
+      const refreshLevelPct = Math.max(10, Math.min(100, input.refreshLevelPct ?? existing.refreshLevelPct ?? 100))
+      // Refresh-to is an execution-time policy. Changing it must affect future completions
+      // without retiring or recreating already materialized occurrences.
+      const onlyRefreshChanged = routineDefinitionFingerprint({ ...existing, refreshLevelPct }) === routineDefinitionFingerprint({ ...input, refreshLevelPct, status: existing.status ?? 'active' })
+      if (onlyRefreshChanged) {
+        return {
+          ...current,
+          routines: current.routines.map((item) => item.id === id ? { ...item, refreshLevelPct } : item),
+        }
+      }
       const cancelled = cancelFutureTasks(current, id)
       return {
         ...cancelled,
-        routines: cancelled.routines.map((item) => item.id === id ? { ...item, ...input, revision: item.revision + 1 } : item),
+        routines: cancelled.routines.map((item) => item.id === id ? {
+          ...item, ...input, cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
+          routineTimezone: item.routineTimezone ?? current.workspace.timezone,
+          refreshLevelPct, status: item.status ?? 'active', revision: item.revision + 1,
+        } : item),
       }
     }),
     archiveRoutine: async (id) => commit((current) => {
@@ -743,31 +770,113 @@ export function DataProvider({ children }: { children: ReactNode }) {
         routines: cancelled.routines.map((item) => item.id === id ? { ...item, archivedAt: nowIso(), revision: item.revision + 1 } : item),
       }
     }),
+    setRoutineStatus: async (id, status) => commit((current) => {
+      const at = nowIso()
+      const nowMs = new Date(at).getTime()
+      const routine = current.routines.find((item) => item.id === id)
+      if (!routine) return current
+      const routines = current.routines.map((item) => item.id === id ? { ...item, status } : item)
+
+      if (status === 'paused' || status === 'ended') {
+        const reason = status === 'paused' ? 'routine_paused' : 'routine_ended'
+        const cancelledIds: string[] = []
+        const tasks = current.tasks.map((task) => {
+          if (task.routineId !== id || task.state !== 'scheduled') return task
+          cancelledIds.push(task.id)
+          return { ...task, state: 'cancelled' as const, version: task.version + 1 }
+        })
+        return {
+          ...current,
+          routines,
+          tasks,
+          taskEvents: [...current.taskEvents, ...cancelledIds.map((taskId) => ({
+            id: newId(), workspaceId: current.workspace.id, taskId, type: 'CANCELLED' as const, at, actorMemberId: currentMember?.id, metadata: { reason },
+          }))],
+        }
+      }
+
+      // Resume only tasks that were cancelled specifically by Pause and are still
+      // in the future. Past paused slots stay historical and are never recreated.
+      const reopenedIds: string[] = []
+      const latestCancelReason = (taskId: string): unknown => current.taskEvents
+        .filter((event) => event.taskId === taskId && event.type === 'CANCELLED')
+        .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]?.metadata.reason
+      let next: WorkspaceData = {
+        ...current,
+        routines,
+        tasks: current.tasks.map((task) => {
+          if (task.routineId !== id || task.state !== 'cancelled' || latestCancelReason(task.id) !== 'routine_paused') return task
+          if (new Date(task.effectiveDueAt ?? task.dueAt).getTime() < nowMs) return task
+          reopenedIds.push(task.id)
+          return { ...task, state: 'scheduled' as const, version: task.version + 1 }
+        }),
+        taskEvents: current.taskEvents,
+      }
+      if (reopenedIds.length) {
+        next = {
+          ...next,
+          taskEvents: [...next.taskEvents, ...reopenedIds.map((taskId) => ({
+            id: newId(), workspaceId: current.workspace.id, taskId, type: 'REOPENED' as const, at, actorMemberId: currentMember?.id, metadata: { reason: 'routine_resumed' },
+          }))],
+        }
+      }
+
+      const resumedRoutine = next.routines.find((item) => item.id === id)!
+      if (resumedRoutine.scheduleMode === 'after_completion') {
+        const hasFuture = next.tasks.some((task) => task.routineId === id && task.state === 'scheduled')
+        if (!hasFuture) {
+          const dueAt = nextTheoreticalSlotAfter(resumedRoutine, at, next.workspace.timezone)
+          if (dueAt) next = materializeRoutineSlot(next, resumedRoutine, dueAt)
+        }
+        return next
+      }
+
+      // Fill any future fixed-calendar gaps. Cancelled past pause slots remain in
+      // the slot-key set, preventing accidental historical recreation.
+      return materializeTasks(normalizeWorkspaceData(next))
+    }),
     completeTask: async (id) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
-      if (!current || !task || task.state !== 'scheduled') return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete', taskId: id, expectedVersion: task.version, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+      if (!current || !task || task.state !== 'scheduled') return null
+      const eventAt = nowIso(); const eventId = newId()
+      const targetIds = task.targets.filter((target) => !target.completedAt).map((target) => target.entityId)
+      const completionEffects = buildCompletionHealthEffects(current, task, eventAt, targetIds, currentMember?.id)
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete', taskId: id, expectedVersion: task.version, eventId, eventAt, actorMemberId: currentMember?.id, completionEffects })
+      return eventId
     },
     completeTaskTarget: async (id, entityId) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       const target = task?.targets.find((item) => item.entityId === entityId)
       if (!current || !task || task.state !== 'scheduled' || !target || target.completedAt) return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete_target', taskId: id, targetEntityId: entityId, expectedVersion: task.version, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+      const eventAt = nowIso(); const eventId = newId()
+      const completionEffects = buildCompletionHealthEffects(current, task, eventAt, [entityId], currentMember?.id)
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete_target', taskId: id, targetEntityId: entityId, expectedVersion: task.version, eventId, eventAt, actorMemberId: currentMember?.id, completionEffects })
     },
     skipTask: async (id) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
-      if (!current || !task || task.state !== 'scheduled') return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'skip', taskId: id, expectedVersion: task.version, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+      if (!current || !task || task.state !== 'scheduled') return null
+      const eventId = newId()
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'skip', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id })
+      return eventId
     },
     postponeTask: async (id, dueAt) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
-      if (!current || !task || task.state !== 'scheduled') return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'postpone', taskId: id, expectedVersion: task.version, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id, dueAt })
+      if (!current || !task || task.state !== 'scheduled') return null
+      const eventId = newId()
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'postpone', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, dueAt, effectiveDueAt: dueAt })
+      return eventId
     },
     reassignTask: async (id, memberId) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
-      if (!current || !task || task.state !== 'scheduled') return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id, assigneeMemberId: memberId, clearAssignee: !memberId })
+      if (!current || !task || task.state !== 'scheduled') return null
+      const eventId = newId()
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, assigneeMemberId: memberId, clearAssignee: !memberId })
+      return eventId
+    },
+    undoTaskAction: async (id, sourceEventId) => {
+      const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
+      if (!current || !task) return
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'undo', taskId: id, expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
     },
     importBackup: async (backup) => {
       const current = dataRef.current

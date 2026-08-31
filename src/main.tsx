@@ -8,6 +8,7 @@ import { I18nProvider } from './contexts/I18nContext'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { registerInstallPromptCapture } from './lib/pwa'
 import { installClientDiagnostics } from './lib/errorLog'
+import '@fontsource-variable/manrope'
 import './styles.css'
 
 registerInstallPromptCapture()
