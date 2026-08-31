@@ -2,7 +2,7 @@ import type { AssignmentPolicy, WorkspaceData, WorkspaceMember } from '../types/
 import { normalizeWorkspaceData } from './dataMigrations'
 
 export const BACKUP_SCHEMA_VERSION = 8
-export const APPLICATION_VERSION = '1.2.0-phase2'
+export const APPLICATION_VERSION = '1.2.0-r4.1'
 
 export interface HouseholdBackup {
   schema_version: number
@@ -45,7 +45,7 @@ export function parseHouseholdBackup(text: string): HouseholdBackup {
 }
 
 function remapAssignment(policy: AssignmentPolicy, memberMap: Map<string, string>): AssignmentPolicy {
-  if (policy.mode === 'unassigned') return policy
+  if (policy.mode === 'unassigned' || policy.mode === 'everyone') return policy
   if (policy.mode === 'alternate') return { ...policy, memberIds: policy.memberIds.map((id) => memberMap.get(id) ?? id) }
   if (policy.mode === 'advanced') {
     const weights: Record<string, number> = {}

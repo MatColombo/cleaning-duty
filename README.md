@@ -97,3 +97,11 @@ Cloud upgrades from the preceding state-consistency build must run `supabase/mig
 Assignment is now explicit at both Routine and occurrence level: **Unassigned** means no member is selected and no push reminder is scheduled; **Everyone / household** is one shared occurrence whose reminder is broadcast to every active household account through all enabled push subscriptions; a named member continues to receive that reminder only on their enabled devices. Cloud upgrades must run `supabase/migrations/20260831203000_v1_2_0_everyone_notifications.sql` before deploying this app build, then redeploy the packaged `send-push` Edge Function so broadcast recipients are validated correctly.
 
 The Home layout can now be panned by dragging. Outside Edit mode the drag may start over empty space, a room, or an object; short taps still select/open the item. In Edit mode, dragging an element remains reserved for moving/resizing it and dragging the background pans the camera. The zoom percentage button still resets/fits the layout. The service-worker cache is `v1.2.0-r4`.
+
+
+## v1.2.0-r4.1 build fix
+
+- Fixes backup/import assignment remapping for the explicit `everyone` assignment mode.
+- `everyone` has no `memberId`, so it is preserved without member remapping.
+- Service-worker cache bumped to `v1.2.0-r4.1`.
+- No database migration or Edge Function redeploy is required beyond r4.
