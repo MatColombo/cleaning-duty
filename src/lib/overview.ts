@@ -1,4 +1,4 @@
-import type { TaskEvent, TaskOccurrence, WorkspaceData } from '../types/domain'
+import type { CleanlinessChannel, TaskEvent, TaskOccurrence, WorkspaceData } from '../types/domain'
 import { itemChannelCleanliness } from './cleanliness'
 import { addDays, localDateInZone } from './date'
 import { isRoutineActive } from './scheduler'
@@ -12,6 +12,7 @@ export interface CriticalCleanlinessItem {
   score: number
   theoreticalDueAt?: string
   overdue: boolean
+  channel: CleanlinessChannel
 }
 
 export interface OverviewGroups {
@@ -89,20 +90,22 @@ function roomNameForItem(data: WorkspaceData, itemId: string): string | undefine
 }
 
 export function buildCriticalItems(data: WorkspaceData, now: Date, threshold: number, limit: number): CriticalCleanlinessItem[] {
-  return data.entities
+  const perChannelLimit = Math.max(1, Math.min(15, limit))
+  return (['regular', 'deep'] as CleanlinessChannel[]).flatMap((channel) => data.entities
     .filter((entity) => !entity.archivedAt)
     .flatMap((entity) => {
-      const result = itemChannelCleanliness(data, entity.id, 'regular', now)
+      const result = itemChannelCleanliness(data, entity.id, channel, now)
       if (result.score == null || result.score >= threshold) return []
       const dueAts = result.routineScores.flatMap(({ routineId }) => {
-        const trajectory = data.healthTrajectories.find((row) => row.routineId === routineId && row.itemId === entity.id && row.cleanlinessChannel === 'regular')
+        const trajectory = data.healthTrajectories.find((row) => row.routineId === routineId && row.itemId === entity.id && row.cleanlinessChannel === channel)
         return trajectory ? [trajectory.healthDueAt] : []
       }).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
       const theoreticalDueAt = dueAts[0]
-      return [{ itemId: entity.id, name: entity.name, roomName: roomNameForItem(data, entity.id), score: result.score, theoreticalDueAt, overdue: Boolean(theoreticalDueAt && new Date(theoreticalDueAt).getTime() < now.getTime()) }]
+      return [{ itemId: entity.id, name: entity.name, roomName: roomNameForItem(data, entity.id), score: result.score, theoreticalDueAt, overdue: Boolean(theoreticalDueAt && new Date(theoreticalDueAt).getTime() < now.getTime()), channel }]
     })
     .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || new Date(a.theoreticalDueAt ?? 8640000000000000).getTime() - new Date(b.theoreticalDueAt ?? 8640000000000000).getTime() || a.name.localeCompare(b.name))
-    .slice(0, Math.max(1, Math.min(15, limit)))
+    .slice(0, perChannelLimit))
+    .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || a.name.localeCompare(b.name))
 }
 
 export function buildOverviewGroups(

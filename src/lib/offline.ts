@@ -9,7 +9,7 @@ export type OfflineMutation =
   | {
       id: string
       workspaceId: string
-      kind: 'complete' | 'skip' | 'postpone' | 'reassign' | 'complete_target' | 'undo'
+      kind: 'complete' | 'skip' | 'postpone' | 'reassign' | 'complete_target' | 'undo' | 'reopen_today'
       taskId: string
       expectedVersion: number
       eventId: string

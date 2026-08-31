@@ -55,7 +55,18 @@ function completionEventAt(data: WorkspaceData, taskId: string): string | undefi
 
 function completionAtForTarget(data: WorkspaceData, task: TaskOccurrence, itemId: string): string | undefined {
   const target = task.targets.find((item) => item.entityId === itemId)
-  return target?.completedAt ?? task.completedAt ?? (task.state === 'completed' ? completionEventAt(data, task.id) : undefined)
+  // A stale completed_at column on a skipped/reopened occurrence is not physical
+  // cleaning evidence. Target timestamps count only when backed by the explicit
+  // TARGET_COMPLETED audit event (or when the whole occurrence is completed).
+  if (target?.completedAt) {
+    const targetEvent = data.taskEvents.some((event) => event.taskId === task.id
+      && event.type === 'TARGET_COMPLETED'
+      && event.metadata.entityId === itemId
+      && event.at === target.completedAt)
+    if (task.state === 'completed' || targetEvent) return target.completedAt
+  }
+  if (task.state !== 'completed') return undefined
+  return task.completedAt ?? completionEventAt(data, task.id)
 }
 
 function activeTrackableRoutines(data: WorkspaceData): Routine[] {
@@ -155,12 +166,37 @@ function initialTrajectory(data: WorkspaceData, routine: Routine, itemId: string
   return { trajectory, snapshot }
 }
 
+function completionSnapshotStillValid(data: WorkspaceData, snapshot: CompletionSnapshot): boolean {
+  const task = data.tasks.find((item) => item.id === snapshot.occurrenceId)
+  if (!task) return false
+  const completionWasReopened = data.taskEvents.some((event) => event.taskId === task.id
+    && event.type === 'REOPENED'
+    && new Date(event.at).getTime() >= new Date(snapshot.completedAt).getTime()
+    && (event.metadata.undoType === 'COMPLETED' || event.metadata.restoreType === 'COMPLETED'))
+  if (completionWasReopened) return false
+  const explicitTargetCompletion = data.taskEvents.some((event) => event.taskId === task.id
+    && event.type === 'TARGET_COMPLETED'
+    && event.metadata.entityId === snapshot.itemId
+    && event.at === snapshot.completedAt)
+  const explicitCompletion = data.taskEvents.some((event) => event.taskId === task.id
+    && event.type === 'COMPLETED'
+    && event.at === snapshot.completedAt)
+  const legacyCompletedRow = task.state === 'completed' && task.completedAt === snapshot.completedAt
+  return explicitTargetCompletion || explicitCompletion || legacyCompletedRow
+}
+
 /** Deterministic/idempotent upgrade and reconciliation. Stored trajectories are
- * retained; missing ones are initialized from the latest valid legacy completion.
- * Cadence boundaries are re-resolved from the current routine definition. */
+ * retained only when their latest refresh is backed by real completion evidence;
+ * missing/invalid ones are rebuilt from canonical completion history. */
 export function reconcileCleanlinessState(input: WorkspaceData): WorkspaceData {
-  const existing = new Map((input.healthTrajectories ?? []).map((row) => [trajectoryKey(row.routineId, row.itemId, row.cleanlinessChannel), row]))
   const snapshots = new Map((input.completionSnapshots ?? []).map((row) => [row.id, row]))
+  const existing = new Map((input.healthTrajectories ?? []).flatMap((row) => {
+    if (!row.lastRefreshCompletionId) return [[trajectoryKey(row.routineId, row.itemId, row.cleanlinessChannel), row] as const]
+    const snapshot = snapshots.get(row.lastRefreshCompletionId)
+    return snapshot && completionSnapshotStillValid(input, snapshot)
+      ? [[trajectoryKey(row.routineId, row.itemId, row.cleanlinessChannel), row] as const]
+      : []
+  }))
   const nextTrajectories = [...existing.values()]
 
   for (const routine of activeTrackableRoutines(input)) {

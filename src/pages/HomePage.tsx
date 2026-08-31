@@ -100,7 +100,7 @@ export function HomePage() {
   }
 
   async function undoLast() {
-    if (!undo) return
+    if (!undo || !window.confirm(t('confirmRestoreTask'))) return
     const value = undo
     setUndo(null)
     await undoTaskAction(value.taskId, value.eventId)
@@ -323,7 +323,7 @@ export function HomePage() {
     }
 
     async function completeCurrent() {
-      if (!current) return
+      if (!current || !window.confirm(t('confirmCompleteTask'))) return
       const eventId = await completeTask(current.id)
       rememberUndo(current, eventId, t('completed').toLowerCase(), true)
       if (eventId) {
@@ -333,7 +333,7 @@ export function HomePage() {
     }
 
     async function skipCurrent() {
-      if (!current) return
+      if (!current || !window.confirm(t('confirmSkipTask'))) return
       const eventId = await skipTask(current.id)
       rememberUndo(current, eventId, t('skipped').toLowerCase(), true)
       if (eventId) {

@@ -5,6 +5,7 @@ Configurable household-care PWA for a shared home. v1.2.0 implements the supplie
 Release notes: `docs/RELEASE_NOTES_v1.2.0.md`  
 Update from the Phase 3 build: `docs/UPDATE_v1.2.0.md`  
 Release traceability: `docs/V1_2_0_TRACEABILITY.md`
+State-consistency corrective update: `docs/UPDATE_v1.2.0_STATE_CONSISTENCY.md`
 
 ## v1.2.0 release shape
 
@@ -78,10 +79,10 @@ In the packaging environment used for this release, dependency installation did 
 
 ## Product boundary
 
-v1.2.0 remains a home-maintenance product. Shopping, household inventory, expenses, generic chat, IoT/sensor integrations, social features and gamification remain outside this release.
+v1.2.0 remains a home-maintenance product. Generic shopping and inventory modules beyond the existing consumable Stock workflow, plus expenses, generic chat, IoT/sensor integrations, social features and gamification remain outside this release.
 
 ## v1.2.0 corrective pass
 
 This package includes the post-release v1.2.0 corrections requested after initial rollout: restored Actions and Stock navigation, below-layout Home details, room-grouped Home selectors, routine-card overflow fixes, notification job repair and revised reminder copy, stock visibility in Overview, Analysis completion-history fallback, and Finished-item restoration to today's work.
 
-Cloud deployments upgrading from the earlier v1.2.0 package must run `supabase/migrations/20260831160000_v1_2_0_corrective_notifications.sql` once, then redeploy the `send-push` Edge Function so the revised notification payload is active.
+Cloud deployments upgrading from the earlier v1.2.0 package must run `supabase/migrations/20260831160000_v1_2_0_corrective_notifications.sql` once and redeploy the `send-push` Edge Function if that notification correction has not already been deployed. This state-consistency revision additionally requires `supabase/migrations/20260831173000_v1_2_0_state_consistency.sql` once. It adds the first-class Restore to do today transaction, clears stale completion timestamps on skipped/non-completed rows, and removes invalid live cleanliness anchors so the canonical engine can reconstruct them.

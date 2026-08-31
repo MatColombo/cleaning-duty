@@ -58,7 +58,7 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
       effectiveDueAt,
       originalDueAt: scheduledSlotAt,
       dueAt: effectiveDueAt,
-      completedAt: task.completedAt ?? undefined,
+      completedAt: task.state === 'completed' ? (task.completedAt ?? undefined) : undefined,
       explanation: task.explanation ?? {
         schedule: 'Created by the saved routine schedule.',
         assignment: task.assigneeMemberId ? 'Assigned by the saved routine policy.' : 'No automatic assignee.',

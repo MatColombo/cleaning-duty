@@ -467,6 +467,16 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
     if (error) throw error
     return data as CloudMutationResult
   }
+  if (mutation.kind === 'reopen_today') {
+    const { data, error } = await db.rpc('reopen_task_to_today', {
+      target_task_id: mutation.taskId,
+      source_event_id: mutation.sourceEventId ?? null,
+      event_id: mutation.eventId,
+      event_at: mutation.eventAt,
+    })
+    if (error) throw error
+    return data as CloudMutationResult
+  }
   if (mutation.kind === 'complete_target') {
     const { data, error } = await db.rpc('apply_task_target_completion', {
       target_task_id: mutation.taskId,

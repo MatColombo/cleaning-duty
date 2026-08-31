@@ -59,8 +59,57 @@ function undoTaskMutation(current: WorkspaceData, mutation: OfflineMutation & { 
   }
 }
 
+
+function reopenTaskToToday(current: WorkspaceData, mutation: OfflineMutation & { kind: 'reopen_today' }): WorkspaceData {
+  const task = current.tasks.find((item) => item.id === mutation.taskId)
+  if (!task) return current
+  const source = mutation.sourceEventId ? current.taskEvents.find((event) => event.id === mutation.sourceEventId && event.taskId === mutation.taskId) : undefined
+  const latest = current.taskEvents
+    .filter((event) => event.taskId === task.id && ['COMPLETED', 'SKIPPED', 'POSTPONED', 'REOPENED'].includes(event.type))
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
+  if (source) {
+    if (!['COMPLETED', 'SKIPPED', 'POSTPONED'].includes(source.type) || !latest || latest.id !== source.id) return current
+  } else if (task.state !== 'completed' && task.state !== 'skipped') return current
+  const sourceType = source?.type ?? (task.state === 'completed' ? 'COMPLETED' : 'SKIPPED')
+
+  const occurrenceSnapshotIds = new Set(current.completionSnapshots.filter((snapshot) => snapshot.occurrenceId === task.id).map((snapshot) => snapshot.id))
+  let healthTrajectories = current.healthTrajectories
+  let targets = task.targets
+  if (sourceType === 'COMPLETED') {
+    targets = task.targets.map((target) => ({ ...target, completedAt: undefined, completedByMemberId: undefined }))
+    healthTrajectories = current.healthTrajectories.filter((trajectory) => !trajectory.lastRefreshCompletionId || !occurrenceSnapshotIds.has(trajectory.lastRefreshCompletionId))
+  }
+
+  let tasks = current.tasks.map((item) => item.id === task.id ? {
+    ...item, state: 'scheduled' as const, completedAt: undefined, targets, effectiveDueAt: mutation.eventAt, dueAt: mutation.eventAt, version: item.version + 1,
+  } : item)
+
+  const routine = current.routines.find((item) => item.id === task.routineId)
+  const successorIds = new Set<string>()
+  if ((sourceType === 'COMPLETED' || sourceType === 'SKIPPED') && routine?.scheduleMode === 'after_completion') {
+    for (const item of tasks) {
+      if (item.id !== task.id && item.routineId === task.routineId && item.state === 'scheduled') successorIds.add(item.id)
+    }
+    if (successorIds.size) tasks = tasks.map((item) => successorIds.has(item.id) ? { ...item, state: 'cancelled' as const, version: item.version + 1 } : item)
+  }
+
+  return {
+    ...current,
+    tasks,
+    healthTrajectories,
+    taskEvents: [...current.taskEvents, ...[...successorIds].map((taskId) => ({
+      id: newId(), workspaceId: current.workspace.id, taskId, type: 'CANCELLED' as const, at: mutation.eventAt,
+      actorMemberId: mutation.actorMemberId, metadata: { reason: 'restore_to_today_successor', restoreOf: source?.id ?? null },
+    })), {
+      id: mutation.eventId, workspaceId: current.workspace.id, taskId: task.id, type: 'REOPENED', at: mutation.eventAt,
+      actorMemberId: mutation.actorMemberId, metadata: { restoreOf: source?.id ?? null, restoreType: sourceType, reason: 'restore_to_today' },
+    }],
+  }
+}
+
 export function applyMutationLocally(current: WorkspaceData, mutation: OfflineMutation): WorkspaceData {
   if (mutation.kind === 'undo') return undoTaskMutation(current, mutation as OfflineMutation & { kind: 'undo' })
+  if (mutation.kind === 'reopen_today') return reopenTaskToToday(current, mutation as OfflineMutation & { kind: 'reopen_today' })
   if (mutation.kind === 'supply_status') {
     const supply = current.supplies.find((item) => item.id === mutation.supplyId)
     if (!supply || supply.version !== mutation.expectedVersion) return current
@@ -115,7 +164,7 @@ export function applyMutationLocally(current: WorkspaceData, mutation: OfflineMu
   }
   if (mutation.kind === 'skip') return {
     ...current,
-    tasks: current.tasks.map((item) => item.id === mutation.taskId ? { ...item, state: 'skipped', version: item.version + 1 } : item),
+    tasks: current.tasks.map((item) => item.id === mutation.taskId ? { ...item, state: 'skipped', completedAt: undefined, version: item.version + 1 } : item),
     taskEvents: [...current.taskEvents, { ...baseEvent, type: 'SKIPPED', metadata: {} }],
   }
   if (mutation.kind === 'postpone' && (mutation.effectiveDueAt ?? mutation.dueAt)) {

@@ -126,6 +126,7 @@ interface DataValue {
   postponeTask: (id: string, dueAt: string) => Promise<string | null>
   reassignTask: (id: string, memberId?: string) => Promise<string | null>
   undoTaskAction: (id: string, sourceEventId: string) => Promise<void>
+  restoreTaskToToday: (id: string, sourceEventId?: string) => Promise<void>
   importBackup: (backup: HouseholdBackup) => Promise<void>
   resetLocal: () => void
 }
@@ -359,7 +360,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const conflict: SyncConflict = {
       id: newId(), mutationId: mutation.id, kind: mutation.kind,
       itemId: mutation.kind === 'supply_status' ? mutation.supplyId : mutation.taskId,
-      at: nowIso(), message: 'The item changed on another device before this offline action could sync.',
+      at: nowIso(), message: mutation.kind === 'reopen_today' ? 'The activity changed before it could be restored to today.' : 'The cloud item changed before this action could sync.',
     }
     const scope = workspaceScope(user.id, mutation.workspaceId)
     const next = [...loadSyncConflicts(scope), conflict].slice(-30)
@@ -393,7 +394,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const result = await write
       if (result.conflict || !result.applied) recordConflict(mutation)
       await refreshFromCloud()
-      setError(result.conflict ? 'A change from another device won a sync conflict. Cloud data was kept.' : null)
+      setError(result.conflict ? 'A cloud version conflict was detected. The latest cloud state was kept.' : null)
     } catch (err) {
       const message = normalizeError(err)
       if (!navigator.onLine || /fetch|network|timeout/i.test(message)) {
@@ -877,6 +878,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task) return
       await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'undo', taskId: id, expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+    },
+    restoreTaskToToday: async (id, sourceEventId) => {
+      const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
+      if (!current || !task) return
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reopen_today', taskId: id, expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
     },
     importBackup: async (backup) => {
       const current = dataRef.current
