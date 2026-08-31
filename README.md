@@ -105,3 +105,7 @@ The Home layout can now be panned by dragging. Outside Edit mode the drag may st
 - `everyone` has no `memberId`, so it is preserved without member remapping.
 - Service-worker cache bumped to `v1.2.0-r4.1`.
 - No database migration or Edge Function redeploy is required beyond r4.
+
+## v1.2.0-r4.2 notification repair
+
+r4.2 rebuilds current reminder jobs after the Everyone-assignment upgrade, self-heals stale device push subscriptions, and adds explicit Edge Function delivery diagnostics. Apply `supabase/migrations/20260831213000_v1_2_0_notification_repair.sql`, redeploy `supabase/functions/send-push/index.ts`, then deploy the web app. See `docs/UPDATE_v1.2.0_R4_2_NOTIFICATIONS.md`.

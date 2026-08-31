@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
 import { createHouseholdBackup, parseHouseholdBackup } from '../lib/backup'
-import { currentPushCapability, disablePush, enablePush, type PushCapability } from '../lib/push'
+import { currentPushCapability, disablePush, enablePush, syncPushSubscription, type PushCapability } from '../lib/push'
 import { isStandalone, promptInstall } from '../lib/pwa'
 import type { CareSensitivity, MetadataFieldDefinition, MetadataFieldType, MetadataTarget, WorkspaceMember } from '../types/domain'
 import { dateTimeLocalValue, localInputToUtc } from '../lib/date'
@@ -47,14 +47,21 @@ export function SettingsPage() {
   }, [appearanceThemeId, appearancePalette])
 
   useEffect(() => {
-    const refreshPush = () => { void currentPushCapability(isCloud).then(setPushCapability) }
+    const refreshPush = () => {
+      void (async () => {
+        if (isCloud && data?.workspace.id && currentMember?.id) {
+          try { await syncPushSubscription(data.workspace.id, currentMember.id) } catch (err) { logClientError(err, { area: 'notification subscription sync' }) }
+        }
+        setPushCapability(await currentPushCapability(isCloud))
+      })()
+    }
     refreshPush()
     const refreshInstall = () => { setInstallAvailable(Boolean(window.__houseCareInstallPrompt)); setStandalone(isStandalone()) }
     window.addEventListener('housecare:install-available', refreshInstall)
     window.addEventListener('housecare:installed', refreshInstall)
     window.addEventListener('housecare:sw-ready', refreshPush)
     return () => { window.removeEventListener('housecare:install-available', refreshInstall); window.removeEventListener('housecare:installed', refreshInstall); window.removeEventListener('housecare:sw-ready', refreshPush) }
-  }, [isCloud])
+  }, [isCloud, data?.workspace.id, currentMember?.id])
 
   if (!data) return null
   const canManageHousehold = currentMember?.role === 'owner'

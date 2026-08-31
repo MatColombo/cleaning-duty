@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { localDateInZone } from '../lib/date'
 import { isRoutineActive } from '../lib/scheduler'
 import { applyTheme } from '../lib/theme'
+import { syncPushSubscription } from '../lib/push'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
 const nav = [
@@ -21,7 +22,7 @@ const nav = [
 
 export function AppShell() {
   const { t } = useI18n()
-  const { appearancePalette } = useAuth()
+  const { appearancePalette, isCloud } = useAuth()
   const { data, currentMember, saving, error, clearError, online, pendingSync, syncConflicts, dismissSyncConflicts } = useData()
   const navigate = useNavigate()
   const [updateReady, setUpdateReady] = useState(false)
@@ -33,6 +34,11 @@ export function AppShell() {
     window.addEventListener('housecare:update-ready', onReady)
     return () => window.removeEventListener('housecare:update-ready', onReady)
   }, [])
+
+  useEffect(() => {
+    if (!isCloud || !data?.workspace.id || !currentMember?.id) return
+    void syncPushSubscription(data.workspace.id, currentMember.id).catch(() => undefined)
+  }, [isCloud, data?.workspace.id, currentMember?.id])
 
   useEffect(() => {
     if (!data || !currentMember) return

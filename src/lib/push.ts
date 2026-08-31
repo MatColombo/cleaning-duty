@@ -25,6 +25,54 @@ async function activeServiceWorkerRegistration(): Promise<ServiceWorkerRegistrat
   return navigator.serviceWorker.ready
 }
 
+async function persistSubscription(workspaceId: string, memberId: string, subscription: PushSubscription): Promise<void> {
+  if (!supabase) return
+  const json = subscription.toJSON()
+  if (!json.keys?.p256dh || !json.keys.auth) throw new Error('The browser did not provide usable push subscription keys.')
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    workspace_id: workspaceId,
+    member_id: memberId,
+    endpoint: subscription.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
+    user_agent: navigator.userAgent,
+    disabled_at: null,
+    last_seen_at: new Date().toISOString(),
+  }, { onConflict: 'endpoint' })
+  if (error) throw error
+}
+
+/**
+ * Keep the server-side subscription row aligned with the browser. A previous
+ * push delivery may have disabled the database row while the browser still
+ * reports an active subscription; without this repair Settings would continue
+ * to show "enabled" even though send-push has no eligible endpoint.
+ */
+export async function syncPushSubscription(workspaceId: string, memberId: string): Promise<void> {
+  if (!supabase || !pushSupported() || !vapidPublicKey || Notification.permission !== 'granted') return
+  const registration = await activeServiceWorkerRegistration()
+  if (!registration) return
+  let subscription = await registration.pushManager.getSubscription()
+  if (!subscription) return
+
+  const { data: saved, error } = await supabase.from('push_subscriptions')
+    .select('disabled_at')
+    .eq('endpoint', subscription.endpoint)
+    .maybeSingle()
+  if (error) throw error
+
+  // A 404/410 from the push provider disables the server row. The browser can
+  // still retain that dead endpoint, so replace it with a fresh subscription.
+  if (saved?.disabled_at) {
+    await subscription.unsubscribe().catch(() => false)
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToArrayBuffer(vapidPublicKey),
+    })
+  }
+  await persistSubscription(workspaceId, memberId, subscription)
+}
+
 export async function currentPushCapability(isCloud: boolean): Promise<PushCapability> {
   if (!isCloud || !supabase) return 'cloud_required'
   if (!pushSupported() || !vapidPublicKey) return 'unsupported'
@@ -42,27 +90,17 @@ export async function enablePush(workspaceId: string, memberId: string): Promise
   if (!registration) throw new Error('Install or enable the app service worker before enabling notifications.')
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Notification permission was not granted.')
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToArrayBuffer(vapidPublicKey),
-  })
-  const json = subscription.toJSON()
-  if (!json.keys?.p256dh || !json.keys.auth) {
-    await subscription.unsubscribe().catch(() => false)
-    throw new Error('The browser did not provide usable push subscription keys.')
+  let subscription = await registration.pushManager.getSubscription()
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToArrayBuffer(vapidPublicKey),
+    })
   }
-  const { error } = await supabase.from('push_subscriptions').upsert({
-    workspace_id: workspaceId,
-    member_id: memberId,
-    endpoint: subscription.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
-    user_agent: navigator.userAgent,
-    disabled_at: null,
-    last_seen_at: new Date().toISOString(),
-  }, { onConflict: 'endpoint' })
-  if (error) {
-    await subscription.unsubscribe().catch(() => false)
+  try {
+    await persistSubscription(workspaceId, memberId, subscription)
+  } catch (error) {
+    if (!await registration.pushManager.getSubscription()) return
     throw error
   }
 }
