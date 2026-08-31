@@ -5,7 +5,8 @@ Configurable household-care PWA for a shared home. v1.2.0 implements the supplie
 Release notes: `docs/RELEASE_NOTES_v1.2.0.md`  
 Update from the Phase 3 build: `docs/UPDATE_v1.2.0.md`  
 Release traceability: `docs/V1_2_0_TRACEABILITY.md`
-State-consistency corrective update: `docs/UPDATE_v1.2.0_STATE_CONSISTENCY.md`
+State-consistency corrective update: `docs/UPDATE_v1.2.0_STATE_CONSISTENCY.md`  
+r4 assignment + Home panning update: `docs/UPDATE_v1.2.0_R4_ASSIGNMENT_PAN.md`
 
 ## v1.2.0 release shape
 
@@ -90,3 +91,9 @@ Cloud deployments upgrading from the earlier v1.2.0 package must run `supabase/m
 ## v1.2.0 r3 restore + Overview UX correction
 
 Cloud upgrades from the preceding state-consistency build must run `supabase/migrations/20260831193000_v1_2_0_restore_and_overview_ux.sql` once. It removes the remaining false Restore-to-today conflict for skipped/stale lifecycle rows by deriving the reversible action on the server. The app also separates Reschedule and Reassign into focused sheets, simplifies the `...` task-details sheet, clarifies multi-target completion, and merges Critical Cleanliness by item while explicitly labelling Routine, Deep, or both threshold breaches. The service-worker cache is `v1.2.0-r3`.
+
+## v1.2.0 r4 — explicit assignment + Home panning
+
+Assignment is now explicit at both Routine and occurrence level: **Unassigned** means no member is selected and no push reminder is scheduled; **Everyone / household** is one shared occurrence whose reminder is broadcast to every active household account through all enabled push subscriptions; a named member continues to receive that reminder only on their enabled devices. Cloud upgrades must run `supabase/migrations/20260831203000_v1_2_0_everyone_notifications.sql` before deploying this app build, then redeploy the packaged `send-push` Edge Function so broadcast recipients are validated correctly.
+
+The Home layout can now be panned by dragging. Outside Edit mode the drag may start over empty space, a room, or an object; short taps still select/open the item. In Edit mode, dragging an element remains reserved for moving/resizing it and dragging the background pans the camera. The zoom percentage button still resets/fits the layout. The service-worker cache is `v1.2.0-r4`.

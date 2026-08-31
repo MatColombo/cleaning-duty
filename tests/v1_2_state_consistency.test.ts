@@ -16,7 +16,7 @@ function task(overrides: Partial<TaskOccurrence> = {}): TaskOccurrence {
   return {
     id:taskId, workspaceId:wid, routineId:regularRid, routineRevision:1, routineNameSnapshot:'Regular clean', actionNameSnapshot:'Wipe',
     cleanlinessChannel:'regular', careLevel:'routine', scheduledSlotAt:'2026-08-31T08:00:00.000Z', effectiveDueAt:'2026-08-31T08:00:00.000Z',
-    originalDueAt:'2026-08-31T08:00:00.000Z', dueAt:'2026-08-31T08:00:00.000Z', state:'skipped', completedAt:skippedAt,
+    originalDueAt:'2026-08-31T08:00:00.000Z', dueAt:'2026-08-31T08:00:00.000Z', state:'skipped', assignmentScope:'unassigned', completedAt:skippedAt,
     targets:[{entityId:eid,entityName:'Table',entityTypeName:'Item',matchReasons:['Selected']}], supplies:[], explanation:{schedule:'',assignment:'',targetSummary:''}, version:2, createdAt:'2026-08-01T00:00:00.000Z', ...overrides,
   }
 }

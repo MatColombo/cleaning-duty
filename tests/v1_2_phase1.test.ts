@@ -70,6 +70,7 @@ function task(overrides: Partial<TaskOccurrence> = {}): TaskOccurrence {
     originalDueAt: '2026-08-03T10:00:00.000Z',
     dueAt: '2026-08-03T10:00:00.000Z',
     state: 'scheduled',
+    assignmentScope: 'member',
     assigneeMemberId: memberId,
     targets: [{ entityId: item1, entityName: 'Kitchen floor', entityTypeName: 'Surface', matchReasons: ['Selected'] }],
     supplies: [],

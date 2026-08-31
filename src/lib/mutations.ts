@@ -28,7 +28,10 @@ function undoTaskMutation(current: WorkspaceData, mutation: OfflineMutation & { 
     tasks = current.tasks.map((item) => item.id === task.id ? { ...item, effectiveDueAt: prior, dueAt: prior, version: item.version + 1 } : item)
   } else if (source.type === 'REASSIGNED') {
     const prior = typeof source.metadata.from === 'string' ? source.metadata.from : undefined
-    tasks = current.tasks.map((item) => item.id === task.id ? { ...item, assigneeMemberId: prior, version: item.version + 1 } : item)
+    const priorScope = source.metadata.fromScope === 'everyone' || source.metadata.fromScope === 'unassigned' || source.metadata.fromScope === 'member'
+      ? source.metadata.fromScope
+      : prior ? 'member' : 'unassigned'
+    tasks = current.tasks.map((item) => item.id === task.id ? { ...item, assigneeMemberId: prior, assignmentScope: priorScope, version: item.version + 1 } : item)
   } else return current
 
   const routine = current.routines.find((item) => item.id === task.routineId)
@@ -195,11 +198,12 @@ export function applyMutationLocally(current: WorkspaceData, mutation: OfflineMu
     }
   }
   if (mutation.kind === 'reassign') {
-    const nextAssignee = mutation.clearAssignee ? undefined : mutation.assigneeMemberId
+    const nextScope = mutation.assignmentScope ?? (mutation.clearAssignee ? 'unassigned' : mutation.assigneeMemberId ? 'member' : 'unassigned')
+    const nextAssignee = nextScope === 'member' ? mutation.assigneeMemberId : undefined
     return {
       ...current,
-      tasks: current.tasks.map((item) => item.id === mutation.taskId ? { ...item, assigneeMemberId: nextAssignee, version: item.version + 1 } : item),
-      taskEvents: [...current.taskEvents, { ...baseEvent, type: 'REASSIGNED', metadata: { from: task.assigneeMemberId ?? null, to: nextAssignee ?? null } }],
+      tasks: current.tasks.map((item) => item.id === mutation.taskId ? { ...item, assigneeMemberId: nextAssignee, assignmentScope: nextScope, version: item.version + 1 } : item),
+      taskEvents: [...current.taskEvents, { ...baseEvent, type: 'REASSIGNED', metadata: { from: task.assigneeMemberId ?? null, to: nextAssignee ?? null, fromScope: task.assignmentScope ?? (task.assigneeMemberId ? 'member' : 'unassigned'), toScope: nextScope } }],
     }
   }
   return current

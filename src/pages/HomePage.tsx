@@ -177,6 +177,7 @@ export function HomePage() {
             <button type="button" className="zoom-readout" title={t('fitLayout')} onClick={() => { setLayoutZoom(1); setFitRequest((value) => value + 1) }}>{Math.round(layoutZoom * 100)}%</button>
             <button type="button" className="icon-button" aria-label={t('zoomIn')} title={t('zoomIn')} disabled={layoutZoom >= 2.5} onClick={() => setLayoutZoom((value) => Math.min(2.5, Math.round((value + 0.25) * 100) / 100))}>+</button>
           </div>
+          <small className="layout-pan-hint">{t('panLayoutHint')}</small>
           {activeScene && <HomeLayoutCanvas
             data={data}
             sceneId={activeScene.id}

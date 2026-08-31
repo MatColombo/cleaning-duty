@@ -7,6 +7,7 @@ export type MemberRole = 'owner' | 'member'
 export type MemberStatus = 'active' | 'invited'
 export type AdvancedAssignmentStrategy = 'round_robin' | 'least_recent' | 'weighted' | 'workload'
 export type TaskState = 'scheduled' | 'completed' | 'skipped' | 'cancelled'
+export type TaskAssignmentScope = 'member' | 'unassigned' | 'everyone'
 export type ScheduleMode = 'fixed' | 'after_completion'
 export type StockStatus = 'available' | 'low' | 'reserve_only' | 'out_of_stock'
 export type MetadataTarget = 'entity' | 'action' | 'supply'
@@ -209,6 +210,7 @@ export type AssignmentPolicy =
   | { mode: 'me'; memberId: string }
   | { mode: 'member'; memberId: string }
   | { mode: 'alternate'; memberIds: string[] }
+  | { mode: 'everyone' }
   | { mode: 'unassigned' }
   | AdvancedAssignmentPolicy
 
@@ -310,6 +312,8 @@ export interface TaskOccurrence {
   dueAt: string
   completedAt?: string
   state: TaskState
+  /** Explicit v1.2 assignment semantics. Null assignee is no longer ambiguous. */
+  assignmentScope: TaskAssignmentScope
   assigneeMemberId?: string
   targets: TaskTargetSnapshot[]
   supplies: TaskSupplySnapshot[]

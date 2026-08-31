@@ -23,7 +23,7 @@ const routine: Routine = {
 function task(id: string, due: string, state: TaskOccurrence['state']): TaskOccurrence {
   return {
     id, workspaceId: wid, routineId: rid, routineRevision: 1, routineNameSnapshot: 'Daily sink', actionNameSnapshot: 'Clean sink', cleanlinessChannel: 'regular', careLevel: 'routine',
-    scheduledSlotAt: due, effectiveDueAt: due, originalDueAt: due, dueAt: due, state, completedAt: state === 'completed' ? due : undefined, assigneeMemberId: mid,
+    scheduledSlotAt: due, effectiveDueAt: due, originalDueAt: due, dueAt: due, state, completedAt: state === 'completed' ? due : undefined, assignmentScope: 'member', assigneeMemberId: mid,
     targets: [{ entityId: item, entityName: 'Sink', entityTypeName: 'Fixture', matchReasons: ['Selected'] }], supplies: [],
     explanation: { schedule: 'Daily', assignment: 'A', targetSummary: 'Sink' }, version: 1, createdAt: '2026-08-29T10:00:00.000Z',
   }

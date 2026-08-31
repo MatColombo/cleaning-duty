@@ -1,4 +1,4 @@
-import type { Routine, TaskOccurrence, WorkspaceData } from '../types/domain'
+import type { Routine, TaskAssignmentScope, TaskOccurrence, WorkspaceData } from '../types/domain'
 import { addDays, localDateInZone } from './date'
 import { resolveAssignment } from './assignment'
 import { occurrenceSlots, previewDueAts } from './scheduler'
@@ -8,6 +8,7 @@ export interface RoutineSimulationRow {
   dueAt: string
   targetNames: string[]
   assigneeName?: string
+  assignmentScope: TaskAssignmentScope
   assignmentExplanation: string
   conflicts: string[]
 }
@@ -34,7 +35,7 @@ export function simulateRoutine(data: WorkspaceData, routine: Routine, days = 30
       const sameWindow = virtualData.tasks.filter((task) => task.state === 'scheduled' && task.assigneeMemberId === assignment.memberId && Math.abs(new Date(task.dueAt).getTime() - new Date(slot.dueAt).getTime()) < 60 * 60 * 1000)
       if (sameWindow.length) conflicts.push(`${sameWindow.length} other task(s) within 1 hour`)
     }
-    rows.push({ dueAt: slot.dueAt, targetNames: targets.map((target) => target.entity.name), assigneeName: assignee?.displayName, assignmentExplanation: assignment.explanation, conflicts })
+    rows.push({ dueAt: slot.dueAt, targetNames: targets.map((target) => target.entity.name), assigneeName: assignee?.displayName, assignmentScope: assignment.scope, assignmentExplanation: assignment.explanation, conflicts })
 
     const pseudoTask: TaskOccurrence = {
       id: `simulation-${index}`,
@@ -48,6 +49,7 @@ export function simulateRoutine(data: WorkspaceData, routine: Routine, days = 30
       scheduledSlotAt: slot.dueAt, effectiveDueAt: slot.dueAt,
       originalDueAt: slot.dueAt, dueAt: slot.dueAt,
       state: 'scheduled',
+      assignmentScope: assignment.scope,
       assigneeMemberId: assignment.memberId,
       targets: [],
       supplies: [],

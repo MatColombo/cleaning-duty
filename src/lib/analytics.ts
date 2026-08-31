@@ -90,7 +90,7 @@ export function memberWorkload(data: WorkspaceData, days = 30, now = new Date())
     memberId: member.id,
     name: member.displayName,
     completed: completedBy.get(member.id) ?? 0,
-    assignedDue: data.tasks.filter((task) => task.assigneeMemberId === member.id && task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end).length,
+    assignedDue: data.tasks.filter((task) => (task.assigneeMemberId === member.id || task.assignmentScope === 'everyone') && task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end).length,
   })).sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name))
 }
 

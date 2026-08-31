@@ -39,7 +39,7 @@ export function AppShell() {
     const badgeApi = navigator as Navigator & { setAppBadge?: (count?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
     const today = localDateInZone(data.workspace.timezone)
     const activeRoutineIds = new Set(data.routines.filter(isRoutineActive).map((routine) => routine.id))
-    const count = data.tasks.filter((task) => task.state === 'scheduled' && activeRoutineIds.has(task.routineId) && task.assigneeMemberId === currentMember.id && localDateInZone(data.workspace.timezone, new Date(task.effectiveDueAt ?? task.dueAt)) <= today).length
+    const count = data.tasks.filter((task) => task.state === 'scheduled' && activeRoutineIds.has(task.routineId) && (task.assigneeMemberId === currentMember.id || task.assignmentScope === 'everyone') && localDateInZone(data.workspace.timezone, new Date(task.effectiveDueAt ?? task.dueAt)) <= today).length
     if (count && badgeApi.setAppBadge) void badgeApi.setAppBadge(count)
     else if (badgeApi.clearAppBadge) void badgeApi.clearAppBadge()
   }, [data, currentMember])

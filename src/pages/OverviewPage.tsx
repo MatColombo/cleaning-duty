@@ -8,7 +8,7 @@ import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
 import { addDays, dateTimeLocalValue, formatTaskDateTime, formatTaskTime, localDateInZone, localInputToUtc } from '../lib/date'
 import { buildOverviewGroups, canonicalTaskState, mergeCriticalItemsByEntity, type OverviewScope } from '../lib/overview'
-import type { StockStatus, TaskEvent, TaskOccurrence } from '../types/domain'
+import type { StockStatus, TaskAssignmentScope, TaskEvent, TaskOccurrence } from '../types/domain'
 import type { TranslationKey } from '../lib/translations'
 
 const stockStatuses: StockStatus[] = ['available', 'low', 'reserve_only', 'out_of_stock']
@@ -111,7 +111,7 @@ export function OverviewPage() {
 
     {selected && <TaskSheet task={selected} events={data.taskEvents.filter((event) => event.taskId === selected.id)} onClose={closeSelected} onReassignRequest={() => { closeSelected(); setReassignId(selected.id) }} />}
     {rescheduleTask && <RescheduleSheet task={rescheduleTask} timezone={timezone} locale={locale} t={t} onClose={() => setRescheduleId(null)} onReschedule={async (dueAt) => { const eventId = await postponeTask(rescheduleTask.id, dueAt); await rememberUndo(rescheduleTask.id, eventId, `${rescheduleTask.actionNameSnapshot} ${t('rescheduled').toLowerCase()}`) }} />}
-    {reassignTaskItem && <ReassignSheet task={reassignTaskItem} members={data.members} t={t} onClose={() => setReassignId(null)} onReassign={async (memberId) => { const eventId = await reassignTask(reassignTaskItem.id, memberId); await rememberUndo(reassignTaskItem.id, eventId, `${reassignTaskItem.actionNameSnapshot} ${t('reassigned').toLowerCase()}`) }} />}
+    {reassignTaskItem && <ReassignSheet task={reassignTaskItem} members={data.members} t={t} onClose={() => setReassignId(null)} onReassign={async (scopeValue, memberId) => { const eventId = await reassignTask(reassignTaskItem.id, memberId, scopeValue); await rememberUndo(reassignTaskItem.id, eventId, `${reassignTaskItem.actionNameSnapshot} ${t('reassigned').toLowerCase()}`) }} />}
     {undo && <div className="undo-snackbar" role="status"><span>{undo.message}</span><button onClick={() => void undoLast()}>{t('undo')}</button></div>}
   </div>
 
@@ -121,6 +121,7 @@ export function OverviewPage() {
 
   function TaskCard({ task, compact = false }: { task: TaskOccurrence; compact?: boolean }) {
     const assignee = data!.members.find((member) => member.id === task.assigneeMemberId)
+    const assignmentLabel = task.assignmentScope === 'everyone' ? t('everyone') : assignee?.displayName ?? t('anyone')
     const terminal = task.state !== 'scheduled'
     const recentAction = data!.taskEvents
       .filter((event) => event.taskId === task.id && (event.type === 'COMPLETED' || event.type === 'SKIPPED' || event.type === 'POSTPONED'))
@@ -133,7 +134,7 @@ export function OverviewPage() {
         <h2>{task.actionNameSnapshot}</h2>
         <div className="task-description"><span>{task.targets.map((target) => target.entityName).join(', ')} · {task.routineNameSnapshot}</span></div>
         {task.supplies.length > 0 && <div className="overview-supply-strip">{task.supplies.map((snapshot) => { const supply = data!.supplies.find((item) => item.id === snapshot.supplyId && !item.archivedAt); if (!supply) return null; return <span className="overview-supply" key={snapshot.supplyId}><span className={`stock-dot stock-${supply.status}`} />{snapshot.supplyName}: {statusLabel(supply.status)}</span> })}</div>}
-        <div className="task-meta">{assignee?.displayName ?? t('anyone')} · <span className={`care-level-tag ${task.cleanlinessChannel === 'deep' ? 'deep' : 'routine'}`}>{task.cleanlinessChannel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
+        <div className="task-meta">{assignmentLabel} · <span className={`care-level-tag ${task.cleanlinessChannel === 'deep' ? 'deep' : 'routine'}`}>{task.cleanlinessChannel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
       </div>
       <div className="task-actions overview-actions">{task.state === 'scheduled' && (compact ? <button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button> : <><button className="button primary action-button" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}><CheckCircle weight="bold" aria-hidden="true" />{t('done')}</button><button className="button secondary action-button" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}><MinusCircle aria-hidden="true" />{t('skip')}</button><button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button></>)}<button className="button secondary square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={22} weight="bold" aria-hidden="true" /></button></div>
     </article>
@@ -187,16 +188,21 @@ function ReassignSheet({ task, members, t, onClose, onReassign }: {
   members: Array<{ id: string; displayName: string; status: string }>
   t: (key: TranslationKey) => string
   onClose: () => void
-  onReassign: (memberId?: string) => Promise<void>
+  onReassign: (scope: TaskAssignmentScope, memberId?: string) => Promise<void>
 }) {
-  const [assignee, setAssignee] = useState(task.assigneeMemberId ?? '')
-  const assigneeName = members.find((member) => member.id === assignee)?.displayName ?? t('anyone')
+  const initialChoice = task.assignmentScope === 'everyone' ? '__everyone__' : task.assigneeMemberId ?? '__unassigned__'
+  const [assignee, setAssignee] = useState(initialChoice)
+  const scope: TaskAssignmentScope = assignee === '__everyone__' ? 'everyone' : assignee === '__unassigned__' ? 'unassigned' : 'member'
+  const memberId = scope === 'member' ? assignee : undefined
+  const assigneeName = scope === 'everyone' ? t('everyone') : scope === 'unassigned' ? t('anyone') : members.find((member) => member.id === memberId)?.displayName ?? t('anyone')
   return <Sheet title={t('reassign')} onClose={onClose}><div className="stack focused-action-sheet">
     <div className="summary-block"><span className="eyebrow">{task.actionNameSnapshot}</span><strong>{task.targets.map((target) => target.entityName).join(', ')}</strong><span>{t('reassignOnceHint')}</span></div>
-    <label className="field"><span>{t('selectMember')}</span><select value={assignee} onChange={(event) => setAssignee(event.target.value)} autoFocus><option value="">{t('anyone')}</option>{members.filter((member) => member.status === 'active').map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select></label>
+    <label className="field"><span>{t('selectMember')}</span><select value={assignee} onChange={(event) => setAssignee(event.target.value)} autoFocus><option value="__unassigned__">{t('anyone')}</option><option value="__everyone__">{t('everyone')}</option>{members.filter((member) => member.status === 'active').map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select></label>
+    {scope === 'unassigned' && <p className="muted compact-text">{t('unassignedHint')}</p>}
+    {scope === 'everyone' && <p className="notice compact-text">{t('everyoneHint')}</p>}
     <button className="button primary" onClick={() => {
       if (!window.confirm(`${t('confirmReassignTask')}\n${assigneeName}`)) return
-      void onReassign(assignee || undefined).then(onClose)
+      void onReassign(scope, memberId).then(onClose)
     }}><UserSwitch aria-hidden="true" />{t('reassign')}</button>
   </div></Sheet>
 }

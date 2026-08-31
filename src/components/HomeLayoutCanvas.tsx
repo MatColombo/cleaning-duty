@@ -35,6 +35,14 @@ type Interaction = {
   vertexIndex?: number
 }
 
+type PanInteraction = {
+  pointerId: number
+  startClientX: number
+  startClientY: number
+  startPanX: number
+  startPanY: number
+}
+
 const VIEW_W = 1000
 const VIEW_H = 700
 const VIEW_ASPECT = VIEW_W / VIEW_H
@@ -137,6 +145,10 @@ export function HomeLayoutCanvas({
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [interaction, setInteraction] = useState<Interaction | null>(null)
+  const [panInteraction, setPanInteraction] = useState<PanInteraction | null>(null)
+  const panMovedRef = useRef(false)
+  const suppressPanClickRef = useRef(false)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [draft, setDraft] = useState<LayoutElement | null>(null)
 
   const elements = useMemo(() => data.layoutElements
@@ -149,6 +161,7 @@ export function HomeLayoutCanvas({
   useEffect(() => { baseCameraRef.current = baseCamera }, [baseCamera])
   useEffect(() => {
     if (fitAnimationRef.current != null) window.cancelAnimationFrame(fitAnimationRef.current)
+    setPan({ x: 0, y: 0 })
     const target = fittedBaseViewBox(elements)
     const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (compact || reduceMotion) {
@@ -184,7 +197,12 @@ export function HomeLayoutCanvas({
   const relations = data.entityRelations.filter((item) => !item.archivedAt && byEntity.has(item.fromEntityId))
   const scene = data.layoutScenes.find((item) => item.id === sceneId && !item.archivedAt)
   const sceneBackground = scene?.backgroundColor ?? '#f8f9f6'
-  const camera = zoomedViewBox(baseCamera, zoom)
+  const centeredCamera = zoomedViewBox(baseCamera, zoom)
+  const camera = {
+    ...centeredCamera,
+    x: clamp(centeredCamera.x + pan.x, 0, VIEW_W - centeredCamera.width),
+    y: clamp(centeredCamera.y + pan.y, 0, VIEW_H - centeredCamera.height),
+  }
 
   function localPoint(event: ReactPointerEvent<SVGSVGElement | SVGElement>) {
     const svg = svgRef.current
@@ -210,7 +228,38 @@ export function HomeLayoutCanvas({
     onSelectEntity?.(element.entityId)
   }
 
+  function beginPan(event: ReactPointerEvent<SVGSVGElement>) {
+    if (compact || interaction || (event.pointerType === 'mouse' && event.button !== 0)) return
+    // In edit mode, element/handle pointer-down handlers stop propagation so the
+    // object can still be moved/resized. Everywhere else, drag pans the camera;
+    // a simple tap/click continues to select/open the underlying element.
+    panMovedRef.current = false
+    setPanInteraction({ pointerId: event.pointerId, startClientX: event.clientX, startClientY: event.clientY, startPanX: pan.x, startPanY: pan.y })
+  }
+
+  function consumeSuppressedPanClick() {
+    if (!suppressPanClickRef.current) return false
+    suppressPanClickRef.current = false
+    return true
+  }
+
   function moveInteraction(event: ReactPointerEvent<SVGSVGElement>) {
+    if (panInteraction && event.pointerId === panInteraction.pointerId) {
+      const rect = svgRef.current?.getBoundingClientRect()
+      if (!rect?.width || !rect.height) return
+      const clientDx = event.clientX - panInteraction.startClientX
+      const clientDy = event.clientY - panInteraction.startClientY
+      if (!panMovedRef.current && Math.hypot(clientDx, clientDy) < 4) return
+      if (!panMovedRef.current) {
+        panMovedRef.current = true
+        svgRef.current?.setPointerCapture(event.pointerId)
+      }
+      event.preventDefault()
+      const dx = clientDx * (camera.width / rect.width)
+      const dy = clientDy * (camera.height / rect.height)
+      setPan({ x: panInteraction.startPanX - dx, y: panInteraction.startPanY - dy })
+      return
+    }
     if (!interaction || event.pointerId !== interaction.pointerId) return
     event.preventDefault()
     const point = localPoint(event)
@@ -236,6 +285,17 @@ export function HomeLayoutCanvas({
   }
 
   async function endInteraction(event: ReactPointerEvent<SVGSVGElement>) {
+    if (panInteraction && event.pointerId === panInteraction.pointerId) {
+      if (panMovedRef.current) event.preventDefault()
+      if (svgRef.current?.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId)
+      if (panMovedRef.current) {
+        suppressPanClickRef.current = true
+        window.setTimeout(() => { suppressPanClickRef.current = false }, 0)
+      }
+      panMovedRef.current = false
+      setPanInteraction(null)
+      return
+    }
     if (!interaction || event.pointerId !== interaction.pointerId) return
     event.preventDefault()
     const changed = draft
@@ -270,7 +330,7 @@ export function HomeLayoutCanvas({
     <div className="layout-scroll-frame" style={{ background: sceneBackground }}>
       <svg
         ref={svgRef}
-        className={`home-layout-canvas ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}`}
+        className={`home-layout-canvas${compact ? ' compact-canvas' : ' pannable'} ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}${panInteraction ? ' panning' : ''}`}
         viewBox={`${camera.x} ${camera.y} ${camera.width} ${camera.height}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
@@ -278,10 +338,10 @@ export function HomeLayoutCanvas({
         onPointerMove={moveInteraction}
         onPointerUp={endInteraction}
         onPointerCancel={endInteraction}
-        onPointerDown={(event) => { if (event.target === event.currentTarget) { onSelectElement?.(''); onSelectEntity?.('') } }}
+        onPointerDown={beginPan}
       >
         {editMode && <defs><pattern id={`grid-${sceneId}`} width={GRID} height={GRID} patternUnits="userSpaceOnUse"><path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} className="layout-grid-line" fill="none" /></pattern></defs>}
-        <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={sceneBackground} />
+        <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={sceneBackground} data-layout-background="true" onClick={() => { if (consumeSuppressedPanClick()) return; onSelectElement?.(''); onSelectEntity?.('') }} />
         {editMode && <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={`url(#grid-${sceneId})`} pointerEvents="none" />}
 
         <g className="layout-relations">
@@ -298,7 +358,7 @@ export function HomeLayoutCanvas({
             }
             if (relation.targetSceneId) {
               const targetScene = data.layoutScenes.find((item) => item.id === relation.targetSceneId && !item.archivedAt)
-              return <g key={relation.id} className="scene-link-marker" role="button" tabIndex={0} aria-label={relation.label || targetScene?.name || 'Scene'} onClick={(event) => { event.stopPropagation(); onOpenScene?.(relation.targetSceneId!) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onOpenScene?.(relation.targetSceneId!) } }}><circle cx={x1} cy={y1} r="18" /><text x={x1} y={y1 + 5} textAnchor="middle">↕</text>{!compact && <text className="scene-link-label" x={x1 + 24} y={y1 + 5}>{relation.label || targetScene?.name || ''}</text>}</g>
+              return <g key={relation.id} className="scene-link-marker" role="button" tabIndex={0} aria-label={relation.label || targetScene?.name || 'Scene'} onClick={(event) => { event.stopPropagation(); if (consumeSuppressedPanClick()) return; onOpenScene?.(relation.targetSceneId!) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onOpenScene?.(relation.targetSceneId!) } }}><circle cx={x1} cy={y1} r="18" /><text x={x1} y={y1 + 5} textAnchor="middle">↕</text>{!compact && <text className="scene-link-label" x={x1 + 24} y={y1 + 5}>{relation.label || targetScene?.name || ''}</text>}</g>
             }
             return null
           })}
@@ -339,7 +399,7 @@ export function HomeLayoutCanvas({
           const resizeX = element.x + element.width + resizeOffsetX
           const resizeY = element.y + element.height + resizeOffsetY
 
-          return <g key={element.id} className={`layout-element role-${element.role} ${selected ? 'selected' : ''} room-status-${roomStatus}`} transform={transform} onClick={(event) => { event.stopPropagation(); selectElement(element) }} onPointerDown={(event) => beginInteraction(event, element, 'move')} role="button" tabIndex={0} aria-pressed={selected} aria-label={entity.name} onKeyDown={(event) => selectElementFromKeyboard(event, element)}>
+          return <g key={element.id} className={`layout-element role-${element.role} ${selected ? 'selected' : ''} room-status-${roomStatus}`} transform={transform} onClick={(event) => { event.stopPropagation(); if (consumeSuppressedPanClick()) return; selectElement(element) }} onPointerDown={(event) => beginInteraction(event, element, 'move')} role="button" tabIndex={0} aria-pressed={selected} aria-label={entity.name} onKeyDown={(event) => selectElementFromKeyboard(event, element)}>
             {element.shape === 'polygon'
               ? <polygon points={polygonPoints(element)} className="layout-shape" style={{ fill, stroke }} />
               : <rect x={element.x} y={element.y} width={element.width} height={element.height} rx={element.role === 'area' ? 8 : 16} className="layout-shape" style={{ fill, stroke }} />}

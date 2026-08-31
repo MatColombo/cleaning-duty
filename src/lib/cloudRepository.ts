@@ -207,6 +207,7 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
       scheduledSlotAt: row.scheduled_slot_at ?? row.original_due_at, effectiveDueAt: row.effective_due_at ?? row.due_at,
       originalDueAt: row.scheduled_slot_at ?? row.original_due_at, dueAt: row.effective_due_at ?? row.due_at, completedAt: row.completed_at ?? undefined, state: row.state,
+      assignmentScope: row.assignment_scope ?? (row.assignee_member_id ? 'member' : 'unassigned'),
       assigneeMemberId: row.assignee_member_id ?? undefined,
       targets: taskTargets.filter((target) => target.task_id === row.id).map((target) => ({
         entityId: target.entity_id, entityName: target.entity_name_snapshot, entityTypeName: target.entity_type_name_snapshot, matchReasons: target.match_reasons ?? [], completedAt: target.completed_at ?? undefined, completedByMemberId: target.completed_by_member_id ?? undefined,
@@ -375,7 +376,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
       cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
       scheduled_slot_at: row.scheduledSlotAt ?? row.originalDueAt, effective_due_at: row.effectiveDueAt ?? row.dueAt,
       original_due_at: row.scheduledSlotAt ?? row.originalDueAt, due_at: row.effectiveDueAt ?? row.dueAt, completed_at: row.completedAt ?? null, state: row.state,
-      assignee_member_id: row.assigneeMemberId ?? null, supplies_snapshot: row.supplies, explanation_snapshot: row.explanation,
+      assignment_scope: row.assignmentScope ?? (row.assigneeMemberId ? 'member' : 'unassigned'), assignee_member_id: row.assigneeMemberId ?? null, supplies_snapshot: row.supplies, explanation_snapshot: row.explanation,
       version: row.version, created_at: row.createdAt,
     })))
     if (error) throw persistenceError('task_occurrences', error)
@@ -499,6 +500,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
     completion_effects: mutation.kind === 'complete' ? mutation.completionEffects ?? [] : [],
     new_assignee_member_id: mutation.kind === 'reassign' ? mutation.assigneeMemberId ?? null : null,
     clear_assignee: mutation.kind === 'reassign' ? Boolean(mutation.clearAssignee) : false,
+    new_assignment_scope: mutation.kind === 'reassign' ? mutation.assignmentScope ?? null : null,
   })
   if (error) throw error
   return data as CloudMutationResult

@@ -212,7 +212,7 @@ export function followingTheoreticalSlot(routine: Routine, slotAt: string, timez
 }
 
 export function resolveAssignee(policy: AssignmentPolicy, members: WorkspaceMember[], index: number): string | undefined {
-  if (policy.mode === 'unassigned') return undefined
+  if (policy.mode === 'unassigned' || policy.mode === 'everyone') return undefined
   if (policy.mode === 'me' || policy.mode === 'member') return policy.memberId
   const eligible = policy.memberIds.filter((id) => members.some((member) => member.id === id && member.status === 'active'))
   if (!eligible.length) return undefined
@@ -271,6 +271,7 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
     originalDueAt: dueAt,
     dueAt,
     state: 'scheduled' as const,
+    assignmentScope: assignmentResolution.scope,
     assigneeMemberId,
     targets,
     supplies: taskSupplies(data, routine),
@@ -286,10 +287,10 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
     id: newId(), workspaceId: data.workspace.id, taskId, type: 'TASK_CREATED' as const,
     at: createdAt, metadata: { routineRevision: routine.revision, scheduleMode: routine.scheduleMode, cleanlinessChannel: routineCleanlinessChannel(routine), careLevel: routine.careLevel ?? 'routine', scheduledSlotAt: dueAt },
   }]
-  if (assigneeMemberId) {
+  if (assignmentResolution.scope !== 'unassigned') {
     events.push({
       id: newId(), workspaceId: data.workspace.id, taskId, type: 'ASSIGNED' as const,
-      at: createdAt, metadata: { assigneeMemberId, assignmentMode: routine.assignment.mode, explanation: assignmentResolution.explanation },
+      at: createdAt, metadata: { assigneeMemberId: assigneeMemberId ?? null, assignmentScope: assignmentResolution.scope, assignmentMode: routine.assignment.mode, explanation: assignmentResolution.explanation },
     })
   }
   return { ...data, tasks: [...data.tasks, task], taskEvents: [...data.taskEvents, ...events] }

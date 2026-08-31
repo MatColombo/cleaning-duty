@@ -4,7 +4,7 @@ import { Sheet } from '../components/Sheet'
 import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
 import { dateTimeLocalValue, formatTaskDateTime, formatTaskTime, localDateInZone, localInputToUtc } from '../lib/date'
-import type { StockStatus, TaskEvent, TaskOccurrence } from '../types/domain'
+import type { StockStatus, TaskAssignmentScope, TaskEvent, TaskOccurrence } from '../types/domain'
 import type { TranslationKey } from '../lib/translations'
 
 const stockStatuses: StockStatus[] = ['available', 'low', 'reserve_only', 'out_of_stock']
@@ -142,7 +142,7 @@ export function TodayPage() {
         if (collision && !confirm(locale === 'it' ? 'Esiste già un’attività della stessa routine a questo orario. Tenerle entrambe?' : 'Another task from this routine is already due at this time. Keep both?')) return
         await postponeTask(selected.id, value); closeSelected()
       }}
-      onReassign={async (memberId) => { await reassignTask(selected.id, memberId); closeSelected() }}
+      onReassign={async (scopeValue, memberId) => { await reassignTask(selected.id, memberId, scopeValue); closeSelected() }}
       onCompleteTarget={async (entityId) => { await completeTaskTarget(selected.id, entityId) }}
     />}
   </div>
@@ -187,7 +187,7 @@ export function TodayPage() {
         </div>
         <h2>{task.routineNameSnapshot}</h2>
         <div className="task-description"><strong>{task.actionNameSnapshot}</strong><span>· {task.targets.map((target) => target.entityName).join(', ')}</span></div>
-        <div className="task-meta"><span className={`care-level-tag ${task.careLevel === 'deep' ? 'deep' : 'routine'}`}>{task.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span> · {assignee?.displayName ?? t('anyone')}{completedTargets > 0 && task.state === 'scheduled' ? ` · ${completedTargets}/${task.targets.length} ${t('targetsDone')}` : ''}</div>
+        <div className="task-meta"><span className={`care-level-tag ${task.careLevel === 'deep' ? 'deep' : 'routine'}`}>{task.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span> · {task.assignmentScope === 'everyone' ? t('everyone') : assignee?.displayName ?? t('anyone')}{completedTargets > 0 && task.state === 'scheduled' ? ` · ${completedTargets}/${task.targets.length} ${t('targetsDone')}` : ''}</div>
       </div>
       <div className="task-actions">
         {onComplete && <button className="button primary complete-button" onClick={onComplete}>{t('complete')}</button>}
@@ -196,9 +196,10 @@ export function TodayPage() {
     </article>
   }
 
-  function TaskSheet({ task, events, onClose, onComplete, onSkip, onPostpone, onReassign, onCompleteTarget }: { task: TaskOccurrence; events: TaskEvent[]; onClose: () => void; onComplete: () => Promise<void>; onSkip: () => Promise<void>; onPostpone: (dueAt: string) => Promise<void>; onReassign: (memberId?: string) => Promise<void>; onCompleteTarget: (entityId: string) => Promise<void> }) {
+  function TaskSheet({ task, events, onClose, onComplete, onSkip, onPostpone, onReassign, onCompleteTarget }: { task: TaskOccurrence; events: TaskEvent[]; onClose: () => void; onComplete: () => Promise<void>; onSkip: () => Promise<void>; onPostpone: (dueAt: string) => Promise<void>; onReassign: (scope: TaskAssignmentScope, memberId?: string) => Promise<void>; onCompleteTarget: (entityId: string) => Promise<void> }) {
     const [postponeValue, setPostponeValue] = useState(dateTimeLocalValue(task.dueAt, timezone))
-    const [assignee, setAssignee] = useState(task.assigneeMemberId ?? '')
+    const [assignee, setAssignee] = useState(task.assignmentScope === 'everyone' ? '__everyone__' : task.assigneeMemberId ?? '__unassigned__')
+    const assignmentScope: TaskAssignmentScope = assignee === '__everyone__' ? 'everyone' : assignee === '__unassigned__' ? 'unassigned' : 'member'
     return <Sheet title={t('taskDetails')} onClose={onClose}>
       <div className="stack">
         <div className="summary-block">
@@ -220,7 +221,7 @@ export function TodayPage() {
         })}</div></section>}
         {task.state === 'scheduled' && <>
           <section className="action-section"><h3>{t('postpone')}</h3><div className="inline-form"><input type="datetime-local" value={postponeValue} onChange={(e) => setPostponeValue(e.target.value)} /><button className="button secondary" onClick={() => void onPostpone(localInputToUtc(postponeValue, timezone))}>{t('postpone')}</button></div></section>
-          <section className="action-section"><h3>{t('reassign')}</h3><div className="inline-form"><select value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">{t('anyone')}</option>{data!.members.filter((member) => member.status === 'active').map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select><button className="button secondary" onClick={() => void onReassign(assignee || undefined)}>{t('reassign')}</button></div></section>
+          <section className="action-section"><h3>{t('reassign')}</h3><div className="inline-form"><select value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="__unassigned__">{t('anyone')}</option><option value="__everyone__">{t('everyone')}</option>{data!.members.filter((member) => member.status === 'active').map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select><button className="button secondary" onClick={() => void onReassign(assignmentScope, assignmentScope === 'member' ? assignee : undefined)}>{t('reassign')}</button></div>{assignmentScope === 'everyone' && <p className="notice compact-text">{t('everyoneHint')}</p>}{assignmentScope === 'unassigned' && <p className="muted compact-text">{t('unassignedHint')}</p>}</section>
           <button className="button danger-outline" onClick={() => void onSkip()}>{t('skip')}</button>
         </>}
         <section className="action-section"><h3>{t('history')}</h3><div className="timeline">{[...events].reverse().map((event) => <div className="timeline-item" key={event.id}><span>{t(`event_${event.type}` as TranslationKey)}</span><small>{formatTaskDateTime(event.at, locale, timezone)}</small></div>)}</div></section>

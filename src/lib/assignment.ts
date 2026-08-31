@@ -1,7 +1,8 @@
-import type { AdvancedAssignmentPolicy, AssignmentPolicy, Routine, WorkspaceData, WorkspaceMember } from '../types/domain'
+import type { AdvancedAssignmentPolicy, AssignmentPolicy, Routine, TaskAssignmentScope, WorkspaceData, WorkspaceMember } from '../types/domain'
 
 export interface AssignmentResolution {
   memberId?: string
+  scope: TaskAssignmentScope
   explanation: string
   conflict?: string
 }
@@ -42,20 +43,21 @@ function workload(data: WorkspaceData, memberId: string, dueAt: string): number 
 
 export function resolveAssignment(data: WorkspaceData, routine: Routine, index: number, dueAt: string): AssignmentResolution {
   const policy: AssignmentPolicy = routine.assignment
-  if (policy.mode === 'unassigned') return { explanation: 'No automatic assignee; anyone can take this task.' }
+  if (policy.mode === 'unassigned') return { scope: 'unassigned', explanation: 'Unassigned. Anyone can take this task; no push reminder is sent until it is assigned.' }
+  if (policy.mode === 'everyone') return { scope: 'everyone', explanation: 'Assigned to everyone in the household. Push reminders are sent to every active household member with notifications enabled.' }
   if (policy.mode === 'me' || policy.mode === 'member') {
-    return { memberId: policy.memberId, explanation: `Fixed assignment to ${memberName(data, policy.memberId)}.` }
+    return { memberId: policy.memberId, scope: 'member', explanation: `Fixed assignment to ${memberName(data, policy.memberId)}.` }
   }
   if (policy.mode === 'alternate') {
     const eligible = policy.memberIds.filter((id) => data.members.some((member) => member.id === id && member.status === 'active'))
     const memberId = eligible.length ? eligible[index % eligible.length] : undefined
     return memberId
-      ? { memberId, explanation: `Alternating assignment selected ${memberName(data, memberId)}.` }
-      : { explanation: 'No active member is available in the alternating list.', conflict: 'No eligible assignee' }
+      ? { memberId, scope: 'member', explanation: `Alternating assignment selected ${memberName(data, memberId)}.` }
+      : { scope: 'unassigned', explanation: 'No active member is available in the alternating list.', conflict: 'No eligible assignee' }
   }
 
   const members = activeMembers(data, policy, dueAt)
-  if (!members.length) return { explanation: 'Advanced assignment found no eligible active member.', conflict: 'No eligible assignee' }
+  if (!members.length) return { scope: 'unassigned', explanation: 'Advanced assignment found no eligible active member.', conflict: 'No eligible assignee' }
 
   let selected: WorkspaceMember | undefined
   if (policy.strategy === 'round_robin') selected = members[index % members.length]
@@ -71,6 +73,7 @@ export function resolveAssignment(data: WorkspaceData, routine: Routine, index: 
   if (policy.excludeUnavailable) filters.push('unavailable people excluded')
   return {
     memberId: selected?.id,
+    scope: selected ? 'member' : 'unassigned',
     explanation: `${memberName(data, selected?.id)} selected by ${strategyText}${filters.length ? ` (${filters.join('; ')})` : ''}.`,
   }
 }

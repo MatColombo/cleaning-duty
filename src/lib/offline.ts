@@ -1,4 +1,4 @@
-import type { CompletionHealthEffect, StockStatus, WorkspaceData } from '../types/domain'
+import type { CompletionHealthEffect, StockStatus, TaskAssignmentScope, WorkspaceData } from '../types/domain'
 import { normalizeWorkspaceData } from './dataMigrations'
 
 const CACHE_PREFIX = 'house-care-cloud-cache-v1:'
@@ -20,6 +20,7 @@ export type OfflineMutation =
       completionEffects?: CompletionHealthEffect[]
       assigneeMemberId?: string
       clearAssignee?: boolean
+      assignmentScope?: TaskAssignmentScope
       targetEntityId?: string
       sourceEventId?: string
     }

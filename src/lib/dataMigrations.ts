@@ -48,6 +48,12 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
     const scheduledSlotAt = task.scheduledSlotAt ?? task.originalDueAt ?? task.dueAt
     const effectiveDueAt = task.effectiveDueAt ?? task.dueAt ?? task.originalDueAt
     const cleanlinessChannel = task.cleanlinessChannel ?? (task.careLevel === 'deep' ? 'deep' : 'regular')
+    const routine = input.routines?.find((candidate) => candidate.id === task.routineId)
+    const inferredAssignmentScope = task.assigneeMemberId
+      ? 'member'
+      : routine?.assignment?.mode === 'everyone'
+        ? 'everyone'
+        : 'unassigned'
     return {
       ...task,
       targets: (task.targets ?? []).map((target) => ({ ...target, matchReasons: target.matchReasons ?? ['Legacy explicit target'] })),
@@ -59,9 +65,10 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
       originalDueAt: scheduledSlotAt,
       dueAt: effectiveDueAt,
       completedAt: task.state === 'completed' ? (task.completedAt ?? undefined) : undefined,
+      assignmentScope: task.assignmentScope ?? inferredAssignmentScope,
       explanation: task.explanation ?? {
         schedule: 'Created by the saved routine schedule.',
-        assignment: task.assigneeMemberId ? 'Assigned by the saved routine policy.' : 'No automatic assignee.',
+        assignment: task.assigneeMemberId ? 'Assigned by the saved routine policy.' : inferredAssignmentScope === 'everyone' ? 'Assigned to everyone in the household.' : 'Unassigned; no automatic recipient.',
         targetSummary: 'Targets were captured when this task was created.',
       },
     }

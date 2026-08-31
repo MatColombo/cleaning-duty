@@ -33,7 +33,7 @@ function task(id: string, routineId: string, targetId: string, due: string, slot
   return {
     id, workspaceId: wid, routineId, routineRevision: 1, routineNameSnapshot: `Routine ${routineId.slice(-2)}`,
     actionNameSnapshot: `Clean ${targetId === item1 ? 'sink' : 'desk'}`, cleanlinessChannel: 'regular', careLevel: 'routine',
-    scheduledSlotAt: slot, effectiveDueAt: due, originalDueAt: slot, dueAt: due, state: 'scheduled', assigneeMemberId: mid,
+    scheduledSlotAt: slot, effectiveDueAt: due, originalDueAt: slot, dueAt: due, state: 'scheduled', assignmentScope: 'member', assigneeMemberId: mid,
     targets: [{ entityId: targetId, entityName: targetId === item1 ? 'Sink' : 'Desk', entityTypeName: 'Item', matchReasons: ['Selected'] }],
     supplies: [], explanation: { schedule: 'Daily', assignment: 'A', targetSummary: 'Item' }, version: 1, createdAt: '2026-08-01T00:00:00.000Z',
     ...overrides,

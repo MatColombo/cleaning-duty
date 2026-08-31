@@ -531,7 +531,7 @@ textarea { resize: vertical; }
 .resize-handle-link { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; opacity: .75; }
 .label-settings-grid { margin-top: 4px; }
 .label-wrap-toggle { padding-left: 0; }
-.home-layout-canvas.editing { touch-action: pan-x pan-y; }
+.home-layout-canvas.editing.pannable { touch-action: none; }
 .home-layout-canvas.editing .layout-element, .home-layout-canvas.editing .handle-hit-area { touch-action: none; }
 
 @media (max-width: 520px) {
@@ -996,3 +996,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--color-primary); 
 .section-header > div { min-width: 0; display: grid; gap: 2px; }
 .section-header > div small { color: var(--color-ink-muted); font-weight: 500; line-height: 1.35; }
 .critical-score-row.deep .cleanliness-track span { background: var(--color-ink-muted); }
+
+/* v1.2.0-r4 — home layout pan affordance */
+.layout-pan-hint { display: block; padding: 0 10px 7px; color: var(--color-ink-muted, var(--muted)); font-size: .68rem; text-align: right; }
+.home-layout-canvas.pannable { cursor: grab; touch-action: none; overscroll-behavior: contain; }
+.home-layout-canvas.pannable.panning { cursor: grabbing; }
+.home-layout-canvas.pannable .layout-element { cursor: pointer; }

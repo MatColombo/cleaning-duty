@@ -42,13 +42,20 @@ Deno.serve(async (request) => {
       .select('id')
       .maybeSingle()
     if (claimError || !claimed) continue
-    const [{ data: task }, { data: targets }, { data: workspace }, { data: subscriptions }] = await Promise.all([
-      db.from('task_occurrences').select('id,state,due_at,action_name_snapshot,routine_name_snapshot,assignee_member_id').eq('id', job.task_id).maybeSingle(),
+    const [{ data: task }, { data: targets }, { data: workspace }, { data: subscriptions }, { data: recipient }] = await Promise.all([
+      db.from('task_occurrences').select('id,workspace_id,state,due_at,action_name_snapshot,routine_name_snapshot,assignee_member_id,assignment_scope').eq('id', job.task_id).maybeSingle(),
       db.from('task_targets').select('entity_name_snapshot').eq('task_id', job.task_id),
       db.from('workspaces').select('name').eq('id', job.workspace_id).maybeSingle(),
       db.from('push_subscriptions').select('id,endpoint,p256dh,auth').eq('member_id', job.member_id).is('disabled_at', null),
+      db.from('workspace_members').select('id,workspace_id,status,user_id').eq('id', job.member_id).maybeSingle(),
     ])
-    if (!task || task.state !== 'scheduled' || task.assignee_member_id !== job.member_id) {
+    const scope = task?.assignment_scope || (task?.assignee_member_id ? 'member' : 'unassigned')
+    const validRecipient = scope === 'member'
+      ? task?.assignee_member_id === job.member_id
+      : scope === 'everyone'
+        ? recipient?.workspace_id === job.workspace_id && recipient?.status === 'active' && Boolean(recipient?.user_id)
+        : false
+    if (!task || task.state !== 'scheduled' || !validRecipient) {
       await db.from('notification_jobs').update({ status: 'cancelled', locked_at: null }).eq('id', job.id)
       continue
     }
@@ -88,7 +95,7 @@ Deno.serve(async (request) => {
       })
       sent += 1
     } else {
-      const message = lastError || 'No active push subscription for the assignee.'
+      const message = lastError || 'No active push subscription for this recipient.'
       await db.from('notification_jobs').update({ status: 'failed', attempts: job.attempts + 1, last_error: message, locked_at: null }).eq('id', job.id)
       if (job.attempts + 1 >= 3) {
         await db.from('task_events').insert({

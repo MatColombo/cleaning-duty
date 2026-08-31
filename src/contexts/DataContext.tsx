@@ -28,6 +28,7 @@ import type {
   StockStatus,
   Supply,
   SupplyEvent,
+  TaskAssignmentScope,
   WorkspaceData,
   WorkspaceMember,
   WorkspaceSummary,
@@ -124,7 +125,7 @@ interface DataValue {
   completeTaskTarget: (id: string, entityId: string) => Promise<void>
   skipTask: (id: string) => Promise<string | null>
   postponeTask: (id: string, dueAt: string) => Promise<string | null>
-  reassignTask: (id: string, memberId?: string) => Promise<string | null>
+  reassignTask: (id: string, memberId?: string, assignmentScope?: TaskAssignmentScope) => Promise<string | null>
   undoTaskAction: (id: string, sourceEventId: string) => Promise<void>
   restoreTaskToToday: (id: string, sourceEventId?: string) => Promise<void>
   importBackup: (backup: HouseholdBackup) => Promise<void>
@@ -867,11 +868,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'postpone', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, dueAt, effectiveDueAt: dueAt })
       return eventId
     },
-    reassignTask: async (id, memberId) => {
+    reassignTask: async (id, memberId, assignmentScope) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task || task.state !== 'scheduled') return null
       const eventId = newId()
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, assigneeMemberId: memberId, clearAssignee: !memberId })
+      const scope = assignmentScope ?? (memberId ? 'member' : 'unassigned')
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, assigneeMemberId: scope === 'member' ? memberId : undefined, clearAssignee: scope !== 'member', assignmentScope: scope })
       return eventId
     },
     undoTaskAction: async (id, sourceEventId) => {
