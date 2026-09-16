@@ -144,6 +144,8 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
         careLevel: routine.careLevel ?? (cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
         refreshLevelPct: Math.max(10, Math.min(100, Number(routine.refreshLevelPct ?? 100))),
         status: routine.status ?? 'active',
+        affectsCleanliness: routine.affectsCleanliness !== false,
+        triggerEvery: routine.parentRoutineId ? Math.max(1, Math.min(100, Math.round(routine.triggerEvery ?? 1))) : undefined,
       }
     })),
     tasks: reconciledTasks,

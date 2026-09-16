@@ -238,6 +238,20 @@ export interface ScheduleExceptions {
   includedDateTimes: string[]
 }
 
+/** Extra work attached to a parent's schedule. Each entry becomes a real routine. */
+export interface AdditionalActivityInput {
+  id?: string
+  name: string
+  actionId: string
+  targetEntityIds: string[]
+  includeDescendantTargetIds: string[]
+  every: number
+  careLevel: CareLevel
+  affectsCleanliness: boolean
+  refreshLevelPct: number
+  supplyIdsOverride?: string[]
+}
+
 export interface Routine {
   id: string
   workspaceId: string
@@ -262,6 +276,12 @@ export interface Routine {
   careLevel: CareLevel
   /** Minimum cleanliness this routine can restore when an effective completion occurs. */
   refreshLevelPct: number
+  /** False excludes this routine from all cleanliness scores and refresh effects. */
+  affectsCleanliness?: boolean
+  /** Linked routines share a parent schedule; they never schedule independently. */
+  parentRoutineId?: string
+  /** Fire on parent schedule ordinals N, 2N, 3N... (not completion counts). */
+  triggerEvery?: number
   /** v1.2 lifecycle state. Archived remains a separate destructive/configuration state. */
   status: RoutineStatus
   /** undefined = inherit Action defaults; [] = explicitly no supplies. */
@@ -297,6 +317,10 @@ export interface TaskOccurrence {
   workspaceId: string
   routineId: string
   routineRevision: number
+  /** Stable 1-based schedule ordinal; unrelated to generated row counts. */
+  triggerOrdinal?: number
+  /** Exact parent occurrence when this is attached work. */
+  parentOccurrenceId?: string
   routineNameSnapshot: string
   actionNameSnapshot: string
   /** Canonical v1.2 channel snapshot. */

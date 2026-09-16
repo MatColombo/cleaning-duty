@@ -198,11 +198,13 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       scheduleMode: row.schedule_mode ?? 'fixed', exceptions: row.schedule_exceptions ?? { excludedDates: [], includedDateTimes: [] },
       assignment: row.assignment, advancedTargetSelector: row.advanced_target_selector ?? undefined, reminder: row.reminder ?? { mode: 'none' },
       cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
+      affectsCleanliness: row.affects_cleanliness !== false, parentRoutineId: row.parent_routine_id ?? undefined, triggerEvery: row.trigger_every ?? undefined,
       refreshLevelPct: Number(row.refresh_level_pct ?? 100), status: row.status ?? 'active', supplyIdsOverride: row.supply_ids_override ?? undefined,
       revision: row.revision, archivedAt: row.archived_at ?? undefined, createdAt: row.created_at,
     })),
     tasks: tasks.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, routineId: row.routine_id, routineRevision: row.routine_revision,
+      triggerOrdinal: row.trigger_ordinal ?? undefined, parentOccurrenceId: row.parent_occurrence_id ?? undefined,
       routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot,
       cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
       scheduledSlotAt: row.scheduled_slot_at ?? row.original_due_at, effectiveDueAt: row.effective_due_at ?? row.due_at,
@@ -364,6 +366,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
       schedule_exceptions: row.exceptions, assignment: row.assignment, advanced_target_selector: row.advancedTargetSelector ?? null, reminder: row.reminder,
       cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
       refresh_level_pct: row.refreshLevelPct ?? 100, status: row.status ?? 'active',
+      affects_cleanliness: row.affectsCleanliness !== false, parent_routine_id: row.parentRoutineId ?? null, trigger_every: row.parentRoutineId ? row.triggerEvery ?? 1 : null,
       supply_ids_override: row.supplyIdsOverride ?? null, revision: row.revision,
       archived_at: row.archivedAt ?? null, created_at: row.createdAt,
     })))
@@ -372,6 +375,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
   if (data.tasks.length) {
     const { error } = await db.from('task_occurrences').upsert(dedupeBy(data.tasks, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, routine_id: row.routineId, routine_revision: row.routineRevision,
+      trigger_ordinal: row.triggerOrdinal ?? null, parent_occurrence_id: row.parentOccurrenceId ?? null,
       routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot,
       cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
       scheduled_slot_at: row.scheduledSlotAt ?? row.originalDueAt, effective_due_at: row.effectiveDueAt ?? row.dueAt,

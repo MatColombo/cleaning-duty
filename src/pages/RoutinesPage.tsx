@@ -1,3 +1,6 @@
+import { AdditionalActivitiesBuilder } from '../components/AdditionalActivitiesBuilder'
+import { additionalActivityFromRoutine } from '../lib/linkedRoutines'
+import type { AdditionalActivityInput } from '../types/domain'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
@@ -31,7 +34,7 @@ export function RoutinesPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Routine | null>(null)
   if (!data) return null
-  const routines = data.routines.filter((item) => !item.archivedAt)
+  const routines = data.routines.filter((item) => !item.archivedAt && !item.parentRoutineId)
   const actions = data.actions.filter((item) => !item.archivedAt)
   const entities = data.entities.filter((item) => !item.archivedAt)
   const supplies = data.supplies.filter((item) => !item.archivedAt)
@@ -51,6 +54,8 @@ export function RoutinesPage() {
     return <article className="card routine-card">
       <div className="routine-top"><div><div className="eyebrow">{action?.name}</div><h2>{routine.name}</h2></div><div className="row-actions"><span className={`status ${routine.status === 'paused' ? 'warn' : routine.status === 'ended' ? 'muted-status' : ''}`}>{routine.status === 'paused' ? t('paused') : routine.status === 'ended' ? t('ended') : t('active')}</span><button className="icon-button" onClick={() => { setEditing(routine); setOpen(true) }}>{t('edit')}</button>{routine.status === 'active' && <button className="icon-button" onClick={() => void setRoutineStatus(routine.id, 'paused')}>{t('pause')}</button>}{routine.status === 'paused' && <button className="icon-button" onClick={() => void setRoutineStatus(routine.id, 'active')}>{t('resume')}</button>}{routine.status !== 'ended' && <button className="icon-button" onClick={() => { if (confirm(t('endRoutineConfirm'))) void setRoutineStatus(routine.id, 'ended') }}>{t('endRoutine')}</button>}<button className="icon-button danger-text" onClick={() => void archiveRoutine(routine.id)}>{t('archive')}</button></div></div>
       <div className="routine-details"><span>{targetNames.join(', ')}{routine.advancedTargetSelector?.conditions.length ? `${targetNames.length ? ' · ' : ''}${t('dynamicTargets')}` : ''}</span><span>{scheduleText(routine.recurrence)} · {routine.timeOfDay}</span><span className={`care-level-tag ${routine.careLevel === 'deep' ? 'deep' : 'routine'}`}>{routine.careLevel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span><span>{routine.scheduleMode === 'after_completion' ? t('afterCompletion') : t('fixedCalendar')}</span><span>{assignmentText(routine.assignment)}</span>{supplyNames.length > 0 && <span>{supplyNames.join(', ')}</span>}</div>
+      {routine.affectsCleanliness === false && <p className="muted compact-text">{t('cleanlinessExcluded')}</p>}
+      {data!.routines.some((child) => child.parentRoutineId === routine.id && !child.archivedAt) && <div className="linked-routine-summary">{data!.routines.filter((child) => child.parentRoutineId === routine.id && !child.archivedAt).map((child) => <div key={child.id}><strong>{child.name}</strong><small>{t('everyParentTriggers')}: {child.triggerEvery} · {child.targetEntityIds.map((id) => entities.find((entity) => entity.id === id)?.name).filter(Boolean).join(', ')}</small></div>)}</div>}
     </article>
   }
 
@@ -66,6 +71,8 @@ export function RoutinesPage() {
     const [name, setName] = useState(routine?.name ?? '')
     const [actionId, setActionId] = useState(routine?.actionId ?? actions[0]?.id ?? '')
     const [careLevel, setCareLevel] = useState<CareLevel>(routine?.careLevel ?? 'routine')
+    const [affectsCleanliness, setAffectsCleanliness] = useState(routine?.affectsCleanliness !== false)
+    const [additionalActivities, setAdditionalActivities] = useState<AdditionalActivityInput[]>(() => data!.routines.filter((child) => child.parentRoutineId === routine?.id && !child.archivedAt && Boolean(routine)).map(additionalActivityFromRoutine))
     const [refreshLevelPct, setRefreshLevelPct] = useState(routine?.refreshLevelPct ?? 100)
     const [targets, setTargets] = useState<string[]>(routine?.targetEntityIds ?? [])
     const [includeDescendantTargetIds, setIncludeDescendantTargetIds] = useState<string[]>(routine?.includeDescendantTargetIds ?? [])
@@ -147,7 +154,7 @@ export function RoutinesPage() {
       targetEntityIds: targets, includeDescendantTargetIds, advancedTargetSelector, recurrence, timeOfDay: time, scheduleMode, exceptions: { excludedDates, includedDateTimes },
       assignment, reminder, careLevel, cleanlinessChannel: careLevel === 'deep' ? 'deep' : 'regular', routineTimezone: routine?.routineTimezone ?? data!.workspace.timezone,
       refreshLevelPct: Math.max(10, Math.min(100, refreshLevelPct)), status: routine?.status ?? 'active',
-      supplyIdsOverride, revision: routine?.revision ?? 1, createdAt: routine?.createdAt ?? new Date().toISOString(),
+      affectsCleanliness, supplyIdsOverride, revision: routine?.revision ?? 1, createdAt: routine?.createdAt ?? new Date().toISOString(),
     }
     const preview = previewDueAts(data!, previewRoutine, 5)
 
@@ -180,9 +187,12 @@ export function RoutinesPage() {
       if (scheduleMode === 'after_completion' && kind !== 'interval') return setFormError(locale === 'it' ? 'La modalità dopo il completamento richiede un intervallo.' : 'After-completion mode requires an interval schedule.')
       if (!useAdvancedAssignment && ((assignmentMode === 'me' && !currentMember?.id) || (assignmentMode === 'member' && !memberId))) return setFormError(locale === 'it' ? 'Scegli una persona.' : 'Choose a person.')
       if (useAdvancedAssignment && advancedAssignment.memberIds.length === 0) return setFormError(locale === 'it' ? 'Seleziona almeno una persona idonea.' : 'Select at least one eligible person.')
+      if (kind === 'once' && additionalActivities.length) return setFormError(t('additionalRecurringOnly'))
+      if (additionalActivities.some((item) => !item.name.trim() || !item.actionId || !item.targetEntityIds.length || !Number.isInteger(item.every) || item.every < 1 || item.every > 100)) return setFormError(t('additionalValidation'))
       const action = actions.find((item) => item.id === actionId)
       const target = entities.find((item) => item.id === targets[0])
       const input = {
+        affectsCleanliness, additionalActivities,
         name: name.trim() || `${action?.name ?? 'Action'} · ${target?.name ?? 'Target'}`,
         actionId, targetEntityIds: targets, includeDescendantTargetIds, advancedTargetSelector, recurrence, timeOfDay: time, scheduleMode,
         exceptions: { excludedDates, includedDateTimes }, assignment, reminder, careLevel, refreshLevelPct: Math.max(10, Math.min(100, refreshLevelPct)), supplyIdsOverride,
@@ -203,7 +213,7 @@ export function RoutinesPage() {
 
     const selectedAction = actions.find((item) => item.id === actionId)
     return <Sheet title={routine ? t('edit') : t('addRoutine')} onClose={onClose}><form className="stack routine-builder" onSubmit={submit}>
-      <section className="builder-step"><div className="step-number">1</div><div className="step-content"><h3>{t('what')}</h3><FormField label={t('action')}><select required value={actionId} onChange={(e) => setActionId(e.target.value)}>{actions.map((action) => <option value={action.id} key={action.id}>{action.name}</option>)}</select></FormField><FormField label={t('cleaningLevel')}><div className="care-level-choice"><button type="button" className={careLevel === 'routine' ? 'choice-card selected' : 'choice-card'} onClick={() => setCareLevel('routine')}><strong>{t('routineCleaning')}</strong><small>{t('routineCleaningHint')}</small></button><button type="button" className={careLevel === 'deep' ? 'choice-card selected deep-choice' : 'choice-card deep-choice'} onClick={() => setCareLevel('deep')}><strong>{t('deepCleaning')}</strong><small>{t('deepCleaningHint')}</small></button></div></FormField><FormField label={t('name')} hint={locale === 'it' ? 'Opzionale' : 'Optional'}><input value={name} onChange={(e) => setName(e.target.value)} /></FormField></div></section>
+      <section className="builder-step"><div className="step-number">1</div><div className="step-content"><h3>{t('what')}</h3><FormField label={t('action')}><select required value={actionId} onChange={(e) => setActionId(e.target.value)}>{actions.map((action) => <option value={action.id} key={action.id}>{action.name}</option>)}</select></FormField><FormField label={t('cleaningLevel')}><div className="care-level-choice"><button type="button" className={careLevel === 'routine' ? 'choice-card selected' : 'choice-card'} onClick={() => setCareLevel('routine')}><strong>{t('routineCleaning')}</strong><small>{t('routineCleaningHint')}</small></button><button type="button" className={careLevel === 'deep' ? 'choice-card selected deep-choice' : 'choice-card deep-choice'} onClick={() => setCareLevel('deep')}><strong>{t('deepCleaning')}</strong><small>{t('deepCleaningHint')}</small></button></div></FormField><FormField label={t('activityTitle')} hint={locale === 'it' ? 'Opzionale' : 'Optional'}><input value={name} onChange={(e) => setName(e.target.value)} /></FormField><label className="check-row cleanliness-toggle"><input type="checkbox" checked={affectsCleanliness} onChange={(event) => setAffectsCleanliness(event.target.checked)} /><span><strong>{t('affectsCleanliness')}</strong><small>{t('affectsCleanlinessHint')}</small></span></label></div></section>
 
       <section className="builder-step"><div className="step-number">2</div><div className="step-content"><h3>{t('where')}</h3><RoutineTargetPicker data={data!} targets={targets} includeDescendantTargetIds={includeDescendantTargetIds} onChange={(nextTargets, nextScopes) => { setTargets(nextTargets); setIncludeDescendantTargetIds(nextScopes) }} /></div></section>
 
@@ -224,7 +234,9 @@ export function RoutinesPage() {
 
       <section className="builder-step"><div className="step-number">6</div><div className="step-content"><h3>{t('supplies')}</h3><div className="segmented"><button type="button" className={supplyChoice === 'inherit' ? 'selected' : ''} onClick={() => setSupplyChoice('inherit')}>{t('inheritActionSupplies')}</button><button type="button" className={supplyChoice === 'custom' ? 'selected' : ''} onClick={() => setSupplyChoice('custom')}>{t('customSupplies')}</button><button type="button" className={supplyChoice === 'none' ? 'selected' : ''} onClick={() => setSupplyChoice('none')}>{t('noSupplyOverride')}</button></div>{supplyChoice === 'inherit' && <p className="muted compact-text">{(selectedAction?.defaultSupplyIds ?? []).map((id) => supplies.find((supply) => supply.id === id)?.name).filter(Boolean).join(', ') || '—'}</p>}{supplyChoice === 'custom' && <div className="check-list">{supplies.map((supply) => <label className="check-row" key={supply.id}><input type="checkbox" checked={customSupplyIds.includes(supply.id)} onChange={(e) => setCustomSupplyIds(e.target.checked ? [...customSupplyIds, supply.id] : customSupplyIds.filter((id) => id !== supply.id))} /><span>{supply.name}</span><small>{supply.status === 'out_of_stock' ? t('outOfStock') : supply.status === 'reserve_only' ? t('reserveOnly') : supply.status === 'low' ? t('low') : t('available')}</small></label>)}</div>}</div></section>
 
-      <details className="advanced-details"><summary>7 · {t('moreOptions')}</summary><div className="stack detail-body">
+      <section className="builder-step"><div className="step-number">7</div><div className="step-content"><h3>{t('additionalActivities')}</h3>{kind === 'once' ? <p className="notice">{t('additionalRecurringOnly')}</p> : <AdditionalActivitiesBuilder data={data!} value={additionalActivities} onChange={setAdditionalActivities} defaultTargets={targets} />}</div></section>
+
+      <details className="advanced-details"><summary>8 · {t('moreOptions')}</summary><div className="stack detail-body">
         <section className="advanced-option-section refresh-option"><div className="section-header"><div><strong>{t('refreshTo')}</strong><small>{t('refreshToHint')}</small></div><strong>{Math.round(refreshLevelPct)}%</strong></div><input aria-label={t('refreshTo')} type="range" min={10} max={100} step={5} value={refreshLevelPct} onChange={(event) => setRefreshLevelPct(Number(event.target.value))} /><FormField label={t('refreshTo')} hint={t('refreshToExamples')}><input type="number" min={10} max={100} step={5} value={refreshLevelPct} onChange={(event) => setRefreshLevelPct(Number(event.target.value))} /></FormField></section>
         <section className="advanced-option-section"><div className="section-header"><div><strong>{t('advancedTargets')}</strong><small>{t('advancedTargetsHint')}</small></div></div><AdvancedTargetBuilder data={data!} value={advancedTargetSelector} onChange={setAdvancedTargetSelector} /></section>
         <section className="advanced-option-section"><div className="section-header"><div><strong>{t('advancedAssignment')}</strong><small>{t('advancedAssignmentHint')}</small></div><label className="switch-label"><input type="checkbox" checked={useAdvancedAssignment} onChange={(event) => setUseAdvancedAssignment(event.target.checked)} />{t('useAdvanced')}</label></div>{useAdvancedAssignment && <AdvancedAssignmentBuilder members={activeMembers} value={advancedAssignment} onChange={setAdvancedAssignment} />}</section>

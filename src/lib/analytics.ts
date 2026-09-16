@@ -340,7 +340,7 @@ function historicalAggregate(data: WorkspaceData, channel: CleanlinessChannel, a
   const scoresByItem = new Map<string, number[]>()
   for (const routine of data.routines) {
     if (!routineActiveAt(data, routine, at, evaluationNow)) continue
-    if (routine.recurrence.kind === 'once' || routineCleanlinessChannel(routine) !== channel) continue
+    if (routine.affectsCleanliness === false || routine.recurrence.kind === 'once' || routineCleanlinessChannel(routine) !== channel) continue
     for (const itemId of resolvedRoutineTargetIds(data, routine)) {
       const trajectory = historicalTrajectory(data, routine, itemId, channel, at)
       if (!trajectory) continue

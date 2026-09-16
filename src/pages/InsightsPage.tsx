@@ -1,3 +1,4 @@
+import { CleanlinessMood } from '../components/CleanlinessMood'
 import { useState, type ReactNode } from 'react'
 import { ArrowCounterClockwise, CalendarDots, CheckCircle, MinusCircle, Sparkle } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
@@ -127,7 +128,7 @@ function CleanlinessChart({ label, notTrackedLabel, points, channel }: { label: 
   const path = coordinates.map((point) => `${point.x},${point.y}`).join(' ')
   const current = [...values].reverse().find((value) => value != null)
   return <article className={`card cleanliness-chart ${channel}`}>
-    <div className="cleanliness-chart-heading"><div><span>{label}</span><strong>{current == null ? '—' : `${Math.round(current)}%`}</strong></div><small>{tracked ? '0–100%' : notTrackedLabel}</small></div>
+    <div className="cleanliness-chart-heading"><div><span>{label}</span><strong><CleanlinessMood score={current} /> {current == null ? '—' : `${Math.round(current)}%`}</strong></div><small>{tracked ? '0–100%' : notTrackedLabel}</small></div>
     {tracked ? <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${Math.round(current ?? 0)}%`} preserveAspectRatio="none">
       <line x1="0" x2={width} y1={padY} y2={padY} className="chart-grid-line" />
       <line x1="0" x2={width} y1={height / 2} y2={height / 2} className="chart-grid-line" />

@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react'
+import { CleanlinessMood } from '../components/CleanlinessMood'
+import { TaskProducts } from '../components/TaskProducts'
+import { activityTitle, activitySubtitle } from '../lib/presentation'
+import { homeCleanlinessSummary } from '../lib/home'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarDots, CheckCircle, DotsThree, MinusCircle, UserSwitch } from '@phosphor-icons/react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Illustration } from '../components/Illustration'
@@ -23,6 +27,7 @@ export function OverviewPage() {
   const [selectedId, setSelectedId] = useState<string | null>(taskId ?? null)
   const [rescheduleId, setRescheduleId] = useState<string | null>(null)
   const [reassignId, setReassignId] = useState<string | null>(null)
+  const cleanlinessRail = useRef<HTMLDivElement>(null)
   const [scope, setScope] = useState<OverviewScope>('mine')
   const [finishedOpen, setFinishedOpen] = useState(false)
   const [selectedUpcomingDay, setSelectedUpcomingDay] = useState<string | null>(null)
@@ -53,6 +58,8 @@ export function OverviewPage() {
   const upcomingDays = Array.from({ length: 7 }, (_, index) => addDays(today, index + 1))
   const selectedDay = selectedUpcomingDay ?? upcomingDays.find((day) => groups.upcoming.some((task) => localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === day)) ?? upcomingDays[0]
   const selectedDayTasks = groups.upcoming.filter((task) => localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === selectedDay)
+  const homeScores = homeCleanlinessSummary(data, now)
+  const urgentCount = groups.overdue.length + groups.dueNow.length
   const criticalSummaries = mergeCriticalItemsByEntity(groups.criticalItems)
 
   async function rememberUndo(taskIdValue: string, eventId: string | null, message: string) {
@@ -71,26 +78,42 @@ export function OverviewPage() {
       {activePeople.length > 1 && <div className="segmented two overview-scope"><button className={scope === 'mine' ? 'selected' : ''} onClick={() => setScope('mine')}>{t('myTasks')}</button><button className={scope === 'household' ? 'selected' : ''} onClick={() => setScope('household')}>{t('householdTasks')}</button></div>}
     </header>
 
-    <section className="overview-section critical-section">
-      <div className="overview-section-heading"><div><span className="eyebrow">{t('cleanliness')}</span><h2>{t('criticalCleanliness')}</h2></div><span className="count-pill">{criticalSummaries.length}</span></div>
-      {criticalSummaries.length === 0 ? <div className="quiet-state">{t('noCriticalItems')}</div> : <div className="critical-grid">{criticalSummaries.map((item) => {
-        const both = item.channels.length > 1
-        const lowest = Math.min(...item.channels.map((channel) => channel.score))
-        const earliestDue = [...item.channels].filter((channel) => channel.theoreticalDueAt).sort((a, b) => new Date(a.theoreticalDueAt!).getTime() - new Date(b.theoreticalDueAt!).getTime())[0]
-        return <article className="critical-card" key={item.itemId}>
-          <div className="critical-card-top"><div><strong>{item.name}</strong><small>{item.roomName ?? t('home')}</small></div><strong>{Math.round(lowest)}%</strong></div>
-          <div className="critical-type-line"><span className={`care-level-tag ${both ? 'both' : item.channels[0].channel === 'deep' ? 'deep' : 'routine'}`}>{both ? `${t('routineCleaning')} + ${t('deepCleaning')}` : item.channels[0].channel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
-          <div className="critical-score-list">{item.channels.map((channel) => <div className={`critical-score-row ${channel.channel}`} key={channel.channel}>
-            <div><span>{channel.channel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span><strong>{Math.round(channel.score)}%</strong></div>
-            <div className="cleanliness-track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(channel.score)} aria-label={`${channel.channel === 'deep' ? t('deepCleaning') : t('routineCleaning')} ${item.name} ${Math.round(channel.score)}%`}><span style={{ width: `${channel.score}%` }} /></div>
-          </div>)}</div>
-          <div className="critical-card-bottom"><span>{item.channels.some((channel) => channel.overdue) ? t('overdue') : earliestDue?.theoreticalDueAt ? formatTaskDateTime(earliestDue.theoreticalDueAt, locale, timezone) : t('needsAttention')}</span><button className="text-button" onClick={() => navigate(`/home?item=${item.itemId}`)}>{t('open')}</button></div>
-        </article>
-      })}</div>}
+    <section className="overview-section critical-section" aria-labelledby="cleanliness-heading">
+      <div className="overview-section-heading"><div><h2 id="cleanliness-heading">{t('cleanliness')}</h2><small className="muted">{criticalSummaries.length} {t('criticalCountLabel')}</small></div><div className="rail-controls"><button className="button secondary square" aria-label={t('previousCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: -300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&larr;</button><button className="button secondary square" aria-label={t('nextCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: 300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&rarr;</button></div></div>
+      <p className="muted rail-hint">{t('cleanlinessScrollHint')}</p>
+      <div className="cleanliness-rail" ref={cleanlinessRail} tabIndex={0} role="region" aria-label={t('cleanliness')}>
+        {(['regular', 'deep'] as const).map((channel) => {
+          const score = homeScores[channel]
+          const label = channel === 'deep' ? t('deepCleanliness') : t('regularCleanliness')
+          return <article className="critical-card home-score-card" key={channel}>
+            <div className="critical-card-top"><div><small>{t('home')}</small><strong>{label}</strong></div><CleanlinessMood score={score} /></div>
+            <strong className="home-score-number">{score == null ? t('notTracked') : `${Math.round(score)}%`}</strong>
+            <div className="cleanliness-track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={score == null ? undefined : Math.round(score)} aria-valuetext={score == null ? t('notTracked') : `${Math.round(score)}%`}><span style={{ width: `${score ?? 0}%` }} /></div>
+            <small className="muted">{t('homeCleanliness')}</small>
+          </article>
+        })}
+        {criticalSummaries.map((item) => {
+          const both = item.channels.length > 1
+          const lowest = Math.min(...item.channels.map((channel) => channel.score))
+          const earliestDue = [...item.channels].filter((channel) => channel.theoreticalDueAt).sort((a, b) => new Date(a.theoreticalDueAt!).getTime() - new Date(b.theoreticalDueAt!).getTime())[0]
+          return <article className="critical-card" key={item.itemId}>
+            <div className="critical-card-top"><div><strong>{item.name}</strong><small>{item.roomName ?? t('home')}</small></div><CleanlinessMood score={lowest} /></div>
+            <div className="critical-type-line"><span className={`care-level-tag ${both ? 'both' : item.channels[0].channel === 'deep' ? 'deep' : 'routine'}`}>{both ? `${t('routineCleaning')} + ${t('deepCleaning')}` : item.channels[0].channel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
+            <div className="critical-score-list">{item.channels.map((channel) => <div className={`critical-score-row ${channel.channel}`} key={channel.channel}>
+              <div><span>{channel.channel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span><strong>{Math.round(channel.score)}%</strong></div>
+              <div className="cleanliness-track" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(channel.score)} aria-label={`${channel.channel === 'deep' ? t('deepCleaning') : t('routineCleaning')} ${item.name}`}><span style={{ width: `${channel.score}%` }} /></div>
+            </div>)}</div>
+            <div className="critical-card-bottom"><span>{item.channels.some((channel) => channel.overdue) ? t('overdue') : earliestDue?.theoreticalDueAt ? formatTaskDateTime(earliestDue.theoreticalDueAt, locale, timezone) : t('needsAttention')}</span><button className="text-button" onClick={() => navigate(`/home?item=${item.itemId}`)}>{t('open')}</button></div>
+          </article>
+        })}
+      </div>
+      {!criticalSummaries.length && <div className="quiet-state">{t('noCriticalItems')}</div>}
     </section>
 
+    <div className="overview-plan-heading"><div><span className="eyebrow">{t('today')}</span><h2>{t('workForToday')}</h2></div><div className="plan-counts"><span className={urgentCount ? 'plan-count urgent' : 'plan-count'}>{urgentCount} {t('urgentWork').toLowerCase()}</span><span className="plan-count">{groups.laterToday.length} {t('laterToday').toLowerCase()}</span></div></div>
+
     {groups.overdue.length > 0 && <TaskSection title={t('overdue')} tasks={groups.overdue} tone="overdue" />}
-    {groups.dueNow.length > 0 && <TaskSection title={t('dueNow')} tasks={groups.dueNow} />}
+    {groups.dueNow.length > 0 && <TaskSection title={t('dueNow')} tasks={groups.dueNow} tone="due-now" />}
     {groups.laterToday.length > 0 && <TaskSection title={t('laterToday')} tasks={groups.laterToday} />}
     {groups.overdue.length + groups.dueNow.length + groups.laterToday.length === 0 && <div className="quiet-state large overview-empty-state"><Illustration id="emptyOverview" className="overview-empty-illustration" /><span>{t('nothingElseToday')}</span></div>}
 
@@ -99,12 +122,13 @@ export function OverviewPage() {
       {finishedOpen && (groups.finished.length ? <div className="task-list compact">{groups.finished.map((task) => <TaskCard task={task} key={task.id} />)}</div> : <div className="quiet-state">{t('nothingFinishedYet')}</div>)}
     </section>
 
-    <section className="overview-section upcoming-section">
-      <div className="overview-section-heading"><div><span className="eyebrow">{t('nextSevenDays')}</span><h2>{t('upcoming')}</h2></div></div>
+    <section className="overview-section upcoming-section" aria-labelledby="upcoming-heading">
+      <div className="overview-section-heading"><div><span className="eyebrow">{t('nextSevenDays')}</span><h2 id="upcoming-heading">{t('upcoming')}</h2></div></div>
+      <p className="muted upcoming-hint">{t('upcomingPlanningHint')}</p>
       <div className="upcoming-strip" role="tablist" aria-label={t('upcoming')}>{upcomingDays.map((day) => {
         const count = groups.upcoming.filter((task) => localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === day).length
         const labelDate = new Date(`${day}T12:00:00Z`)
-        return <button role="tab" aria-selected={selectedDay === day} className={selectedDay === day ? 'upcoming-day selected' : 'upcoming-day'} key={day} onClick={() => setSelectedUpcomingDay(day)}><span>{new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(labelDate)}</span><strong>{count}</strong></button>
+        return <button role="tab" aria-selected={selectedDay === day} className={selectedDay === day ? 'upcoming-day selected' : 'upcoming-day'} key={day} onClick={() => setSelectedUpcomingDay(day)}><span>{new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(labelDate)}</span><b>{new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(labelDate)}</b><small>{count} {t('scheduledActivities')}</small></button>
       })}</div>
       {selectedDayTasks.length ? <div className="upcoming-list">{selectedDayTasks.map((task) => <TaskCard key={task.id} task={task} compact />)}</div> : <div className="quiet-state">{t('nothingScheduled')}</div>}
     </section>
@@ -115,7 +139,7 @@ export function OverviewPage() {
     {undo && <div className="undo-snackbar" role="status"><span>{undo.message}</span><button onClick={() => void undoLast()}>{t('undo')}</button></div>}
   </div>
 
-  function TaskSection({ title, tasks, tone }: { title: string; tasks: TaskOccurrence[]; tone?: 'overdue' }) {
+  function TaskSection({ title, tasks, tone }: { title: string; tasks: TaskOccurrence[]; tone?: 'overdue' | 'due-now' }) {
     return <section className={`overview-section task-section ${tone ?? ''}`}><div className="overview-section-heading"><h2>{title}</h2><span>{tasks.length}</span></div><div className="task-list">{tasks.map((task) => <TaskCard key={task.id} task={task} />)}</div></section>
   }
 
@@ -130,10 +154,12 @@ export function OverviewPage() {
     const motionClass = recent === 'COMPLETED' ? 'task-motion-complete' : recent === 'SKIPPED' ? 'task-motion-skip' : recent === 'POSTPONED' ? 'task-motion-reschedule' : ''
     return <article className={`task-card overview-task-card ${terminal ? 'task-done' : ''} ${motionClass} ${compact ? 'compact-card' : ''}`}>
       <div className="task-main">
-        <div className="task-time">{formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}{task.state === 'completed' && <span className="status">{t('completed')}</span>}{task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}</div>
-        <h2>{task.actionNameSnapshot}</h2>
-        <div className="task-description"><span>{task.targets.map((target) => target.entityName).join(', ')} · {task.routineNameSnapshot}</span></div>
-        {task.supplies.length > 0 && <div className="overview-supply-strip">{task.supplies.map((snapshot) => { const supply = data!.supplies.find((item) => item.id === snapshot.supplyId && !item.archivedAt); if (!supply) return null; return <span className="overview-supply" key={snapshot.supplyId}><span className={`stock-dot stock-${supply.status}`} />{snapshot.supplyName}: {statusLabel(supply.status)}</span> })}</div>}
+        <h2>{activityTitle(task)}</h2>
+        <div className="task-description"><span>{activitySubtitle(task)}</span></div>
+        <div className="task-time">{localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === today ? formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone) : formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}{task.state === 'completed' && <span className="status">{t('completed')}</span>}{task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}</div>
+        <TaskProducts task={task} data={data!} />
+        {task.parentOccurrenceId && <small className="linked-task-label">{t('linkedTo')} {data!.tasks.find((parent) => parent.id === task.parentOccurrenceId)?.routineNameSnapshot ?? t('routine')}</small>}
+        {data!.routines.find((routine) => routine.id === task.routineId)?.affectsCleanliness === false && <small className="muted">{t('cleanlinessExcluded')}</small>}
         <div className="task-meta">{assignmentLabel} · <span className={`care-level-tag ${task.cleanlinessChannel === 'deep' ? 'deep' : 'routine'}`}>{task.cleanlinessChannel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
       </div>
       <div className="task-actions overview-actions">{task.state === 'scheduled' && (compact ? <button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button> : <><button className="button primary action-button" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}><CheckCircle weight="bold" aria-hidden="true" />{t('done')}</button><button className="button secondary action-button" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}><MinusCircle aria-hidden="true" />{t('skip')}</button><button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button></>)}<button className="button secondary square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={22} weight="bold" aria-hidden="true" /></button></div>
@@ -151,7 +177,7 @@ export function OverviewPage() {
     const canRestoreToday = terminalToday || Boolean(latestIsRestorable)
     const restoreSourceId = latestWorkflow && latestWorkflow.type !== 'REOPENED' ? latestWorkflow.id : undefined
     return <Sheet title={t('taskDetails')} onClose={onClose}><div className="stack">
-      <div className="summary-block"><span className="eyebrow">{task.routineNameSnapshot}</span><strong>{task.actionNameSnapshot}</strong><span>{task.targets.map((target) => target.entityName).join(', ')}</span><span>{formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}</span></div>
+      <div className="summary-block"><strong>{activityTitle(task)}</strong><span>{activitySubtitle(task)}</span><span>{formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}</span></div>
       {canRestoreToday && <button className="button secondary" onClick={() => { if (!window.confirm(t('confirmRestoreTask'))) return; void restoreTaskToToday(task.id, restoreSourceId).then(onClose) }}>{t('restoreToDoToday')}</button>}
       {task.targets.length > 1 && <section className="action-section"><div className="section-header"><div><h3>{t('taskTargets')}</h3><small>{t('targetCompletionHint')}</small></div><small>{task.targets.filter((target) => target.completedAt).length}/{task.targets.length}</small></div><div className="target-progress-list">{task.targets.map((target) => <div className={target.completedAt ? 'target-progress-row done' : 'target-progress-row'} key={target.entityId}><div><strong>{target.entityName}</strong><small>{target.entityTypeName}</small></div>{target.completedAt ? <span className="status">{t('completed')}</span> : task.state === 'scheduled' ? <button className="button secondary small" onClick={() => { if (!window.confirm(`${t('confirmCompleteTask')}\n${target.entityName}`)) return; void completeTaskTarget(task.id, target.entityId).then(onClose) }}>{t('completeTarget')}</button> : null}</div>)}</div></section>}
       {task.supplies.length > 0 && <section className="action-section"><h3>{t('reportStock')}</h3><div className="task-supplies">{task.supplies.map((snapshot) => { const supply = data!.supplies.find((item) => item.id === snapshot.supplyId); if (!supply || supply.archivedAt) return null; return <div className="task-supply-row" key={snapshot.supplyId}><div><strong>{snapshot.supplyName}</strong><small>{statusLabel(supply.status)}</small></div><div className="mini-stock-grid">{stockStatuses.map((status) => <button key={status} aria-label={statusLabel(status)} className={supply.status === status ? 'selected' : ''} onClick={() => void setSupplyStatus(supply.id, status, task.id).then(onClose)}><span className={`stock-dot stock-${status}`} /></button>)}</div></div> })}</div></section>}
@@ -173,7 +199,7 @@ function RescheduleSheet({ task, timezone, locale, t, onClose, onReschedule }: {
 }) {
   const [value, setValue] = useState(dateTimeLocalValue(task.effectiveDueAt ?? task.dueAt, timezone))
   return <Sheet title={t('reschedule')} onClose={onClose}><div className="stack focused-action-sheet">
-    <div className="summary-block"><span className="eyebrow">{task.actionNameSnapshot}</span><strong>{task.targets.map((target) => target.entityName).join(', ')}</strong><span>{t('rescheduleOnceHint')}</span></div>
+    <div className="summary-block"><strong>{activityTitle(task)}</strong><span>{activitySubtitle(task)}</span><span>{t('rescheduleOnceHint')}</span></div>
     <label className="field"><span>{t('newDateTime')}</span><input type="datetime-local" value={value} onChange={(event) => setValue(event.target.value)} autoFocus /></label>
     <button className="button primary" onClick={() => {
       const dueAt = localInputToUtc(value, timezone)
@@ -196,7 +222,7 @@ function ReassignSheet({ task, members, t, onClose, onReassign }: {
   const memberId = scope === 'member' ? assignee : undefined
   const assigneeName = scope === 'everyone' ? t('everyone') : scope === 'unassigned' ? t('anyone') : members.find((member) => member.id === memberId)?.displayName ?? t('anyone')
   return <Sheet title={t('reassign')} onClose={onClose}><div className="stack focused-action-sheet">
-    <div className="summary-block"><span className="eyebrow">{task.actionNameSnapshot}</span><strong>{task.targets.map((target) => target.entityName).join(', ')}</strong><span>{t('reassignOnceHint')}</span></div>
+    <div className="summary-block"><strong>{activityTitle(task)}</strong><span>{activitySubtitle(task)}</span><span>{t('reassignOnceHint')}</span></div>
     <label className="field"><span>{t('selectMember')}</span><select value={assignee} onChange={(event) => setAssignee(event.target.value)} autoFocus><option value="__unassigned__">{t('anyone')}</option><option value="__everyone__">{t('everyone')}</option>{members.filter((member) => member.status === 'active').map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select></label>
     {scope === 'unassigned' && <p className="muted compact-text">{t('unassignedHint')}</p>}
     {scope === 'everyone' && <p className="notice compact-text">{t('everyoneHint')}</p>}

@@ -1002,3 +1002,57 @@ input:focus, select:focus, textarea:focus { border-color: var(--color-primary); 
 .home-layout-canvas.pannable { cursor: grab; touch-action: none; overscroll-behavior: contain; }
 .home-layout-canvas.pannable.panning { cursor: grabbing; }
 .home-layout-canvas.pannable .layout-element { cursor: pointer; }
+
+/* v1.2.1: attached work and a clearly separated daily cockpit. */
+.cleanliness-toggle { align-items: start; padding-block: 10px; }
+.cleanliness-toggle > span { display: grid; gap: 5px; }
+.cleanliness-toggle small { color: var(--color-ink-muted); font-weight: 400; line-height: 1.5; }
+.additional-activities-builder { min-width: 0; }
+.additional-activity { display: grid; gap: 14px; min-width: 0; margin: 0; border: 1px solid var(--color-line); border-radius: var(--radius-card); padding: 16px; background: var(--color-surface); }
+.additional-activity legend { font-weight: 700; font-size: .9rem; padding-inline: 6px; }
+.additional-top-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px; }
+.additional-top-row .field { max-width: 220px; flex: 1; }
+.linked-routine-summary { margin-top: 14px; border-top: 1px solid var(--color-line); padding-top: 12px; display: grid; gap: 10px; }
+.linked-routine-summary > div { display: grid; gap: 4px; padding-inline-start: 12px; border-inline-start: 3px solid var(--color-primary-soft); }
+.linked-routine-summary small, .linked-task-label { color: var(--color-ink-muted); font-size: .78rem; }
+.linked-task-label { display: block; margin-block: 6px; }
+.cleanliness-mood { display: inline-block; font-size: 1.35em; vertical-align: middle; line-height: 1.2; }
+.rail-hint { font-size: .8rem; margin: 0; }
+.rail-controls { display: flex; gap: 6px; flex-shrink: 0; }
+.rail-controls .square { min-height: 44px; width: 44px; }
+.cleanliness-rail { display: flex; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; padding: 3px 3px 12px; max-width: 100%; scrollbar-width: thin; scrollbar-color: var(--color-primary-soft) transparent; }
+.cleanliness-rail > .critical-card { flex: 0 0 270px; min-width: 0; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; }
+.cleanliness-rail .critical-card-top { align-items: start; }
+.cleanliness-rail .critical-card-top strong { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.cleanliness-rail .critical-card-top .cleanliness-mood { font-size: 1.8rem; flex-shrink: 0; }
+.cleanliness-rail .critical-card-bottom { margin-top: auto; }
+.cleanliness-rail .home-score-card { background: var(--color-surface-soft); }
+.home-score-number { font-size: 1.8rem; letter-spacing: -.03em; }
+.overview-plan-heading { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; padding-top: 6px; }
+.overview-plan-heading h2 { font-size: 1.2rem; }
+.plan-counts { display: flex; flex-wrap: wrap; gap: 7px; }
+.plan-count { padding: 7px 10px; border-radius: 8px; font-size: .75rem; background: var(--color-surface-soft); }
+.plan-count.urgent { border-inline-start: 3px solid var(--color-overdue); color: var(--color-ink); }
+.overview-page .task-section.overdue { border-inline-start: 3px dashed var(--color-overdue); padding-inline-start: 12px; }
+.overview-page .task-section.due-now { border-inline-start: 3px dotted var(--color-due); padding-inline-start: 12px; }
+.overview-page .task-section.overdue .overview-section-heading h2 { color: var(--color-ink); }
+.overview-page .task-section.due-now .overview-section-heading h2 { color: var(--color-ink); }
+.overview-page .upcoming-section { background: var(--color-surface-soft); border: 1px solid var(--color-line); border-top: 3px solid var(--color-line-strong); border-radius: var(--radius-card); padding: 18px; margin-top: 14px; }
+.upcoming-hint { margin: 0 0 6px; font-size: .84rem; line-height: 1.45; }
+.upcoming-day { min-width: 106px; min-height: 94px; display: grid; gap: 5px; }
+.upcoming-day b { font-size: 1.03rem; }
+.upcoming-day small { font-size: .69rem; font-weight: 500; white-space: normal; }
+.overview-supply-strip { max-width: 100%; }
+.overview-supply { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.room-task-row > div { min-width: 0; flex: 1; }
+.room-task-row .overview-supply-strip { margin-block: 5px; }
+.room-mode-card .overview-supply-strip { margin-top: 12px; }
+@media (max-width: 480px) {
+  .cleanliness-rail > .critical-card { flex-basis: 80%; min-width: 220px; }
+  .overview-page .upcoming-section { padding: 14px 10px; }
+  .additional-activity { padding: 12px; }
+  .overview-plan-heading { align-items: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cleanliness-rail { scroll-behavior: auto; }
+}

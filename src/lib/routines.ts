@@ -14,6 +14,9 @@ export interface RoutineDefinitionLike {
   reminder: ReminderPolicy
   careLevel: CareLevel
   refreshLevelPct?: number
+  affectsCleanliness?: boolean
+  parentRoutineId?: string
+  triggerEvery?: number
   status?: 'active' | 'paused' | 'ended'
   supplyIdsOverride?: string[]
 }
@@ -45,6 +48,9 @@ export function routineDefinitionFingerprint(input: RoutineDefinitionLike): stri
     reminder: input.reminder,
     careLevel: input.careLevel,
     refreshLevelPct: input.refreshLevelPct ?? 100,
+    affectsCleanliness: input.affectsCleanliness !== false,
+    parentRoutineId: input.parentRoutineId ?? null,
+    triggerEvery: input.triggerEvery ?? null,
     status: input.status ?? 'active',
     supplyIdsOverride: sorted(input.supplyIdsOverride),
   })

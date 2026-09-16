@@ -26,6 +26,8 @@ export interface OccurrenceSlot {
   dueAt: string
   index: number
   source: 'rule' | 'inclusion'
+  /** 1-based ordinal from the recurrence anchor, never reset by a query window. */
+  ordinal?: number
 }
 
 export function routineCleanlinessChannel(routine: Pick<Routine, 'cleanlinessChannel' | 'careLevel'>): CleanlinessChannel {
@@ -40,8 +42,8 @@ export function isRoutineActive(routine: Pick<Routine, 'archivedAt' | 'status'>)
   return !routine.archivedAt && (routine.status ?? 'active') === 'active'
 }
 
-export function isCleanlinessTrackableRoutine(routine: Pick<Routine, 'recurrence' | 'status' | 'archivedAt'>): boolean {
-  return isRoutineActive(routine) && routine.recurrence.kind !== 'once'
+export function isCleanlinessTrackableRoutine(routine: Pick<Routine, 'recurrence' | 'status' | 'archivedAt' | 'affectsCleanliness'>): boolean {
+  return isRoutineActive(routine) && routine.affectsCleanliness !== false && routine.recurrence.kind !== 'once'
 }
 
 function ruleAnchorDate(rule: RecurrenceRule): string {
@@ -121,7 +123,7 @@ function fixedRuleSlots(routine: Routine, from: string, to: string, timezone: st
       const local = localDateTimeInZone(timezone, new Date(dueMs))
       const [date, time] = local.split('T')
       if (excluded.has(date)) continue
-      slots.push({ date, time, dueAt: new Date(dueMs).toISOString(), index, source: 'rule' })
+      slots.push({ date, time, dueAt: new Date(dueMs).toISOString(), index, ordinal: index + 1, source: 'rule' })
     }
   } else {
     const anchor = ruleAnchorDate(rule)
@@ -129,13 +131,13 @@ function fixedRuleSlots(routine: Routine, from: string, to: string, timezone: st
     for (let cursor = anchor; cursor <= to && slots.length < max; cursor = addDays(cursor, 1)) {
       if (!recurrenceMatchesDate(rule, cursor)) continue
       if (cursor >= from && !excluded.has(cursor)) {
-        slots.push({ date: cursor, time: routine.timeOfDay, dueAt: zonedLocalToUtc(cursor, routine.timeOfDay, timezone), index, source: 'rule' })
+        slots.push({ date: cursor, time: routine.timeOfDay, dueAt: zonedLocalToUtc(cursor, routine.timeOfDay, timezone), index, ordinal: index + 1, source: 'rule' })
       }
       index += 1
     }
   }
 
-  const inclusionSlots = (routine.exceptions?.includedDateTimes ?? []).flatMap((value) => {
+  const inclusionSlots: OccurrenceSlot[] = (routine.exceptions?.includedDateTimes ?? []).flatMap((value) => {
     const [date, time] = value.split('T')
     if (!date || !time || date < from || date > to) return []
     return [{ date, time, dueAt: zonedLocalToUtc(date, time, timezone), index: Number.MAX_SAFE_INTEGER, source: 'inclusion' as const }]
@@ -149,6 +151,7 @@ function fixedRuleSlots(routine: Routine, from: string, to: string, timezone: st
   for (const slot of merged) {
     if (seen.has(slot.dueAt)) continue
     seen.add(slot.dueAt)
+    if (routine.parentRoutineId && (slot.ordinal == null || slot.ordinal % Math.max(1, routine.triggerEvery ?? 1) !== 0)) continue
     deduped.push({ ...slot, index: deduped.length })
   }
   return deduped
@@ -195,11 +198,18 @@ export function nextTheoreticalSlotAfter(routine: Routine, afterAt: string, time
     const due = zonedLocalToUtc(routine.recurrence.date, routine.timeOfDay, zone)
     return new Date(due).getTime() > new Date(afterAt).getTime() ? due : null
   }
-  if (routine.scheduleMode === 'after_completion') return addIntervalFromInstant(routine, afterAt, zone)
+  if (routine.scheduleMode === 'after_completion') {
+    let cursor: string | null = afterAt
+    const count = routine.parentRoutineId ? Math.max(1, routine.triggerEvery ?? 1) : 1
+    // Future completion times are unknown: use N nominal parent intervals for
+    // the physical-state estimate, not the child task's execution date.
+    for (let i = 0; i < count && cursor; i += 1) cursor = addIntervalFromInstant(routine, cursor, zone)
+    return cursor
+  }
 
   const afterMs = new Date(afterAt).getTime()
   const localDate = localDateInZone(zone, new Date(afterMs))
-  for (const horizon of [31, 180, 730, 3660]) {
+  for (const horizon of [31, 180, 730, 3660, 36600]) {
     const slots = theoreticalOccurrenceSlots(routine, addDays(localDate, -1), addDays(localDate, horizon), zone, 5000)
     const next = slots.find((slot) => new Date(slot.dueAt).getTime() > afterMs)
     if (next) return next.dueAt
@@ -242,7 +252,7 @@ function scheduleExplanation(routine: Routine): string {
   return `Fixed calendar every ${interval} at ${routine.timeOfDay}.`
 }
 
-function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurrenceIndex: number): WorkspaceData {
+function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurrenceIndex: number, triggerOrdinal?: number, parentTask?: TaskOccurrence): WorkspaceData {
   const action = data.actions.find((item) => item.id === routine.actionId)
   if (!action || action.archivedAt) return data
 
@@ -255,28 +265,30 @@ function appendTask(data: WorkspaceData, routine: Routine, dueAt: string, occurr
 
   const taskId = stableId(`task:${data.workspace.id}:${routine.id}:${routine.revision}:${dueAt}`)
   const assignmentResolution = resolveAssignment(data, routine, occurrenceIndex, dueAt)
-  const assigneeMemberId = assignmentResolution.memberId
+  const assigneeMemberId = parentTask ? parentTask.assigneeMemberId : assignmentResolution.memberId
   const createdAt = nowIso()
   const task: TaskOccurrence = {
     id: taskId,
     workspaceId: data.workspace.id,
     routineId: routine.id,
     routineRevision: routine.revision,
+    triggerOrdinal,
+    parentOccurrenceId: parentTask?.id,
     routineNameSnapshot: routine.name,
     actionNameSnapshot: action.name,
     cleanlinessChannel: routineCleanlinessChannel(routine),
     careLevel: routineCleanlinessChannel(routine) === 'deep' ? 'deep' : 'routine',
     scheduledSlotAt: dueAt,
-    effectiveDueAt: dueAt,
+    effectiveDueAt: parentTask?.effectiveDueAt ?? dueAt,
     originalDueAt: dueAt,
-    dueAt,
+    dueAt: parentTask?.effectiveDueAt ?? dueAt,
     state: 'scheduled' as const,
-    assignmentScope: assignmentResolution.scope,
+    assignmentScope: parentTask?.assignmentScope ?? assignmentResolution.scope,
     assigneeMemberId,
     targets,
     supplies: taskSupplies(data, routine),
     explanation: {
-      schedule: scheduleExplanation(routine),
+      schedule: routine.parentRoutineId ? `Every ${routine.triggerEvery} scheduled occurrences of the parent routine. Occurrence ${triggerOrdinal}.` : scheduleExplanation(routine),
       assignment: assignmentResolution.explanation,
       targetSummary: routine.advancedTargetSelector?.conditions.length ? selectorSummary(data, routine.advancedTargetSelector) : 'Explicitly selected targets.',
     },
@@ -303,7 +315,14 @@ export function materializeRoutineSlot(data: WorkspaceData, routine: Routine, du
   const duplicate = data.tasks.some((task) => task.routineId === routine.id && task.routineRevision === routine.revision && (task.scheduledSlotAt ?? task.originalDueAt) === dueAt)
   if (duplicate) return data
   const occurrenceIndex = data.tasks.filter((task) => task.routineId === routine.id && task.state !== 'cancelled').length
-  return appendTask(data, routine, dueAt, occurrenceIndex)
+  const sameSlot = data.tasks.find((task) => task.routineId === routine.id && (task.scheduledSlotAt ?? task.originalDueAt) === dueAt)
+  let ordinal = sameSlot?.triggerOrdinal
+  if (ordinal == null && routine.scheduleMode === 'fixed') ordinal = ordinalForSlot(routine, dueAt, data.workspace.timezone)
+  if (ordinal == null && routine.scheduleMode === 'after_completion') {
+    const slots = [...new Set(data.tasks.filter((task) => task.routineId === routine.id).map((task) => task.scheduledSlotAt ?? task.originalDueAt))].sort()
+    ordinal = sameSlot ? slots.indexOf(dueAt) + 1 : Math.max(slots.length, ...data.tasks.filter((task) => task.routineId === routine.id).map((task) => task.triggerOrdinal ?? 0)) + 1
+  }
+  return appendTask(data, routine, dueAt, occurrenceIndex, ordinal)
 }
 
 function terminalEventTime(data: WorkspaceData, taskId: string): string | undefined {
@@ -368,7 +387,7 @@ export function materializeTasks(input: WorkspaceData, horizonDays = 45): Worksp
   let data = retireSupersededScheduledTasks(input)
   const today = localDateInZone(data.workspace.timezone)
   const from = addDays(today, -1)
-  const activeRoutines = data.routines.filter(isRoutineActive)
+  const activeRoutines = data.routines.filter((routine) => isRoutineActive(routine) && !routine.parentRoutineId)
 
   for (const routine of activeRoutines) {
     if (routine.scheduleMode === 'after_completion') {
@@ -382,15 +401,50 @@ export function materializeTasks(input: WorkspaceData, horizonDays = 45): Worksp
     for (const occurrence of occurrenceSlots(routine, from, to, data.workspace.timezone)) {
       const key = `${routine.id}:${routine.revision}:${occurrence.dueAt}`
       if (existing.has(key)) continue
-      data = appendTask(data, routine, occurrence.dueAt, occurrence.index)
+      data = appendTask(data, routine, occurrence.dueAt, occurrence.index, occurrence.ordinal)
       existing.add(key)
     }
   }
 
+  return materializeAdditionalActivities(data)
+}
+
+/** Recover a canonical fixed-calendar ordinal for existing pre-v1.2.1 rows. */
+export function ordinalForSlot(routine: Routine, slotAt: string, timezone: string): number | undefined {
+  const day = localDateInZone(routineTimezone(routine, timezone), new Date(slotAt))
+  return theoreticalOccurrenceSlots({ ...routine, parentRoutineId: undefined }, day, day, timezone, 10000)
+    .find((slot) => new Date(slot.dueAt).getTime() === new Date(slotAt).getTime())?.ordinal
+}
+
+/** Independent task records, shared parent trigger. Completion/skip never cascade. */
+export function materializeAdditionalActivities(input: WorkspaceData): WorkspaceData {
+  let data = input
+  const existing = new Set(data.tasks.map((task) => `${task.routineId}:${task.routineRevision}:${task.scheduledSlotAt ?? task.originalDueAt}`))
+  for (const child of data.routines.filter((routine) => routine.parentRoutineId && isRoutineActive(routine))) {
+    const parent = data.routines.find((routine) => routine.id === child.parentRoutineId)
+    if (!parent || !isRoutineActive(parent) || parent.parentRoutineId) continue
+    const every = Math.max(1, child.triggerEvery ?? 1)
+    const parentSlots = [...new Set(data.tasks.filter((task) => task.routineId === parent.id).map((task) => task.scheduledSlotAt ?? task.originalDueAt))].sort()
+    for (const task of data.tasks.filter((task) => task.routineId === parent.id && task.routineRevision === parent.revision && task.state === 'scheduled')) {
+      const slotAt = task.scheduledSlotAt ?? task.originalDueAt
+      // Do not invent backdated extras when attaching work to an old routine.
+      if (localDateInZone(data.workspace.timezone, new Date(slotAt)) < localDateInZone(data.workspace.timezone, new Date(child.createdAt))) continue
+      const ordinal = task.triggerOrdinal ?? (parent.scheduleMode === 'fixed' ? ordinalForSlot(parent, slotAt, data.workspace.timezone) : parentSlots.indexOf(slotAt) + 1)
+      if (!ordinal || ordinal % every !== 0) continue
+      const key = `${child.id}:${child.revision}:${slotAt}`
+      if (existing.has(key)) continue
+      data = appendTask(data, child, slotAt, ordinal - 1, ordinal, task)
+      existing.add(key)
+    }
+  }
   return data
 }
 
 export function previewDueAts(data: WorkspaceData, routine: Routine, count = 5): string[] {
+  if (routine.parentRoutineId && routine.scheduleMode === 'after_completion') {
+    const previewData = materializeAdditionalActivities({ ...data, routines: [...data.routines.filter((item) => item.id !== routine.id), routine] })
+    return previewData.tasks.filter((task) => task.routineId === routine.id && task.state === 'scheduled').map((task) => task.effectiveDueAt).slice(0, count)
+  }
   if (routine.scheduleMode === 'after_completion') {
     const first = nextAfterCompletionDueAt(data, routine)
     if (!first) return []

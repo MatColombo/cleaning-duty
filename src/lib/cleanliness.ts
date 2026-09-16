@@ -70,7 +70,7 @@ function completionAtForTarget(data: WorkspaceData, task: TaskOccurrence, itemId
 }
 
 function activeTrackableRoutines(data: WorkspaceData): Routine[] {
-  return data.routines.filter(isCleanlinessTrackableRoutine)
+  return data.routines.filter((routine) => isCleanlinessTrackableRoutine(routine) && (!routine.parentRoutineId || data.routines.some((parent) => parent.id === routine.parentRoutineId && isRoutineActive(parent))))
 }
 
 function routineTargetsItem(data: WorkspaceData, routine: Routine, itemId: string): boolean {
@@ -117,6 +117,10 @@ function latestLegacyCompletion(
     const deepCarriesToRegular = channel === 'regular' && taskChannel === 'deep'
     if (!sameRoutine && !deepCarriesToRegular) return []
     if (sameRoutine && taskChannel !== channel) return []
+    // Modern completion events already contain their exact health effects. An
+    // empty list is deliberate (including opt-out); never migrate it to a refresh.
+    const modern = data.taskEvents.some((event) => event.taskId === task.id && (event.type === 'COMPLETED' || event.type === 'TARGET_COMPLETED') && Array.isArray(event.metadata.cleanlinessSnapshots))
+    if (modern) return []
     const completedAt = completionAtForTarget(data, task, itemId)
     return completedAt ? [{ task, completedAt }] : []
   })
@@ -247,7 +251,7 @@ export function buildCompletionHealthEffects(
   actorMemberId?: string,
 ): CompletionHealthEffect[] {
   const sourceRoutine = data.routines.find((routine) => routine.id === task.routineId)
-  if (!sourceRoutine || !isRoutineActive(sourceRoutine)) return []
+  if (!sourceRoutine || !isRoutineActive(sourceRoutine) || sourceRoutine.affectsCleanliness === false) return []
   const refresh = normalizeRefreshLevel(sourceRoutine.refreshLevelPct)
   const effects: CompletionHealthEffect[] = []
 

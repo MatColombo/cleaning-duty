@@ -1,3 +1,6 @@
+import { CleanlinessMood } from '../components/CleanlinessMood'
+import { TaskProducts } from '../components/TaskProducts'
+import { activityTitle, activitySubtitle } from '../lib/presentation'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { FormField } from '../components/FormField'
@@ -250,7 +253,7 @@ export function HomePage() {
   function RoomTaskRows({ tasks, upcoming = false }: { tasks: TaskOccurrence[]; upcoming?: boolean }) {
     if (!tasks.length) return <p className="muted compact-text">{t('nothingScheduled')}</p>
     return <div className="room-task-list">{tasks.map((task) => <div className="room-task-row" key={task.id}>
-      <div><strong>{task.actionNameSnapshot}</strong><small>{task.routineNameSnapshot}</small></div>
+      <div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small><TaskProducts task={task} data={data!} /></div>
       <small>{roomTaskWhen(task, upcoming)}</small>
     </div>)}</div>
   }
@@ -265,8 +268,8 @@ export function HomePage() {
         <button className="button ghost small room-detail-close" onClick={() => { setSelectedElementId(''); setSelectedEntityId('') }}>{t('close')}</button>
       </div>
       <div className="dual-care-summary room-cleanliness-summary">
-        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b>{selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
-        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b>{selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
+        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.routine.score} /> {selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
+        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.deep?.score} /> {selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
       </div>
       <section className="inspector-section room-work-section overdue-room-work">
         <div className="section-header"><h3>{t('overdue')}</h3><span className="count-pill small-pill">{selectedRoomWorkflow.overdue.length}</span></div>
@@ -287,12 +290,12 @@ export function HomePage() {
     return <div className="stack inspector-content">
       <div><div className="eyebrow">{type?.name}</div><h2>{selectedEntity.name}</h2></div>
       <div className="dual-care-summary">
-        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b>{selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
-        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b>{selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
+        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.routine.score} /> {selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
+        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.deep?.score} /> {selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
       </div>
       <section className="inspector-section">
         <div className="section-header"><h3>{t('currentTasks')}</h3><span className="count-pill small-pill">{selectedTasks.length}</span></div>
-        {!selectedTasks.length ? <p className="muted compact-text">{t('noCurrentTasks')}</p> : <div className="mini-list">{selectedTasks.slice(0, 5).map((task) => <div className="mini-list-row" key={task.id}><div><strong>{task.actionNameSnapshot}</strong><small>{task.routineNameSnapshot}</small></div><small>{formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)}</small></div>)}</div>}
+        {!selectedTasks.length ? <p className="muted compact-text">{t('noCurrentTasks')}</p> : <div className="mini-list">{selectedTasks.slice(0, 5).map((task) => <div className="mini-list-row" key={task.id}><div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small><TaskProducts task={task} data={data!} /></div><small>{formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)}</small></div>)}</div>}
       </section>
       <section className="inspector-section">
         <h3>{t('supplyAlerts')}</h3>
@@ -348,8 +351,9 @@ export function HomePage() {
         <div className="room-mode-progress"><span>{t('roomCleaning')}</span><strong>{roomSessionHandled + 1} {t('of')} {total}</strong></div>
         <section className="room-mode-card">
           <span className={`room-mode-state ${workflow.overdue.some((task) => task.id === current.id) ? 'overdue' : 'today'}`}>{workflow.overdue.some((task) => task.id === current.id) ? t('overdue') : t('dueTodayShort')}</span>
-          <h2>{current.actionNameSnapshot}</h2>
-          <p>{current.routineNameSnapshot}</p>
+          <h2>{activityTitle(current)}</h2>
+          <p>{activitySubtitle(current)}</p>
+          <TaskProducts task={current} data={data!} />
           <small>{roomTaskWhen(current)}</small>
         </section>
         <button className="button primary room-done-button" onClick={() => void completeCurrent()}>{t('done')}</button>
@@ -587,7 +591,7 @@ function CleanlinessSummary({ label, score, deep = false }: { label: string; sco
   const rounded = score == null ? null : Math.round(score)
   const display = rounded == null ? t('notTracked') : `${rounded}%`
   return <div className={`home-cleanliness-row${deep ? ' deep' : ''}`}>
-    <div className="home-cleanliness-label"><span>{label}</span><strong>{display}</strong></div>
+    <div className="home-cleanliness-label"><span>{label}</span><strong><CleanlinessMood score={score} /> {display}</strong></div>
     <div className="home-cleanliness-track" aria-label={`${label}: ${display}`}><span style={{ width: `${rounded ?? 0}%` }} /></div>
   </div>
 }

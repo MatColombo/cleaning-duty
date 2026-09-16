@@ -1,3 +1,5 @@
+import type { AdditionalActivityInput } from '../types/domain'
+import { saveAdditionalActivities } from '../lib/linkedRoutines'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type {
   ActionDefinition,
@@ -51,6 +53,8 @@ import { buildCompletionHealthEffects } from '../lib/cleanliness'
 interface EntityInput { name: string; typeId: string; parentId?: string; labels: string[]; metadata: Record<string, MetadataValue> }
 interface ActionInput { name: string; icon?: string; instructions?: string; defaultSupplyIds: string[]; metadata: Record<string, MetadataValue> }
 interface RoutineInput {
+  affectsCleanliness?: boolean
+  additionalActivities?: AdditionalActivityInput[]
   name: string
   actionId: string
   targetEntityIds: string[]
@@ -729,47 +733,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ...current, actions: current.actions.map((item) => item.id === id ? { ...item, archivedAt: nowIso() } : item) }
     }),
     addRoutine: async (input) => commit((current) => {
-      const fingerprint = routineDefinitionFingerprint(input)
-      const duplicate = current.routines.some((routine) => !routine.archivedAt && routineDefinitionFingerprint(routine) === fingerprint)
-      if (duplicate) return current
-      return {
-        ...current,
-        routines: [...current.routines, {
-          id: newId(), workspaceId: current.workspace.id, ...input,
-          cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
-          routineTimezone: current.workspace.timezone,
-          refreshLevelPct: Math.max(10, Math.min(100, input.refreshLevelPct ?? 100)), status: 'active', revision: 1, createdAt: nowIso(),
-        }],
+      const { additionalActivities, ...definition } = input
+      const fingerprint = routineDefinitionFingerprint(definition)
+      const duplicate = current.routines.some((routine) => !routine.archivedAt && !routine.parentRoutineId && routineDefinitionFingerprint(routine) === fingerprint)
+      if (duplicate) throw new Error('A routine with these settings already exists.')
+      const parent: Routine = {
+        id: newId(), workspaceId: current.workspace.id, ...definition,
+        affectsCleanliness: definition.affectsCleanliness !== false,
+        cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
+        routineTimezone: current.workspace.timezone,
+        refreshLevelPct: Math.max(10, Math.min(100, input.refreshLevelPct ?? 100)), status: 'active', revision: 1, createdAt: nowIso(),
       }
+      return saveAdditionalActivities({ ...current, routines: [...current.routines, parent] }, parent, additionalActivities, currentMember?.id)
     }),
     updateRoutine: async (id, input) => commit((current) => {
       const existing = current.routines.find((item) => item.id === id)
       if (!existing) return current
+      if (existing.parentRoutineId) throw new Error('Edit additional activities through their parent routine.')
+      const { additionalActivities, ...definition } = input
       const refreshLevelPct = Math.max(10, Math.min(100, input.refreshLevelPct ?? existing.refreshLevelPct ?? 100))
-      // Refresh-to is an execution-time policy. Changing it must affect future completions
-      // without retiring or recreating already materialized occurrences.
-      const onlyRefreshChanged = routineDefinitionFingerprint({ ...existing, refreshLevelPct }) === routineDefinitionFingerprint({ ...input, refreshLevelPct, status: existing.status ?? 'active' })
-      if (onlyRefreshChanged) {
-        return {
-          ...current,
-          routines: current.routines.map((item) => item.id === id ? { ...item, refreshLevelPct } : item),
-        }
+      const affectsCleanliness = input.affectsCleanliness !== false
+      const onlyPolicyChanged = routineDefinitionFingerprint({ ...existing, refreshLevelPct, affectsCleanliness }) === routineDefinitionFingerprint({ ...definition, refreshLevelPct, affectsCleanliness, status: existing.status ?? 'active' })
+      const base = onlyPolicyChanged ? current : cancelFutureTasks(current, id)
+      const parent: Routine = {
+        ...existing, ...definition, refreshLevelPct, affectsCleanliness,
+        cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
+        routineTimezone: existing.routineTimezone ?? current.workspace.timezone,
+        status: existing.status ?? 'active', revision: existing.revision + (onlyPolicyChanged ? 0 : 1),
       }
-      const cancelled = cancelFutureTasks(current, id)
-      return {
-        ...cancelled,
-        routines: cancelled.routines.map((item) => item.id === id ? {
-          ...item, ...input, cleanlinessChannel: input.careLevel === 'deep' ? 'deep' : 'regular',
-          routineTimezone: item.routineTimezone ?? current.workspace.timezone,
-          refreshLevelPct, status: item.status ?? 'active', revision: item.revision + 1,
-        } : item),
-      }
+      return saveAdditionalActivities({ ...base, routines: base.routines.map((item) => item.id === id ? parent : item) }, parent, additionalActivities, currentMember?.id)
     }),
     archiveRoutine: async (id) => commit((current) => {
-      const cancelled = cancelFutureTasks(current, id)
+      const ids = new Set(current.routines.filter((routine) => routine.id === id || routine.parentRoutineId === id).map((routine) => routine.id))
+      let cancelled = current
+      for (const routineId of ids) cancelled = cancelFutureTasks(cancelled, routineId)
       return {
         ...cancelled,
-        routines: cancelled.routines.map((item) => item.id === id ? { ...item, archivedAt: nowIso(), revision: item.revision + 1 } : item),
+        routines: cancelled.routines.map((item) => ids.has(item.id) ? { ...item, archivedAt: nowIso(), status: 'ended', revision: item.revision + 1 } : item),
       }
     }),
     setRoutineStatus: async (id, status) => commit((current) => {
@@ -777,13 +777,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const nowMs = new Date(at).getTime()
       const routine = current.routines.find((item) => item.id === id)
       if (!routine) return current
-      const routines = current.routines.map((item) => item.id === id ? { ...item, status } : item)
+      const affectedIds = new Set(current.routines.filter((item) => item.id === id || item.parentRoutineId === id).map((item) => item.id))
+      const routines = current.routines.map((item) => affectedIds.has(item.id) ? { ...item, status } : item)
 
       if (status === 'paused' || status === 'ended') {
         const reason = status === 'paused' ? 'routine_paused' : 'routine_ended'
         const cancelledIds: string[] = []
         const tasks = current.tasks.map((task) => {
-          if (task.routineId !== id || task.state !== 'scheduled') return task
+          if (!affectedIds.has(task.routineId) || task.state !== 'scheduled') return task
           cancelledIds.push(task.id)
           return { ...task, state: 'cancelled' as const, version: task.version + 1 }
         })
@@ -807,7 +808,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...current,
         routines,
         tasks: current.tasks.map((task) => {
-          if (task.routineId !== id || task.state !== 'cancelled' || latestCancelReason(task.id) !== 'routine_paused') return task
+          if (!affectedIds.has(task.routineId) || task.state !== 'cancelled' || latestCancelReason(task.id) !== 'routine_paused') return task
           if (new Date(task.effectiveDueAt ?? task.dueAt).getTime() < nowMs) return task
           reopenedIds.push(task.id)
           return { ...task, state: 'scheduled' as const, version: task.version + 1 }
@@ -830,7 +831,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const dueAt = nextTheoreticalSlotAfter(resumedRoutine, at, next.workspace.timezone)
           if (dueAt) next = materializeRoutineSlot(next, resumedRoutine, dueAt)
         }
-        return next
+        return materializeTasks(normalizeWorkspaceData(next))
       }
 
       // Fill any future fixed-calendar gaps. Cancelled past pause slots remain in

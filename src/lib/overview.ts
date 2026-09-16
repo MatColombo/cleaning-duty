@@ -98,7 +98,7 @@ function roomNameForItem(data: WorkspaceData, itemId: string): string | undefine
 
 export function buildCriticalItems(data: WorkspaceData, now: Date, threshold: number, limit: number): CriticalCleanlinessItem[] {
   const perChannelLimit = Math.max(1, Math.min(15, limit))
-  return (['regular', 'deep'] as CleanlinessChannel[]).flatMap((channel) => data.entities
+  const candidates = (['regular', 'deep'] as CleanlinessChannel[]).flatMap((channel) => data.entities
     .filter((entity) => !entity.archivedAt)
     .flatMap((entity) => {
       const result = itemChannelCleanliness(data, entity.id, channel, now)
@@ -111,7 +111,12 @@ export function buildCriticalItems(data: WorkspaceData, now: Date, threshold: nu
       return [{ itemId: entity.id, name: entity.name, roomName: roomNameForItem(data, entity.id), score: result.score, theoreticalDueAt, overdue: Boolean(theoreticalDueAt && new Date(theoreticalDueAt).getTime() < now.getTime()), channel }]
     })
     .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || new Date(a.theoreticalDueAt ?? 8640000000000000).getTime() - new Date(b.theoreticalDueAt ?? 8640000000000000).getTime() || a.name.localeCompare(b.name))
-    .slice(0, perChannelLimit))
+    )
+  // Choose the worst items in each channel, but show every below-threshold
+  // channel for a chosen item. Otherwise a card can incorrectly hide its Deep
+  // warning just because another item occupied that channel's display limit.
+  const selected = new Set((['regular', 'deep'] as CleanlinessChannel[]).flatMap((channel) => candidates.filter((item) => item.channel === channel).slice(0, perChannelLimit).map((item) => item.itemId)))
+  return candidates.filter((item) => selected.has(item.itemId))
     .sort((a, b) => a.score - b.score || Number(b.overdue) - Number(a.overdue) || a.name.localeCompare(b.name))
 }
 
@@ -161,7 +166,7 @@ export function buildOverviewGroups(
       const at = latestTerminalAt(data.taskEvents, task.id) ?? task.completedAt ?? task.effectiveDueAt ?? task.dueAt
       return localDateInZone(timezone, new Date(at)) === today
     }
-    return task.state === 'scheduled' && latest?.type === 'POSTPONED' && localDateInZone(timezone, new Date(latest.at)) === today
+    return task.state === 'scheduled' && latest?.type === 'POSTPONED' && localDateInZone(timezone, new Date(latest.at)) === today && localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) > today
   })
   const finishedIds = new Set(finished.map((task) => task.id))
   const upcoming = scheduled.filter((task) => {
