@@ -1,7 +1,7 @@
-const VERSION = 'v1.2.1-r3'
+const VERSION = 'v1.2.1-r4'
 const SHELL_CACHE = `house-care-shell-${VERSION}`
 const RUNTIME_CACHE = `house-care-runtime-${VERSION}`
-const SHELL = ['/', '/manifest.webmanifest', '/favicon-32.png?v=1.2.1', '/apple-touch-icon.png?v=1.2.1', '/icon-192.png', '/icon-512.png', '/icon-192.png?v=1.2.1', '/icon-512.png?v=1.2.1', '/icon-maskable-192.png?v=1.2.1', '/icon-maskable-512.png?v=1.2.1']
+const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/favicon-32.png?v=1.2.1', '/apple-touch-icon.png?v=1.2.1', '/icon-192.png', '/icon-512.png', '/icon-192.png?v=1.2.1', '/icon-512.png?v=1.2.1', '/icon-maskable-192.png?v=1.2.1', '/icon-maskable-512.png?v=1.2.1']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL)))

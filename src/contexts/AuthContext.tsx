@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import type { Locale, SessionUser } from '../types/domain'
 import { localUser } from '../lib/localRepository'
 import { supabase, supabaseEnabled } from '../lib/supabase'
-import { defaultThemeId, sanitizePalette, themePreset, type ThemeId, type ThemePalette } from '../lib/theme'
+import { defaultThemeId, isThemePresetId, sanitizePalette, themePreset, type ThemeId, type ThemePalette } from '../lib/theme'
 
 interface AuthValue {
   user: SessionUser | null
@@ -34,7 +34,7 @@ function metadataString(user: User | null, key: string): string | null {
 }
 
 function validThemeId(value: unknown): ThemeId {
-  return value === 'fresh-sage' || value === 'warm-clay' || value === 'coastal-blue' || value === 'lavender-smoke' || value === 'charcoal-citrus' || value === 'custom' ? value : defaultThemeId
+  return value === 'custom' || isThemePresetId(value) ? value : defaultThemeId
 }
 
 function loadLocalAppearance(): { themeId: ThemeId; palette: ThemePalette } {

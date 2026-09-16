@@ -1,4 +1,4 @@
-# House Care PWA - v1.2.1-r3
+# House Care PWA - v1.2.1-r4
 
 A configurable household-care PWA with Overview, a pannable Home layout, Routines, Actions, Stock, Analysis and Settings. This release adds linked every-N activities and a clearer daily view on top of v1.2.0-r4.2.
 
@@ -16,6 +16,8 @@ For a project already upgraded through r4.2:
 Do not rerun historical setup/repair scripts merely because they are included here. The ZIP contains one project root, not two alternatives.
 
 ## New in this version
+
+The app now opens with a branded House Care loading sequence: the app mark, a themed spinner/wordmark, 18 rotating playful household-status phrases in English and Italian, and a soft transition into the ready screen. Appearance settings now include 17 presets spanning Classic, Night, Greyscale, Colourblind safe, Very colourful and Cool groups. Custom palettes can be saved without contrast restrictions; contrast checks remain informational.
 
 Recurring routines can append separately actionable work on every N scheduled occurrences. Each extra has its own activity title, action, targets, Regular/Deep channel, products and cleanliness participation. It inherits its parent's cadence, assignment, reminder and lifecycle. Skips do not reset the counter.
 

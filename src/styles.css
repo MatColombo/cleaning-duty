@@ -1232,3 +1232,82 @@ input:focus, select:focus, textarea:focus { border-color: var(--color-primary); 
 .configured-appendix .home-linked-activity.configured {
   box-shadow: none;
 }
+
+/* v1.2.1-r4 — branded boot sequence + expanded appearance library */
+.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--color-primary-soft) 34%, transparent), transparent 34%),
+    var(--color-canvas);
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 360ms ease, transform 360ms cubic-bezier(.2,.8,.2,1), filter 360ms ease;
+  isolation: isolate;
+}
+.boot-screen.boot-exiting { opacity: 0; transform: scale(1.025); filter: blur(5px); pointer-events: none; }
+.boot-content { position: relative; z-index: 2; width: min(100%, 430px); display: grid; justify-items: center; gap: 18px; text-align: center; }
+.boot-logo-stage { position: relative; width: 132px; height: 132px; display: grid; place-items: center; }
+.boot-logo-shell { width: 104px; height: 104px; overflow: hidden; border-radius: 28px; background: var(--color-surface); box-shadow: 0 18px 42px color-mix(in srgb, var(--color-ink) 16%, transparent); }
+.boot-logo-shell img { display: block; width: 100%; height: 100%; }
+.boot-spinner { position: absolute; inset: 2px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--color-primary) 16%, transparent); border-top-color: var(--color-primary); border-right-color: color-mix(in srgb, var(--color-due) 78%, var(--color-primary)); animation: boot-spin 900ms linear infinite; }
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+.boot-wordmark { position: relative; display: inline-flex; align-items: baseline; gap: .22em; font-size: clamp(2rem, 9vw, 3rem); line-height: 1; letter-spacing: -.07em; }
+.boot-wordmark span { font-weight: 550; color: var(--color-ink); }
+.boot-wordmark strong { font-weight: 820; color: var(--color-primary); }
+.boot-wordmark i { position: absolute; right: -1.05rem; top: -.7rem; color: var(--color-due); font-size: .78rem; font-style: normal; animation: boot-sparkle 1.7s ease-in-out infinite; }
+@keyframes boot-sparkle { 0%, 100% { opacity: .48; transform: scale(.78) rotate(-6deg); } 50% { opacity: 1; transform: scale(1.08) rotate(7deg); } }
+.boot-phrase { min-height: 54px; width: min(100%, 390px); display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 15px; border: 1px solid var(--color-line); border-radius: 999px; background: color-mix(in srgb, var(--color-surface) 86%, transparent); color: var(--color-ink); font-size: .9rem; font-weight: 620; line-height: 1.35; box-shadow: 0 10px 26px color-mix(in srgb, var(--color-ink) 7%, transparent); animation: boot-phrase-in 280ms ease both; backdrop-filter: blur(12px); }
+.boot-phrase-dot { color: var(--color-primary); flex: 0 0 auto; }
+@keyframes boot-phrase-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.boot-loading-label { margin-top: -5px; color: var(--color-ink-muted); font-size: .72rem; font-weight: 650; letter-spacing: .035em; }
+.boot-ambient { position: absolute; z-index: 0; width: 260px; height: 260px; border-radius: 50%; filter: blur(3px); opacity: .28; pointer-events: none; }
+.boot-ambient-one { top: -90px; left: -110px; background: radial-gradient(circle, var(--color-primary-soft), transparent 68%); animation: boot-drift-one 7s ease-in-out infinite alternate; }
+.boot-ambient-two { right: -120px; bottom: -100px; background: radial-gradient(circle, color-mix(in srgb, var(--color-due) 52%, var(--color-primary-soft)), transparent 68%); animation: boot-drift-two 8s ease-in-out infinite alternate; }
+@keyframes boot-drift-one { to { transform: translate(34px, 28px) scale(1.12); } }
+@keyframes boot-drift-two { to { transform: translate(-28px, -24px) scale(.9); } }
+
+.theme-preset-groups { display: grid; gap: 20px; }
+.theme-preset-group { display: grid; gap: 9px; }
+.theme-group-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--color-ink-muted); font-size: .75rem; }
+.theme-group-heading strong { color: var(--color-ink); font-size: .82rem; }
+.theme-group-heading span { min-width: 25px; height: 25px; display: grid; place-items: center; border-radius: 999px; background: var(--color-surface-soft); font-size: .68rem; font-weight: 750; }
+.custom-theme-group { padding-top: 4px; border-top: 1px solid var(--color-line); }
+.custom-theme-group .theme-swatch { width: min(100%, 250px); }
+.theme-swatch { transition: transform var(--motion-press) ease, border-color var(--motion-hover) ease, background var(--motion-hover) ease; }
+.theme-swatch:active { transform: scale(.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen, .boot-phrase { transition: none; animation: none; }
+  .boot-spinner { animation: none; border-color: color-mix(in srgb, var(--color-primary) 42%, transparent); border-top-color: var(--color-primary); }
+  .boot-wordmark i, .boot-ambient-one, .boot-ambient-two { animation: none; }
+}
+
+/* Semantic fallbacks for dark and unrestricted custom palettes. */
+.advanced-details, .builder-step, .mini-stock-grid button, .scene-tab, .structure-row, .target-scope-row,
+.workspace-row, .error-log-entry, .check-list, .stock-quick button, .color-settings-grid input[type='color'],
+.field input[type='color'], .label-orientation-grid button {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+.structure-row:hover, .mini-stock-grid button.selected, .stock-quick button.selected, .scene-tab.selected,
+.overlay-switcher button.selected { background: var(--color-surface-soft); color: var(--color-ink); }
+.layout-canvas-wrap, .home-layout-canvas, .layout-scroll-frame { background: var(--color-surface-soft); }
+.stock-available { background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface)); color: var(--color-ink); }
+.stock-low { background: color-mix(in srgb, var(--color-due) 20%, var(--color-surface)); color: var(--color-ink); }
+.stock-reserve_only { background: color-mix(in srgb, var(--color-overdue) 18%, var(--color-surface)); color: var(--color-ink); }
+.stock-out_of_stock { background: color-mix(in srgb, var(--color-danger) 16%, var(--color-surface)); color: var(--color-ink); }
+.care-summary.due_soon { background: color-mix(in srgb, var(--color-due) 18%, var(--color-surface)); }
+.care-summary.needs_attention { background: color-mix(in srgb, var(--color-overdue) 16%, var(--color-surface)); }
+.care-summary.overdue { background: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface)); }
+.offline-banner { background: color-mix(in srgb, var(--color-due) 22%, var(--color-surface)); color: var(--color-ink); }
+.conflict-banner { background: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface)); color: var(--color-ink); }

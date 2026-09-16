@@ -1,7 +1,7 @@
 {
   "name": "cleaning-duty-pwa",
   "private": true,
-  "version": "1.2.1-r3",
+  "version": "1.2.1-r4",
   "type": "module",
   "scripts": {
     "dev": "vite",

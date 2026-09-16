@@ -48,7 +48,12 @@ const data: WorkspaceData = {
   supplies: [], supplyEvents: [],
 }
 
-assert(themePresets.length === 5, 'v1.2 must expose five built-in appearance presets')
+assert(themePresets.length >= 17, 'appearance library must expose the expanded built-in preset set')
+assert(themePresets.filter((preset) => preset.category === 'night').length >= 3, 'appearance library must include three night presets')
+assert(themePresets.some((preset) => preset.category === 'mono'), 'appearance library must include a greyscale preset')
+assert(themePresets.some((preset) => preset.category === 'accessible'), 'appearance library must include a colourblind-safe preset')
+assert(themePresets.filter((preset) => preset.category === 'colorful').length >= 3, 'appearance library must include colourful presets')
+assert(themePresets.filter((preset) => preset.category === 'cool').length >= 4, 'appearance library must include cool presets')
 for (const preset of themePresets) assert(contrastIssues(preset.palette).length === 0, `${preset.name} must pass configured contrast guardrails`)
 
 const now = new Date('2026-08-31T10:00:00.000Z')

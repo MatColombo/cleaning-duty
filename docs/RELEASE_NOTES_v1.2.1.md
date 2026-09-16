@@ -24,3 +24,12 @@ Cleanliness remains an estimate based on maintenance cadence, not a physical mea
 ## Checks performed
 
 Eight executable pure-domain suites passed. TS/TSX transpile syntax, service-worker syntax, translation parity, JSON, CSS parser and icon-size checks passed. Dependency-backed production build, real Postgres execution, real notifications and browser end-to-end interactions require deployment validation; they are not claimed as passed locally.
+
+## r4 visual loading and appearance update
+
+- Branded app loading sequence with logo, spinning progress ring, styled House Care wordmark, 18 localized playful loading phrases, and a soft transition into the ready screen.
+- 17 built-in palettes grouped into Classic, Night, Greyscale, Colourblind safe, Very colourful and Cool families.
+- Dark theme compatibility improved across legacy controls/surfaces, with browser chrome colour following the active canvas token.
+- Custom palette contrast checks are informational only; low-contrast palettes can still be saved.
+- No database or Edge Function changes are required for r4.
+

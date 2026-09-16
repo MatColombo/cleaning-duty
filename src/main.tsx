@@ -43,3 +43,10 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+requestAnimationFrame(() => {
+  const preboot = document.getElementById('preboot')
+  if (!preboot) return
+  preboot.style.opacity = '0'
+  window.setTimeout(() => preboot.remove(), 180)
+})

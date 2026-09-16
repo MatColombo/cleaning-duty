@@ -9,8 +9,12 @@
     <link rel="icon" href="/favicon-32.png?v=1.2.1" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1.2.1" />
     <title>House Care</title>
+    <style>
+      #preboot{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#F7F7F2;transition:opacity .18s ease}#preboot>div{position:relative;width:92px;height:92px}#preboot img{display:block;width:76px;height:76px;margin:8px;border-radius:20px}#preboot i{position:absolute;inset:0;border:3px solid rgba(47,111,94,.16);border-top-color:#2F6F5E;border-radius:50%;animation:preboot-spin .9s linear infinite}@keyframes preboot-spin{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){#preboot{background:#101713}}@media(prefers-reduced-motion:reduce){#preboot i{animation:none}}
+    </style>
   </head>
   <body>
+    <div id="preboot" aria-hidden="true"><div><i></i><img src="/icon.svg" alt="" /></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

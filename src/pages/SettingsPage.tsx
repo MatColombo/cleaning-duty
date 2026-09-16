@@ -12,7 +12,7 @@ import type { CareSensitivity, MetadataFieldDefinition, MetadataFieldType, Metad
 import { dateTimeLocalValue, localInputToUtc } from '../lib/date'
 import { ErrorLogPanel } from '../components/ErrorLogPanel'
 import { logClientError, normalizeError } from '../lib/errorLog'
-import { contrastIssues, themePreset, themePresets, themeTokenKeys, type ThemeId, type ThemePalette, type ThemeTokenKey } from '../lib/theme'
+import { contrastIssues, themeCategoryOrder, themePreset, themePresets, themeTokenKeys, type ThemeCategory, type ThemeId, type ThemePalette, type ThemeTokenKey } from '../lib/theme'
 
 export function SettingsPage() {
   const { data, currentMember, addMember, updateMemberAssignmentProfile, updateWorkspace, applyStarterPack, addFieldDefinition, updateFieldDefinition, archiveFieldDefinition, importBackup, resetLocal } = useData()
@@ -137,19 +137,26 @@ export function SettingsPage() {
 
     <section className="card section-card appearance-settings">
       <div className="section-header"><div><h2>{t('appearanceSettings')}</h2><p className="muted compact-text">{t('appearanceHint')}</p></div></div>
-      <div className="theme-swatches" role="radiogroup" aria-label={t('themePreset')}>
-        {themePresets.map((preset) => <button type="button" role="radio" aria-checked={themeId === preset.id && !customizingPalette} key={preset.id} className={`theme-swatch${themeId === preset.id && !customizingPalette ? ' selected' : ''}`} onClick={() => { setThemeId(preset.id); setPalette(preset.palette); setCustomizingPalette(false); setCustomBasePresetId(preset.id); void setAppearancePreferences(preset.id, preset.palette) }}>
-          <span className="theme-swatch-colors"><i style={{ background: preset.palette.canvas }} /><i style={{ background: preset.palette.primary }} /><i style={{ background: preset.palette.due }} /><i style={{ background: preset.palette.overdue }} /></span>
-          <strong>{preset.name}</strong>
-        </button>)}
-        <button type="button" role="radio" aria-checked={customizingPalette} className={`theme-swatch custom${customizingPalette ? ' selected' : ''}`} onClick={() => { if (themeId !== 'custom') setCustomBasePresetId(themeId); setThemeId('custom'); setCustomizingPalette(true) }}>
-          <span className="theme-custom-mark">+</span><strong>{t('customTheme')}</strong>
-        </button>
+      <div className="theme-preset-groups" role="radiogroup" aria-label={t('themePreset')}>
+        {themeCategoryOrder.map((category) => <div className="theme-preset-group" key={category}>
+          <div className="theme-group-heading"><strong>{themeGroupLabel(category)}</strong><span>{themePresets.filter((preset) => preset.category === category).length}</span></div>
+          <div className="theme-swatches">{themePresets.filter((preset) => preset.category === category).map((preset) => <button type="button" role="radio" aria-checked={themeId === preset.id && !customizingPalette} key={preset.id} className={`theme-swatch${themeId === preset.id && !customizingPalette ? ' selected' : ''}`} onClick={() => { setThemeId(preset.id); setPalette(preset.palette); setCustomizingPalette(false); setCustomBasePresetId(preset.id); void setAppearancePreferences(preset.id, preset.palette) }}>
+            <span className="theme-swatch-colors"><i style={{ background: preset.palette.canvas }} /><i style={{ background: preset.palette.primary }} /><i style={{ background: preset.palette.due }} /><i style={{ background: preset.palette.overdue }} /></span>
+            <strong>{preset.name}</strong>
+          </button>)}</div>
+        </div>)}
+        <div className="theme-preset-group custom-theme-group">
+          <div className="theme-group-heading"><strong>{t('customTheme')}</strong></div>
+          <button type="button" role="radio" aria-checked={customizingPalette} className={`theme-swatch custom${customizingPalette ? ' selected' : ''}`} onClick={() => { if (themeId !== 'custom') setCustomBasePresetId(themeId); setThemeId('custom'); setCustomizingPalette(true) }}>
+            <span className="theme-custom-mark">+</span><strong>{t('customizePalette')}</strong>
+          </button>
+        </div>
       </div>
       {customizingPalette && <div className="custom-palette-editor">
+        <p className="muted compact-text">{t('customPaletteUnrestrictedHint')}</p>
         <div className="palette-token-grid">{themeTokenKeys.map((key) => <label className="palette-token" key={key}><span>{paletteTokenLabel(key)}</span><span className="palette-input-row"><input type="color" value={palette[key]} onChange={(event) => setPalette((current) => ({ ...current, [key]: event.target.value.toUpperCase() }))} /><code>{palette[key]}</code></span></label>)}</div>
-        {contrastIssues(palette).length > 0 && <div className="contrast-warning" role="alert"><strong>{t('paletteContrastWarning')}</strong><span>{t('paletteContrastBlocked')}</span><ul>{contrastIssues(palette).map((issue) => <li key={issue.pair}>{issue.pair}: {issue.ratio.toFixed(2)}:1</li>)}</ul></div>}
-        <div className="palette-actions"><button className="button secondary small" onClick={() => setPalette(themePreset(customBasePresetId).palette)}>{t('resetToPreset')}</button><button className="button secondary small" onClick={() => { const fresh = themePreset('fresh-sage'); setThemeId('fresh-sage'); setPalette(fresh.palette); setCustomizingPalette(false); setCustomBasePresetId('fresh-sage'); void setAppearancePreferences('fresh-sage', fresh.palette) }}>{t('resetToDefault')}</button><button className="button primary small" disabled={contrastIssues(palette).length > 0} onClick={() => void setAppearancePreferences('custom', palette)}>{t('saveAppearance')}</button></div>
+        {contrastIssues(palette).length > 0 && <div className="contrast-warning"><strong>{t('paletteContrastWarning')}</strong><span>{t('paletteContrastBlocked')}</span><ul>{contrastIssues(palette).map((issue) => <li key={issue.pair}>{issue.pair}: {issue.ratio.toFixed(2)}:1</li>)}</ul></div>}
+        <div className="palette-actions"><button className="button secondary small" onClick={() => setPalette(themePreset(customBasePresetId).palette)}>{t('resetToPreset')}</button><button className="button secondary small" onClick={() => { const fresh = themePreset('fresh-sage'); setThemeId('fresh-sage'); setPalette(fresh.palette); setCustomizingPalette(false); setCustomBasePresetId('fresh-sage'); void setAppearancePreferences('fresh-sage', fresh.palette) }}>{t('resetToDefault')}</button><button className="button primary small" onClick={() => void setAppearancePreferences('custom', palette)}>{t('saveAppearance')}</button></div>
       </div>}
     </section>
 
@@ -166,6 +173,15 @@ export function SettingsPage() {
     {editingMember && <MemberAssignmentSheet member={editingMember} onClose={() => setEditingMember(null)} />}
     {fieldOpen && <FieldSheet field={editingField} onClose={() => { setFieldOpen(false); setEditingField(null) }} />}
   </div>
+
+  function themeGroupLabel(category: ThemeCategory) {
+    if (category === 'classic') return t('themeGroupClassic')
+    if (category === 'night') return t('themeGroupNight')
+    if (category === 'mono') return t('themeGroupMono')
+    if (category === 'accessible') return t('themeGroupAccessible')
+    if (category === 'colorful') return t('themeGroupColorful')
+    return t('themeGroupCool')
+  }
 
   function paletteTokenLabel(key: ThemeTokenKey) {
     if (key === 'canvas') return t('canvasColor')
