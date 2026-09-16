@@ -1,4 +1,4 @@
-const VERSION = 'v1.2.1'
+const VERSION = 'v1.2.1-r1'
 const SHELL_CACHE = `house-care-shell-${VERSION}`
 const RUNTIME_CACHE = `house-care-runtime-${VERSION}`
 const SHELL = ['/', '/manifest.webmanifest', '/favicon-32.png?v=1.2.1', '/apple-touch-icon.png?v=1.2.1', '/icon-192.png', '/icon-512.png', '/icon-192.png?v=1.2.1', '/icon-512.png?v=1.2.1', '/icon-maskable-192.png?v=1.2.1', '/icon-maskable-512.png?v=1.2.1']

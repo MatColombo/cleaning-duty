@@ -1,6 +1,6 @@
 import { CleanlinessMood } from '../components/CleanlinessMood'
 import { TaskProducts } from '../components/TaskProducts'
-import { activityTitle, activitySubtitle } from '../lib/presentation'
+import { activityTitle, activitySubtitle, groupLinkedTaskOccurrences } from '../lib/presentation'
 import { homeCleanlinessSummary } from '../lib/home'
 import { useEffect, useRef, useState } from 'react'
 import { CalendarDots, CheckCircle, DotsThree, MinusCircle, UserSwitch } from '@phosphor-icons/react'
@@ -79,19 +79,24 @@ export function OverviewPage() {
     </header>
 
     <section className="overview-section critical-section" aria-labelledby="cleanliness-heading">
-      <div className="overview-section-heading"><div><h2 id="cleanliness-heading">{t('cleanliness')}</h2><small className="muted">{criticalSummaries.length} {t('criticalCountLabel')}</small></div><div className="rail-controls"><button className="button secondary square" aria-label={t('previousCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: -300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&larr;</button><button className="button secondary square" aria-label={t('nextCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: 300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&rarr;</button></div></div>
-      <p className="muted rail-hint">{t('cleanlinessScrollHint')}</p>
-      <div className="cleanliness-rail" ref={cleanlinessRail} tabIndex={0} role="region" aria-label={t('cleanliness')}>
+      <div className="overview-section-heading"><div><h2 id="cleanliness-heading">{t('cleanliness')}</h2><small className="muted">{t('homeCleanliness')}</small></div></div>
+      <div className="overview-home-cleanliness" aria-label={t('homeCleanliness')}>
         {(['regular', 'deep'] as const).map((channel) => {
           const score = homeScores[channel]
           const label = channel === 'deep' ? t('deepCleanliness') : t('regularCleanliness')
-          return <article className="critical-card home-score-card" key={channel}>
-            <div className="critical-card-top"><div><small>{t('home')}</small><strong>{label}</strong></div><CleanlinessMood score={score} /></div>
-            <strong className="home-score-number">{score == null ? t('notTracked') : `${Math.round(score)}%`}</strong>
-            <div className="cleanliness-track" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={score == null ? undefined : Math.round(score)} aria-valuetext={score == null ? t('notTracked') : `${Math.round(score)}%`}><span style={{ width: `${score ?? 0}%` }} /></div>
-            <small className="muted">{t('homeCleanliness')}</small>
+          const fill = channel === 'deep' ? 'var(--color-ink-muted)' : 'var(--color-primary)'
+          return <article className={`home-cleanliness-donut-card ${channel}`} key={channel}>
+            <strong>{label}</strong>
+            <div className="cleanliness-donut" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={score == null ? undefined : Math.round(score)} aria-valuetext={score == null ? t('notTracked') : `${Math.round(score)}%`} style={{ background: score == null ? 'var(--color-surface-soft)' : `conic-gradient(${fill} ${Math.max(0, Math.min(100, score))}%, var(--color-line) 0)` }}>
+              <div className="cleanliness-donut-center">{score == null ? <span className="donut-untracked">—</span> : <CleanlinessMood score={score} />}</div>
+            </div>
+            <span className="home-donut-score">{score == null ? t('notTracked') : `${Math.round(score)}%`}</span>
           </article>
         })}
+      </div>
+
+      <div className="critical-rail-heading"><div><h3>{t('criticalCleanliness')}</h3><small className="muted">{criticalSummaries.length} {t('criticalCountLabel')}</small></div>{criticalSummaries.length > 0 && <div className="rail-controls"><button className="button secondary square" aria-label={t('previousCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: -300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&larr;</button><button className="button secondary square" aria-label={t('nextCleanliness')} onClick={() => cleanlinessRail.current?.scrollBy({ left: 300, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>&rarr;</button></div>}</div>
+      {criticalSummaries.length > 0 && <><p className="muted rail-hint">{t('cleanlinessScrollHint')}</p><div className="cleanliness-rail" ref={cleanlinessRail} tabIndex={0} role="region" aria-label={t('criticalCleanliness')}>
         {criticalSummaries.map((item) => {
           const both = item.channels.length > 1
           const lowest = Math.min(...item.channels.map((channel) => channel.score))
@@ -106,7 +111,7 @@ export function OverviewPage() {
             <div className="critical-card-bottom"><span>{item.channels.some((channel) => channel.overdue) ? t('overdue') : earliestDue?.theoreticalDueAt ? formatTaskDateTime(earliestDue.theoreticalDueAt, locale, timezone) : t('needsAttention')}</span><button className="text-button" onClick={() => navigate(`/home?item=${item.itemId}`)}>{t('open')}</button></div>
           </article>
         })}
-      </div>
+      </div></>}
       {!criticalSummaries.length && <div className="quiet-state">{t('noCriticalItems')}</div>}
     </section>
 
@@ -119,7 +124,7 @@ export function OverviewPage() {
 
     <section className="overview-section finished-section">
       <button className="finished-toggle" onClick={() => setFinishedOpen((value) => !value)} aria-expanded={finishedOpen}><span><strong>{t('finished')}</strong><small>{groups.finished.length} {t('handledToday')}</small></span><span>{finishedOpen ? '−' : '+'}</span></button>
-      {finishedOpen && (groups.finished.length ? <div className="task-list compact">{groups.finished.map((task) => <TaskCard task={task} key={task.id} />)}</div> : <div className="quiet-state">{t('nothingFinishedYet')}</div>)}
+      {finishedOpen && (groups.finished.length ? <div className="task-list compact">{groupLinkedTaskOccurrences(groups.finished).map(({ task, linkedActivities }) => <TaskCard task={task} linkedActivities={linkedActivities} key={task.id} />)}</div> : <div className="quiet-state">{t('nothingFinishedYet')}</div>)}
     </section>
 
     <section className="overview-section upcoming-section" aria-labelledby="upcoming-heading">
@@ -130,7 +135,7 @@ export function OverviewPage() {
         const labelDate = new Date(`${day}T12:00:00Z`)
         return <button role="tab" aria-selected={selectedDay === day} className={selectedDay === day ? 'upcoming-day selected' : 'upcoming-day'} key={day} onClick={() => setSelectedUpcomingDay(day)}><span>{new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(labelDate)}</span><b>{new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(labelDate)}</b><small>{count} {t('scheduledActivities')}</small></button>
       })}</div>
-      {selectedDayTasks.length ? <div className="upcoming-list">{selectedDayTasks.map((task) => <TaskCard key={task.id} task={task} compact />)}</div> : <div className="quiet-state">{t('nothingScheduled')}</div>}
+      {selectedDayTasks.length ? <div className="upcoming-list">{groupLinkedTaskOccurrences(selectedDayTasks).map(({ task, linkedActivities }) => <TaskCard key={task.id} task={task} linkedActivities={linkedActivities} compact />)}</div> : <div className="quiet-state">{t('nothingScheduled')}</div>}
     </section>
 
     {selected && <TaskSheet task={selected} events={data.taskEvents.filter((event) => event.taskId === selected.id)} onClose={closeSelected} onReassignRequest={() => { closeSelected(); setReassignId(selected.id) }} />}
@@ -140,10 +145,10 @@ export function OverviewPage() {
   </div>
 
   function TaskSection({ title, tasks, tone }: { title: string; tasks: TaskOccurrence[]; tone?: 'overdue' | 'due-now' }) {
-    return <section className={`overview-section task-section ${tone ?? ''}`}><div className="overview-section-heading"><h2>{title}</h2><span>{tasks.length}</span></div><div className="task-list">{tasks.map((task) => <TaskCard key={task.id} task={task} />)}</div></section>
+    return <section className={`overview-section task-section ${tone ?? ''}`}><div className="overview-section-heading"><h2>{title}</h2><span>{tasks.length}</span></div><div className="task-list">{groupLinkedTaskOccurrences(tasks).map(({ task, linkedActivities }) => <TaskCard key={task.id} task={task} linkedActivities={linkedActivities} />)}</div></section>
   }
 
-  function TaskCard({ task, compact = false }: { task: TaskOccurrence; compact?: boolean }) {
+  function TaskCard({ task, compact = false, linkedActivities = [] }: { task: TaskOccurrence; compact?: boolean; linkedActivities?: TaskOccurrence[] }) {
     const assignee = data!.members.find((member) => member.id === task.assigneeMemberId)
     const assignmentLabel = task.assignmentScope === 'everyone' ? t('everyone') : assignee?.displayName ?? t('anyone')
     const terminal = task.state !== 'scheduled'
@@ -157,7 +162,11 @@ export function OverviewPage() {
         <h2>{activityTitle(task)}</h2>
         <div className="task-description"><span>{activitySubtitle(task)}</span></div>
         <div className="task-time">{localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === today ? formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone) : formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}{task.state === 'completed' && <span className="status">{t('completed')}</span>}{task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}</div>
-        <TaskProducts task={task} data={data!} />
+        {task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}
+        {linkedActivities.length > 0 && <section className="linked-activities-section" aria-label={t('additionalActivities')}>
+          <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{linkedActivities.length}</span></div>
+          <div className="linked-activity-list">{linkedActivities.map((linked) => <LinkedActivityRow task={linked} compact={compact} key={linked.id} />)}</div>
+        </section>}
         {task.parentOccurrenceId && <small className="linked-task-label">{t('linkedTo')} {data!.tasks.find((parent) => parent.id === task.parentOccurrenceId)?.routineNameSnapshot ?? t('routine')}</small>}
         {data!.routines.find((routine) => routine.id === task.routineId)?.affectsCleanliness === false && <small className="muted">{t('cleanlinessExcluded')}</small>}
         <div className="task-meta">{assignmentLabel} · <span className={`care-level-tag ${task.cleanlinessChannel === 'deep' ? 'deep' : 'routine'}`}>{task.cleanlinessChannel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
@@ -167,6 +176,29 @@ export function OverviewPage() {
   }
 
   function statusLabel(status: StockStatus) { return status === 'available' ? t('available') : status === 'low' ? t('low') : status === 'reserve_only' ? t('reserveOnly') : t('outOfStock') }
+
+  function LinkedActivityRow({ task, compact }: { task: TaskOccurrence; compact: boolean }) {
+    const assignee = data!.members.find((member) => member.id === task.assigneeMemberId)
+    const assignmentLabel = task.assignmentScope === 'everyone' ? t('everyone') : assignee?.displayName ?? t('anyone')
+    return <article className={`linked-activity-row ${task.state !== 'scheduled' ? 'terminal' : ''}`}>
+      <div className="linked-activity-copy">
+        <strong>{activityTitle(task)}</strong>
+        <span>{activitySubtitle(task)}</span>
+        <small>{formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)} · {assignmentLabel}</small>
+        {task.supplies.length > 0 && <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div>}
+      </div>
+      <div className="linked-activity-actions">
+        {task.state === 'completed' && <span className="status">{t('completed')}</span>}
+        {task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}
+        {task.state === 'scheduled' && <>
+          {!compact && <button className="button primary small" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}>{t('done')}</button>}
+          {!compact && <button className="button secondary small" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}>{t('skip')}</button>}
+          <button className="button secondary small" onClick={() => setRescheduleId(task.id)}>{t('reschedule')}</button>
+        </>}
+        <button className="button secondary square small-square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={18} weight="bold" aria-hidden="true" /></button>
+      </div>
+    </article>
+  }
 
   function TaskSheet({ task, events, onClose, onReassignRequest }: { task: TaskOccurrence; events: TaskEvent[]; onClose: () => void; onReassignRequest: () => void }) {
     const workflow = [...events].filter((event) => event.type === 'COMPLETED' || event.type === 'SKIPPED' || event.type === 'POSTPONED' || event.type === 'REOPENED').sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))

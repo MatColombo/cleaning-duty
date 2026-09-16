@@ -6,7 +6,7 @@ import { normalizeWorkspaceData } from '../src/lib/dataMigrations'
 import { applyMutationLocally } from '../src/lib/mutations'
 import { createHouseholdBackup, parseHouseholdBackup } from '../src/lib/backup'
 import { buildCriticalItems, buildOverviewGroups, mergeCriticalItemsByEntity } from '../src/lib/overview'
-import { activityTitle, activitySubtitle, cleanlinessMood } from '../src/lib/presentation'
+import { activityTitle, activitySubtitle, cleanlinessMood, groupLinkedTaskOccurrences } from '../src/lib/presentation'
 import { translations } from '../src/lib/translations'
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message) }
@@ -137,5 +137,24 @@ const dual: WorkspaceData = { ...base, routines: dualRoutines, healthTrajectorie
 })) }
 const dualCard = mergeCriticalItemsByEntity(buildCriticalItems(dual, new Date(dualNow), 20, 1)).find((item) => item.itemId === 'books')
 same(dualCard?.channels.map((channel) => channel.channel), ['regular', 'deep'], 'A selected critical item must identify both low channels')
+
+
+
+// UI projection: linked work is grouped under its parent only when both are in
+// the same view; otherwise it remains standalone and therefore cannot vanish.
+const parentThird = data.tasks.find((task) => task.routineId === parent.id && task.triggerOrdinal === 3)!
+const childThird = data.tasks.find((task) => task.routineId === childId && task.triggerOrdinal === 3)!
+const groupedProjection = groupLinkedTaskOccurrences([parentThird, childThird])
+same(groupedProjection.map((group) => [group.task.id, group.linkedActivities.map((task) => task.id)]), [[parentThird.id, [childThird.id]]], 'Overview/Home projections must nest linked work under the visible parent')
+same(groupLinkedTaskOccurrences([childThird]).map((group) => group.task.id), [childThird.id], 'Linked work must remain visible when its parent is not in the same projection')
+
+// Race recovery: if the parent becomes terminal before the linked task was
+// materialized, the child must still be generated and remain independently actionable.
+const parentOnlyThird: WorkspaceData = { ...configured, tasks: [], taskEvents: [] }
+let raceData = materializeRoutineSlot(parentOnlyThird, parent, '2026-09-03T10:00:00.000Z')
+const raceParent = raceData.tasks.find((task) => task.routineId === parent.id)!
+raceData = { ...raceData, tasks: raceData.tasks.map((task) => task.id === raceParent.id ? { ...task, state: 'completed' as const, completedAt: '2026-09-03T10:01:00.000Z' } : task) }
+raceData = materializeAdditionalActivities(raceData)
+assert(raceData.tasks.some((task) => task.routineId === childId && task.parentOccurrenceId === raceParent.id && task.state === 'scheduled'), 'Terminal parent must not suppress a due linked activity during materialization recovery')
 
 console.log('v1.2.1 linked activities, stock, cleanliness, presentation and backup tests passed')

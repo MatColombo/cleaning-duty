@@ -11,6 +11,28 @@ export function activityItems(task: TaskOccurrence): string {
 export function activitySubtitle(task: TaskOccurrence): string {
   return [activityItems(task), task.actionNameSnapshot].filter(Boolean).join(' - ')
 }
+
+export interface LinkedTaskProjection {
+  task: TaskOccurrence
+  linkedActivities: TaskOccurrence[]
+}
+
+/** Group linked/additional activities under their triggering occurrence when
+ * both records are present in the same UI projection. If the parent is not
+ * present (for example because it was rescheduled or already finished), the
+ * linked activity remains a standalone task so it can never disappear. */
+export function groupLinkedTaskOccurrences(tasks: TaskOccurrence[]): LinkedTaskProjection[] {
+  const ids = new Set(tasks.map((task) => task.id))
+  const linkedByParent = new Map<string, TaskOccurrence[]>()
+  const roots: TaskOccurrence[] = []
+  for (const task of tasks) {
+    if (task.parentOccurrenceId && ids.has(task.parentOccurrenceId)) {
+      linkedByParent.set(task.parentOccurrenceId, [...(linkedByParent.get(task.parentOccurrenceId) ?? []), task])
+    } else roots.push(task)
+  }
+  return roots.map((task) => ({ task, linkedActivities: linkedByParent.get(task.id) ?? [] }))
+}
+
 export function cleanlinessMood(score: number | null | undefined): { emoji: string; label: TranslationKey } | null {
   if (score == null || !Number.isFinite(score)) return null
   if (score >= 90) return { emoji: '\u{1F929}', label: 'moodExcellent' }

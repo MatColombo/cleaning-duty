@@ -1,10 +1,10 @@
-# House Care PWA - v1.2.1
+# House Care PWA - v1.2.1-r1
 
 A configurable household-care PWA with Overview, a pannable Home layout, Routines, Actions, Stock, Analysis and Settings. This release adds linked every-N activities and a clearer daily view on top of v1.2.0-r4.2.
 
 ## Upgrading your existing app
 
-**Start with [docs/UPDATE_v1.2.1.md](docs/UPDATE_v1.2.1.md).**
+**Start with [docs/UPDATE_v1.2.1_R1.md](docs/UPDATE_v1.2.1_R1.md).**
 
 For a project already upgraded through r4.2:
 

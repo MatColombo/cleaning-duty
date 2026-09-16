@@ -3,6 +3,7 @@ import type { Locale } from '../types/domain'
 export const translations = {
   en: {
     additionalActivities: "Additional activities",
+    additionalProducts: "Additional products",
     additionalActivity: "Additional activity",
     additionalActivitiesHint: "Add separate work every N scheduled occurrences (3, 6, 9...). The count starts at the parent schedule\u2019s start date. Skips still count; rescheduling does not change the count. Manually added extra dates do not count.",
     additionalInheritanceHint: "Uses the parent schedule, assignee and reminder. Completing the parent does not complete this activity.",
@@ -91,6 +92,7 @@ export const translations = {
   },
   it: {
     additionalActivities: "Attivit\u00e0 aggiuntive",
+    additionalProducts: "Prodotti aggiuntivi",
     additionalActivity: "Attivit\u00e0 aggiuntiva",
     additionalActivitiesHint: "Aggiungi un lavoro separato ogni N occorrenze programmate (3, 6, 9...). Il conteggio parte dalla data iniziale della routine. Saltare conta comunque; riprogrammare non cambia il conteggio. Le date aggiunte manualmente non contano.",
     additionalInheritanceHint: "Usa calendario, assegnazione e promemoria della routine principale. Completare la principale non completa questa attivit\u00e0.",

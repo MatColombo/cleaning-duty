@@ -425,10 +425,13 @@ export function materializeAdditionalActivities(input: WorkspaceData): Workspace
     if (!parent || !isRoutineActive(parent) || parent.parentRoutineId) continue
     const every = Math.max(1, child.triggerEvery ?? 1)
     const parentSlots = [...new Set(data.tasks.filter((task) => task.routineId === parent.id).map((task) => task.scheduledSlotAt ?? task.originalDueAt))].sort()
-    for (const task of data.tasks.filter((task) => task.routineId === parent.id && task.routineRevision === parent.revision && task.state === 'scheduled')) {
+    for (const task of data.tasks.filter((task) => task.routineId === parent.id && task.routineRevision === parent.revision && task.state !== 'cancelled')) {
       const slotAt = task.scheduledSlotAt ?? task.originalDueAt
-      // Do not invent backdated extras when attaching work to an old routine.
-      if (localDateInZone(data.workspace.timezone, new Date(slotAt)) < localDateInZone(data.workspace.timezone, new Date(child.createdAt))) continue
+      // Do not invent work for a parent trigger that happened before the linked
+      // activity existed. Terminal parent rows are still eligible here: if the
+      // parent was completed/skipped before a refresh materialized its linked
+      // activity, the child must remain actionable rather than vanish.
+      if (new Date(slotAt).getTime() < new Date(child.createdAt).getTime()) continue
       const ordinal = task.triggerOrdinal ?? (parent.scheduleMode === 'fixed' ? ordinalForSlot(parent, slotAt, data.workspace.timezone) : parentSlots.indexOf(slotAt) + 1)
       if (!ordinal || ordinal % every !== 0) continue
       const key = `${child.id}:${child.revision}:${slotAt}`
