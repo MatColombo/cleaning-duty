@@ -1224,7 +1224,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--color-primary); 
 }
 
 
-/* v1.2.1-r2 — configured additional activities are a persistent parent-card appendix. */
+/* v1.2.1-r3 — triggered additional activities render as a parent-card appendix. */
 .configured-appendix {
   border-left: 3px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-line));
 }

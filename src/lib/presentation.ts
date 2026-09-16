@@ -30,25 +30,25 @@ function configuredSupplySnapshots(data: WorkspaceData, routine: Routine): TaskS
   })
 }
 
-/** Project configured additional activities as an appendix to a parent activity.
- * The configuration is visible even on parent triggers where the extra does not fire;
- * when the Nth trigger is active, the generated child occurrence is attached so the
- * appendix becomes actionable. This avoids making the UI depend on both rows being
- * returned by the same Overview/Home list query. */
+/** Project triggered additional activities as an appendix to a parent activity.
+ * Operational views (Overview/Home) show the appendix only when the current
+ * parent occurrence actually triggered a child occurrence. Routine configuration
+ * remains visible in the Routine editor/details instead of leaking into daily work. */
 export function additionalActivityAppendix(data: WorkspaceData, parentTask: TaskOccurrence): AdditionalActivityAppendixEntry[] {
   if (parentTask.parentOccurrenceId) return []
   const children = data.routines.filter((routine) => !routine.archivedAt && routine.status === 'active' && routine.parentRoutineId === parentTask.routineId)
-  return children.map((routine) => {
+  return children.flatMap((routine) => {
     const occurrence = data.tasks
       .filter((task) => task.parentOccurrenceId === parentTask.id && task.routineId === routine.id && task.state !== 'cancelled')
       .sort((a, b) => b.version - a.version || b.id.localeCompare(a.id))[0]
+    if (!occurrence) return []
     const action = data.actions.find((item) => item.id === routine.actionId)
-    return {
+    return [{
       routine, occurrence,
-      supplies: occurrence?.supplies ?? configuredSupplySnapshots(data, routine),
+      supplies: occurrence.supplies.length ? occurrence.supplies : configuredSupplySnapshots(data, routine),
       targetNames: routine.targetEntityIds.map((id) => data.entities.find((entity) => entity.id === id)?.name).filter((name): name is string => Boolean(name)),
-      actionName: action?.name ?? occurrence?.actionNameSnapshot ?? '',
-    }
+      actionName: action?.name ?? occurrence.actionNameSnapshot ?? '',
+    }]
   })
 }
 

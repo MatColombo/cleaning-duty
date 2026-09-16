@@ -148,14 +148,14 @@ const groupedProjection = groupLinkedTaskOccurrences([parentThird, childThird])
 same(groupedProjection.map((group) => [group.task.id, group.linkedActivities.map((task) => task.id)]), [[parentThird.id, [childThird.id]]], 'Overview/Home projections must nest linked work under the visible parent')
 same(groupLinkedTaskOccurrences([childThird]).map((group) => group.task.id), [childThird.id], 'Linked work must remain visible when its parent is not in the same projection')
 
-// Parent cards always expose configured additional work as an appendix, even
-// when the current parent occurrence is not an Nth trigger. Stock comes from
-// the linked routine configuration until a concrete child occurrence exists.
+// Operational parent cards expose an additional-activity appendix only when
+// the current occurrence actually triggered that child. Routine configuration
+// remains visible in the Routine editor/details instead of appearing every day.
 const parentFirst = data.tasks.find((task) => task.routineId === parent.id && task.triggerOrdinal === 1)!
 const firstAppendix = additionalActivityAppendix(data, parentFirst)
-same(firstAppendix.map((entry) => [entry.routine.name, entry.occurrence?.id ?? null, entry.supplies]), [['Dust the bookshelf', null, [{ supplyId: 'polish', supplyName: 'Wood polish' }]]], 'Parent activity must always show configured additional activity and its stock')
+same(firstAppendix, [], 'Non-Nth parent triggers must not show an additional-activity appendix in Overview/Home')
 const thirdAppendix = additionalActivityAppendix(data, parentThird)
-assert(thirdAppendix[0].occurrence?.id === childThird.id, 'Nth trigger appendix must attach the actionable child occurrence')
+same(thirdAppendix.map((entry) => [entry.routine.name, entry.occurrence?.id ?? null, entry.supplies]), [['Dust the bookshelf', childThird.id, [{ supplyId: 'polish', supplyName: 'Wood polish' }]]], 'Nth trigger appendix must attach the actionable child occurrence and its stock')
 
 // Race recovery: if the parent becomes terminal before the linked task was
 // materialized, the child must still be generated and remain independently actionable.

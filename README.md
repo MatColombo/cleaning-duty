@@ -1,4 +1,4 @@
-# House Care PWA - v1.2.1-r2
+# House Care PWA - v1.2.1-r3
 
 A configurable household-care PWA with Overview, a pannable Home layout, Routines, Actions, Stock, Analysis and Settings. This release adds linked every-N activities and a clearer daily view on top of v1.2.0-r4.2.
 
