@@ -1,11 +1,11 @@
 import { useI18n } from '../contexts/I18nContext'
-import type { TaskOccurrence, WorkspaceData } from '../types/domain'
+import type { TaskOccurrence, TaskSupplySnapshot, WorkspaceData } from '../types/domain'
 
-export function TaskProducts({ task, data }: { task: TaskOccurrence; data: WorkspaceData }) {
+export function ProductStockList({ supplies, data }: { supplies: TaskSupplySnapshot[]; data: WorkspaceData }) {
   const { t } = useI18n()
-  if (!task.supplies.length) return null
+  if (!supplies.length) return <small className="muted">{t('noRequiredProducts')}</small>
   return <div className="overview-supply-strip" aria-label={t('requiredProducts')}>
-    {task.supplies.map((snapshot) => {
+    {supplies.map((snapshot) => {
       const supply = data.supplies.find((item) => item.id === snapshot.supplyId && !item.archivedAt)
       const label = !supply ? t('productUnavailable') : supply.status === 'available' ? t('available') : supply.status === 'low' ? t('low') : supply.status === 'reserve_only' ? t('reserveOnly') : t('outOfStock')
       return <span className="overview-supply" key={snapshot.supplyId}>
@@ -14,4 +14,9 @@ export function TaskProducts({ task, data }: { task: TaskOccurrence; data: Works
       </span>
     })}
   </div>
+}
+
+export function TaskProducts({ task, data }: { task: TaskOccurrence; data: WorkspaceData }) {
+  if (!task.supplies.length) return null
+  return <ProductStockList supplies={task.supplies} data={data} />
 }

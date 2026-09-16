@@ -1,4 +1,4 @@
-import type { TaskOccurrence } from '../types/domain'
+import type { Routine, TaskOccurrence, TaskSupplySnapshot, WorkspaceData } from '../types/domain'
 import type { TranslationKey } from './translations'
 
 /** The routine's explicit title is the activity title; the Action is secondary. */
@@ -10,6 +10,46 @@ export function activityItems(task: TaskOccurrence): string {
 }
 export function activitySubtitle(task: TaskOccurrence): string {
   return [activityItems(task), task.actionNameSnapshot].filter(Boolean).join(' - ')
+}
+
+
+export interface AdditionalActivityAppendixEntry {
+  routine: Routine
+  occurrence?: TaskOccurrence
+  supplies: TaskSupplySnapshot[]
+  targetNames: string[]
+  actionName: string
+}
+
+function configuredSupplySnapshots(data: WorkspaceData, routine: Routine): TaskSupplySnapshot[] {
+  const action = data.actions.find((item) => item.id === routine.actionId && !item.archivedAt)
+  const ids = routine.supplyIdsOverride ?? action?.defaultSupplyIds ?? []
+  return ids.flatMap((supplyId) => {
+    const supply = data.supplies.find((item) => item.id === supplyId && !item.archivedAt)
+    return supply ? [{ supplyId, supplyName: supply.name }] : []
+  })
+}
+
+/** Project configured additional activities as an appendix to a parent activity.
+ * The configuration is visible even on parent triggers where the extra does not fire;
+ * when the Nth trigger is active, the generated child occurrence is attached so the
+ * appendix becomes actionable. This avoids making the UI depend on both rows being
+ * returned by the same Overview/Home list query. */
+export function additionalActivityAppendix(data: WorkspaceData, parentTask: TaskOccurrence): AdditionalActivityAppendixEntry[] {
+  if (parentTask.parentOccurrenceId) return []
+  const children = data.routines.filter((routine) => !routine.archivedAt && routine.status === 'active' && routine.parentRoutineId === parentTask.routineId)
+  return children.map((routine) => {
+    const occurrence = data.tasks
+      .filter((task) => task.parentOccurrenceId === parentTask.id && task.routineId === routine.id && task.state !== 'cancelled')
+      .sort((a, b) => b.version - a.version || b.id.localeCompare(a.id))[0]
+    const action = data.actions.find((item) => item.id === routine.actionId)
+    return {
+      routine, occurrence,
+      supplies: occurrence?.supplies ?? configuredSupplySnapshots(data, routine),
+      targetNames: routine.targetEntityIds.map((id) => data.entities.find((entity) => entity.id === id)?.name).filter((name): name is string => Boolean(name)),
+      actionName: action?.name ?? occurrence?.actionNameSnapshot ?? '',
+    }
+  })
 }
 
 export interface LinkedTaskProjection {

@@ -6,7 +6,7 @@ import { normalizeWorkspaceData } from '../src/lib/dataMigrations'
 import { applyMutationLocally } from '../src/lib/mutations'
 import { createHouseholdBackup, parseHouseholdBackup } from '../src/lib/backup'
 import { buildCriticalItems, buildOverviewGroups, mergeCriticalItemsByEntity } from '../src/lib/overview'
-import { activityTitle, activitySubtitle, cleanlinessMood, groupLinkedTaskOccurrences } from '../src/lib/presentation'
+import { activityTitle, activitySubtitle, additionalActivityAppendix, cleanlinessMood, groupLinkedTaskOccurrences } from '../src/lib/presentation'
 import { translations } from '../src/lib/translations'
 
 function assert(value: unknown, message: string): asserts value { if (!value) throw new Error(message) }
@@ -147,6 +147,15 @@ const childThird = data.tasks.find((task) => task.routineId === childId && task.
 const groupedProjection = groupLinkedTaskOccurrences([parentThird, childThird])
 same(groupedProjection.map((group) => [group.task.id, group.linkedActivities.map((task) => task.id)]), [[parentThird.id, [childThird.id]]], 'Overview/Home projections must nest linked work under the visible parent')
 same(groupLinkedTaskOccurrences([childThird]).map((group) => group.task.id), [childThird.id], 'Linked work must remain visible when its parent is not in the same projection')
+
+// Parent cards always expose configured additional work as an appendix, even
+// when the current parent occurrence is not an Nth trigger. Stock comes from
+// the linked routine configuration until a concrete child occurrence exists.
+const parentFirst = data.tasks.find((task) => task.routineId === parent.id && task.triggerOrdinal === 1)!
+const firstAppendix = additionalActivityAppendix(data, parentFirst)
+same(firstAppendix.map((entry) => [entry.routine.name, entry.occurrence?.id ?? null, entry.supplies]), [['Dust the bookshelf', null, [{ supplyId: 'polish', supplyName: 'Wood polish' }]]], 'Parent activity must always show configured additional activity and its stock')
+const thirdAppendix = additionalActivityAppendix(data, parentThird)
+assert(thirdAppendix[0].occurrence?.id === childThird.id, 'Nth trigger appendix must attach the actionable child occurrence')
 
 // Race recovery: if the parent becomes terminal before the linked task was
 // materialized, the child must still be generated and remain independently actionable.

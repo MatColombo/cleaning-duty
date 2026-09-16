@@ -1,6 +1,6 @@
 import { CleanlinessMood } from '../components/CleanlinessMood'
-import { TaskProducts } from '../components/TaskProducts'
-import { activityTitle, activitySubtitle, groupLinkedTaskOccurrences } from '../lib/presentation'
+import { ProductStockList, TaskProducts } from '../components/TaskProducts'
+import { activityTitle, activitySubtitle, additionalActivityAppendix, groupLinkedTaskOccurrences } from '../lib/presentation'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { FormField } from '../components/FormField'
@@ -252,19 +252,22 @@ export function HomePage() {
 
   function RoomTaskRows({ tasks, upcoming = false }: { tasks: TaskOccurrence[]; upcoming?: boolean }) {
     if (!tasks.length) return <p className="muted compact-text">{t('nothingScheduled')}</p>
-    return <div className="room-task-list">{groupLinkedTaskOccurrences(tasks).map(({ task, linkedActivities }) => <div className="room-task-row-group" key={task.id}>
-      <div className="room-task-row">
-        <div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div>
-        <small>{roomTaskWhen(task, upcoming)}</small>
+    return <div className="room-task-list">{groupLinkedTaskOccurrences(tasks).map(({ task }) => {
+      const appendix = additionalActivityAppendix(data!, task)
+      return <div className="room-task-row-group" key={task.id}>
+        <div className="room-task-row">
+          <div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div>
+          <small>{roomTaskWhen(task, upcoming)}</small>
+        </div>
+        {appendix.length > 0 && <section className="home-linked-activities configured-appendix" aria-label={t('additionalActivities')}>
+          <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{appendix.length}</span></div>
+          {appendix.map((entry) => <div className="home-linked-activity configured" key={entry.routine.id}>
+            <div><strong>{entry.routine.name}</strong><small>{[entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')}</small><small>{entry.occurrence ? roomTaskWhen(entry.occurrence, upcoming) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small><div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div></div>
+            {entry.occurrence && <small>{entry.occurrence.state === 'completed' ? t('completed') : entry.occurrence.state === 'skipped' ? t('skipped') : t('toDo')}</small>}
+          </div>)}
+        </section>}
       </div>
-      {linkedActivities.length > 0 && <section className="home-linked-activities" aria-label={t('additionalActivities')}>
-        <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{linkedActivities.length}</span></div>
-        {linkedActivities.map((linked) => <div className="home-linked-activity" key={linked.id}>
-          <div><strong>{activityTitle(linked)}</strong><small>{activitySubtitle(linked)}</small>{linked.supplies.length > 0 && <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={linked} data={data!} /></div>}</div>
-          <small>{roomTaskWhen(linked, upcoming)}</small>
-        </div>)}
-      </section>}
-    </div>)}</div>
+    })}</div>
   }
 
   function CockpitInspector() {
@@ -304,7 +307,7 @@ export function HomePage() {
       </div>
       <section className="inspector-section">
         <div className="section-header"><h3>{t('currentTasks')}</h3><span className="count-pill small-pill">{selectedTasks.length}</span></div>
-        {!selectedTasks.length ? <p className="muted compact-text">{t('noCurrentTasks')}</p> : <div className="mini-list">{groupLinkedTaskOccurrences(selectedTasks).slice(0, 5).map(({ task, linkedActivities }) => <div className="mini-list-group" key={task.id}><div className="mini-list-row"><div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div><small>{formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)}</small></div>{linkedActivities.length > 0 && <section className="home-linked-activities compact"><div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{linkedActivities.length}</span></div>{linkedActivities.map((linked) => <div className="home-linked-activity" key={linked.id}><div><strong>{activityTitle(linked)}</strong><small>{activitySubtitle(linked)}</small>{linked.supplies.length > 0 && <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={linked} data={data!} /></div>}</div><small>{formatTaskDateTime(taskDue(linked), locale, data!.workspace.timezone)}</small></div>)}</section>}</div>)}</div>}
+        {!selectedTasks.length ? <p className="muted compact-text">{t('noCurrentTasks')}</p> : <div className="mini-list">{groupLinkedTaskOccurrences(selectedTasks).slice(0, 5).map(({ task }) => { const appendix = additionalActivityAppendix(data!, task); return <div className="mini-list-group" key={task.id}><div className="mini-list-row"><div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div><small>{formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)}</small></div>{appendix.length > 0 && <section className="home-linked-activities compact configured-appendix"><div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{appendix.length}</span></div>{appendix.map((entry) => <div className="home-linked-activity configured" key={entry.routine.id}><div><strong>{entry.routine.name}</strong><small>{[entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')}</small><small>{entry.occurrence ? formatTaskDateTime(taskDue(entry.occurrence), locale, data!.workspace.timezone) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small><div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div></div></div>)}</section>}</div> })}</div>}
       </section>
       <section className="inspector-section">
         <h3>{t('supplyAlerts')}</h3>

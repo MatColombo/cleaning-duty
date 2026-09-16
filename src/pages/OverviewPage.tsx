@@ -1,6 +1,6 @@
 import { CleanlinessMood } from '../components/CleanlinessMood'
-import { TaskProducts } from '../components/TaskProducts'
-import { activityTitle, activitySubtitle, groupLinkedTaskOccurrences } from '../lib/presentation'
+import { ProductStockList, TaskProducts } from '../components/TaskProducts'
+import { activityTitle, activitySubtitle, additionalActivityAppendix, groupLinkedTaskOccurrences } from '../lib/presentation'
 import { homeCleanlinessSummary } from '../lib/home'
 import { useEffect, useRef, useState } from 'react'
 import { CalendarDots, CheckCircle, DotsThree, MinusCircle, UserSwitch } from '@phosphor-icons/react'
@@ -157,15 +157,16 @@ export function OverviewPage() {
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())[0]
     const recent = recentAction && Math.abs(now.getTime() - new Date(recentAction.at).getTime()) <= 2500 ? recentAction.type : null
     const motionClass = recent === 'COMPLETED' ? 'task-motion-complete' : recent === 'SKIPPED' ? 'task-motion-skip' : recent === 'POSTPONED' ? 'task-motion-reschedule' : ''
+    const appendix = additionalActivityAppendix(data!, task)
     return <article className={`task-card overview-task-card ${terminal ? 'task-done' : ''} ${motionClass} ${compact ? 'compact-card' : ''}`}>
       <div className="task-main">
         <h2>{activityTitle(task)}</h2>
         <div className="task-description"><span>{activitySubtitle(task)}</span></div>
         <div className="task-time">{localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === today ? formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone) : formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}{task.state === 'completed' && <span className="status">{t('completed')}</span>}{task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}</div>
         {task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}
-        {linkedActivities.length > 0 && <section className="linked-activities-section" aria-label={t('additionalActivities')}>
-          <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{linkedActivities.length}</span></div>
-          <div className="linked-activity-list">{linkedActivities.map((linked) => <LinkedActivityRow task={linked} compact={compact} key={linked.id} />)}</div>
+        {appendix.length > 0 && <section className="linked-activities-section configured-appendix" aria-label={t('additionalActivities')}>
+          <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{appendix.length}</span></div>
+          <div className="linked-activity-list">{appendix.map((entry) => <ConfiguredAdditionalActivityRow entry={entry} compact={compact} key={entry.routine.id} />)}</div>
         </section>}
         {task.parentOccurrenceId && <small className="linked-task-label">{t('linkedTo')} {data!.tasks.find((parent) => parent.id === task.parentOccurrenceId)?.routineNameSnapshot ?? t('routine')}</small>}
         {data!.routines.find((routine) => routine.id === task.routineId)?.affectsCleanliness === false && <small className="muted">{t('cleanlinessExcluded')}</small>}
@@ -176,6 +177,32 @@ export function OverviewPage() {
   }
 
   function statusLabel(status: StockStatus) { return status === 'available' ? t('available') : status === 'low' ? t('low') : status === 'reserve_only' ? t('reserveOnly') : t('outOfStock') }
+
+  function ConfiguredAdditionalActivityRow({ entry, compact }: { entry: ReturnType<typeof additionalActivityAppendix>[number]; compact: boolean }) {
+    const task = entry.occurrence
+    const subtitle = [entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')
+    const frequency = t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))
+    const assignee = task ? data!.members.find((member) => member.id === task.assigneeMemberId) : undefined
+    const assignmentLabel = task ? (task.assignmentScope === 'everyone' ? t('everyone') : assignee?.displayName ?? t('anyone')) : ''
+    return <article className={`linked-activity-row configured ${task && task.state !== 'scheduled' ? 'terminal' : ''}`}>
+      <div className="linked-activity-copy">
+        <strong>{entry.routine.name}</strong>
+        <span>{subtitle}</span>
+        <small>{task ? `${formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)} · ${assignmentLabel}` : frequency}</small>
+        <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div>
+      </div>
+      <div className="linked-activity-actions">
+        {task?.state === 'completed' && <span className="status">{t('completed')}</span>}
+        {task?.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}
+        {task?.state === 'scheduled' && <>
+          {!compact && <button className="button primary small" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}>{t('done')}</button>}
+          {!compact && <button className="button secondary small" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}>{t('skip')}</button>}
+          <button className="button secondary small" onClick={() => setRescheduleId(task.id)}>{t('reschedule')}</button>
+          <button className="button secondary square small-square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={18} weight="bold" aria-hidden="true" /></button>
+        </>}
+      </div>
+    </article>
+  }
 
   function LinkedActivityRow({ task, compact }: { task: TaskOccurrence; compact: boolean }) {
     const assignee = data!.members.find((member) => member.id === task.assigneeMemberId)
