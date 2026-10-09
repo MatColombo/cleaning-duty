@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-generic-supply-export-generic-su-1w7txr0-title" focusable="false" data-hc-primitive="generic-supply" data-hc-id-scope="hc-v2-generic-supply-export-generic-su-1w7txr0">
+    <title id="hc-v2-generic-supply-export-generic-su-1w7txr0-title">generic-supply</title>
+    <defs><pattern id="hc-v2-generic-supply-export-generic-su-1w7txr0-halftoneMedium" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.45" fill="var(--hc-art-ink)" opacity="0.2" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><path d="M55 66 L120 34 L185 66 V207 H55 Z" fill="var(--hc-art-mustard)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><path d="M55 68 H185" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" fill="none"/><rect x="76" y="100" width="89" height="78" rx="9" fill="var(--hc-art-surface)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M85 165 H158 V178 H85 Z" fill="url(#hc-v2-generic-supply-export-generic-su-1w7txr0-halftoneMedium)" opacity=".4"/><path d="M120 36 V92" stroke="var(--hc-art-ink)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill="none"/><path d="M85 83 H155" stroke="var(--hc-art-ink)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill="none" opacity=".6"/></g>
+    
+  </svg>

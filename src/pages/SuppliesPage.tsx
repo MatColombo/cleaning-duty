@@ -1,71 +1,65 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
-import { FormField } from '../components/FormField'
-import { MetadataFields } from '../components/MetadataFields'
-import { Sheet } from '../components/Sheet'
+import { SupplyEditorSheet } from '../components/supplies/SupplyEditorSheet'
+import { SupplyHistorySheet } from '../components/supplies/SupplyHistorySheet'
+import { SupplyLibraryCard } from '../components/supplies/SupplyLibraryCard'
+import { activeSupplyReferences, filterSupplyLibrary, supplyStatusCounts } from '../components/supplies/supplyPresentation'
+import { SvgCharacter } from '../visual/SvgCharacter'
 import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
-import { formatTaskDateTime } from '../lib/date'
-import type { MetadataValue, StockStatus, Supply } from '../types/domain'
+import type { StockStatus, Supply } from '../types/domain'
 
-const statuses: StockStatus[] = ['available', 'low', 'reserve_only', 'out_of_stock']
-
+const STOCK_ORDER: readonly StockStatus[] = ['available', 'low', 'reserve_only', 'out_of_stock']
+/** V2 Supplies surface; Stock domain events/mutations are unchanged. */
 export function SuppliesPage() {
   const { data, addSupply, updateSupply, setSupplyStatus, archiveSupply } = useData()
   const { t, locale } = useI18n()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Supply | null>(null)
   const [historySupply, setHistorySupply] = useState<Supply | null>(null)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StockStatus | 'all'>('all')
   if (!data) return null
   const supplies = data.supplies.filter((item) => !item.archivedAt)
-
-  function statusLabel(status: StockStatus) {
-    if (status === 'available') return t('available')
-    if (status === 'low') return t('low')
-    if (status === 'reserve_only') return t('reserveOnly')
-    return t('outOfStock')
+  const counts = supplyStatusCounts(supplies)
+  const displayed = filterSupplyLibrary(supplies, query, statusFilter)
+  const statusLabels: Record<StockStatus, string> = {
+    available: t('available'), low: t('low'), reserve_only: t('reserveOnly'), out_of_stock: t('outOfStock'),
   }
+  const labels = locale === 'it'
+    ? { kicker: 'L’ARMADIETTO DI CASA', subtitle: 'Tutti i prodotti per tenere la casa in ordine.',
+        search: 'Cerca prodotti o unità', results: 'Prodotti trovati', none: 'Nessun prodotto corrisponde ai filtri.', clear: 'Ripristina filtri', filter: 'Disponibilità' }
+    : { kicker: 'THE HOUSEHOLD CABINET', subtitle: 'Your supplies, beautifully organized and ready for work.',
+        search: 'Search supplies or units', results: 'Supplies found', none: 'No supplies match these filters.', clear: 'Clear filters', filter: 'Availability' }
+  function openEditor(supply: Supply | null) { setEditing(supply); setOpen(true) }
+  function closeEditor() { setEditing(null); setOpen(false) }
 
-  return <div className="stack page-stack">
-    <header className="page-title-row"><div><div className="eyebrow">{t('stock')}</div><h1>{t('supplies')}</h1></div><button className="button primary small" onClick={() => { setEditing(null); setOpen(true) }}>+ {t('addSupply')}</button></header>
-    {!supplies.length ? <EmptyState>{t('noSupplies')}</EmptyState> : <div className="card-list">{supplies.map((supply) => {
-      const inUse = data.actions.some((action) => !action.archivedAt && action.defaultSupplyIds.includes(supply.id))
-        || data.routines.some((routine) => !routine.archivedAt && routine.supplyIdsOverride?.includes(supply.id))
-      return <article className="card supply-card" key={supply.id}>
-        <div className="supply-top"><div className="list-icon">{supply.icon || '◫'}</div><div className="list-grow"><h2>{supply.name}</h2><button className={`stock-badge stock-${supply.status}`} onClick={() => setHistorySupply(supply)}>{statusLabel(supply.status)}</button>{supply.quantity != null && <small className="secondary-detail">{supply.quantity}{supply.unit ? ` ${supply.unit}` : ''}</small>}</div><div className="row-actions"><button className="icon-button" onClick={() => { setEditing(supply); setOpen(true) }}>{t('edit')}</button><button className="icon-button danger-text" disabled={inUse} onClick={() => void archiveSupply(supply.id)}>{t('archive')}</button></div></div>
-        <div className="stock-quick" aria-label={t('reportStock')}>{statuses.map((status) => <button key={status} className={supply.status === status ? 'selected' : ''} title={statusLabel(status)} aria-label={statusLabel(status)} onClick={() => void setSupplyStatus(supply.id, status)}><span className={`stock-dot stock-${status}`} />{statusLabel(status)}</button>)}</div>
-      </article>
-    })}</div>}
-    {open && <SupplySheet supply={editing} onClose={() => { setOpen(false); setEditing(null) }} />}
-    {historySupply && <HistorySheet supply={historySupply} onClose={() => setHistorySupply(null)} />}
+  return <div className="stack page-stack v2-supplies-page">
+    <header className="v2-library-hero v2-supply-hero">
+      <div className="v2-library-hero-copy"><span className="v2-print-eyebrow">HOUSE CARE · {labels.kicker}</span><h1 className="hc-display">{t('supplies')}</h1><p>{labels.subtitle}</p><Link to="/actions" className="text-link">{t('actions')} ↗</Link></div>
+      <div className="v2-library-hero-art" aria-hidden="true"><SvgCharacter id="spray-bottle" decorative expression="joyful" pose="fist-pump" misregistration={false} /></div>
+      <button type="button" className="button primary v2-library-add" onClick={() => openEditor(null)}>+ {t('addSupply')}</button>
+    </header>
+    {supplies.length > 0 && <section className="v2-supply-overview" aria-label={t('currentStock')}>
+      {STOCK_ORDER.map((status) => <button type="button" key={status} className={`v2-supply-count is-${status} ${statusFilter === status ? 'selected' : ''}`}
+        aria-pressed={statusFilter === status} onClick={() => setStatusFilter(statusFilter === status ? 'all' : status)}>
+        <span className={`stock-dot stock-${status}`} aria-hidden="true"/><strong className="hc-tabular-numerals">{counts[status]}</strong><span>{statusLabels[status]}</span>
+      </button>)}
+    </section>}
+    {supplies.length > 0 && <section className="v2-library-controls" aria-label={t('supplies')}>
+      <label className="v2-library-search"><span className="v2-sr-only">{labels.search}</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={labels.search} aria-label={labels.search}/></label>
+      <label className="v2-library-select">{labels.filter}<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StockStatus | 'all')}>
+        <option value="all">{t('all')}</option>{STOCK_ORDER.map((status) => <option value={status} key={status}>{statusLabels[status]}</option>)}
+      </select></label>
+    </section>}
+    {supplies.length === 0 ? <EmptyState>{t('noSupplies')}</EmptyState> : displayed.length === 0
+      ? <div className="v2-library-empty"><p>{labels.none}</p><button type="button" className="button secondary small" onClick={() => { setQuery(''); setStatusFilter('all') }}>{labels.clear}</button></div>
+      : <section className="v2-supplies-library" aria-label={t('supplies')}><div className="v2-library-section-head"><h2 className="hc-display">{t('supplies')}</h2><span>{labels.results}: {displayed.length}</span></div>
+        <div className="v2-supply-grid">{displayed.map((supply) => <SupplyLibraryCard key={supply.id} supply={supply} inUse={activeSupplyReferences(supply.id, data.actions, data.routines)}
+          onEdit={openEditor} onArchive={(id) => { void archiveSupply(id) }} onHistory={setHistorySupply} onStatusChange={setSupplyStatus} />)}</div>
+      </section>}
+    {open && <SupplyEditorSheet key={editing?.id ?? 'new'} supply={editing} data={data} onClose={closeEditor} addSupply={addSupply} updateSupply={updateSupply} />}
+    {historySupply && <SupplyHistorySheet supply={historySupply} data={data} onClose={() => setHistorySupply(null)} />}
   </div>
-
-  function SupplySheet({ supply, onClose }: { supply: Supply | null; onClose: () => void }) {
-    const fields = data!.fieldDefinitions.filter((field) => !field.archivedAt && field.target === 'supply')
-    const [name, setName] = useState(supply?.name ?? '')
-    const [icon, setIcon] = useState(supply?.icon ?? '')
-    const [status, setStatus] = useState<StockStatus>(supply?.status ?? 'available')
-    const [quantity, setQuantity] = useState(supply?.quantity?.toString() ?? '')
-    const [unit, setUnit] = useState(supply?.unit ?? '')
-    const [metadata, setMetadata] = useState<Record<string, MetadataValue>>(supply?.metadata ?? {})
-    async function submit(event: FormEvent) {
-      event.preventDefault()
-      const input = { name: name.trim(), icon: icon.trim() || undefined, status, quantity: quantity === '' ? undefined : Number(quantity), unit: unit.trim() || undefined, metadata }
-      if (supply) await updateSupply(supply.id, input); else await addSupply(input)
-      onClose()
-    }
-    return <Sheet title={supply ? t('edit') : t('addSupply')} onClose={onClose}><form className="stack" onSubmit={submit}>
-      <FormField label={t('name')}><input required autoFocus value={name} onChange={(event) => setName(event.target.value)} /></FormField>
-      <FormField label={t('icon')}><input maxLength={4} value={icon} onChange={(event) => setIcon(event.target.value)} /></FormField>
-      <fieldset className="field-group"><legend>{t('currentStock')}</legend><div className="stock-choice-grid">{statuses.map((item) => <button type="button" key={item} className={status === item ? 'choice-card selected' : 'choice-card'} onClick={() => setStatus(item)}><span className={`stock-dot stock-${item}`} />{statusLabel(item)}</button>)}</div></fieldset>
-      <details className="advanced-details"><summary>{t('advanced')}</summary><div className="stack detail-body"><FormField label={t('quantityOptional')}><input type="number" min="0" step="any" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></FormField><FormField label={t('unitOptional')}><input value={unit} onChange={(event) => setUnit(event.target.value)} /></FormField></div></details>
-      <MetadataFields definitions={fields} values={metadata} onChange={setMetadata} />
-      <button className="button primary">{t('save')}</button>
-    </form></Sheet>
-  }
-
-  function HistorySheet({ supply, onClose }: { supply: Supply; onClose: () => void }) {
-    const events = data!.supplyEvents.filter((event) => event.supplyId === supply.id).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-    return <Sheet title={`${supply.name} · ${t('stockHistory')}`} onClose={onClose}><div className="timeline">{events.map((event) => <div className="timeline-item" key={event.id}><span>{event.type === 'STOCK_CHANGED' ? `${String(event.metadata.from ?? '—')} → ${String(event.metadata.to ?? '—')}` : event.type.replaceAll('_', ' ').toLowerCase()}</span><small>{formatTaskDateTime(event.at, locale, data!.workspace.timezone)}</small></div>)}</div></Sheet>
-  }
 }

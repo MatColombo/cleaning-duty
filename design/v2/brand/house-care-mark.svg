@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">House Care compact mark</title>
+  <desc id="desc">A geometric house with a floor-plan corner and sparkle.</desc>
+  <path d="M22 59 64 24l42 35v42a8 8 0 0 1-8 8H30a8 8 0 0 1-8-8Z" fill="#FFF9EC" stroke="#153D3A" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M47 108V72h34v36M47 88h34" fill="none" stroke="#1F6B63" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M93 26v14M86 33h14" stroke="#C38A32" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="93" cy="33" r="2.5" fill="#C65E48"/>
+</svg>

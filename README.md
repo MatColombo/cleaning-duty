@@ -1,52 +1,42 @@
-# House Care PWA - v1.2.1-r4
+# House Care PWA — v2.0.0-rc.1
 
-A configurable household-care PWA with Overview, a pannable Home layout, Routines, Actions, Stock, Analysis and Settings. This release adds linked every-N activities and a clearer daily view on top of v1.2.0-r4.2.
+**Release candidate; not yet production-certified.** House Care V2 is a local-first / optional-Supabase household-maintenance PWA with a retro-vector presentation system. The task scheduler, assignment, cleanliness, stock, Home geometry, persistence, notifications and backup semantics remain those of the V1 baseline.
 
-## Upgrading your existing app
+## V2 navigation and experience
 
-**Start with [docs/UPDATE_v1.2.1_R1.md](docs/UPDATE_v1.2.1_R1.md).**
+- Overview (`/`): **House State** (separate Regular/Deep cleanliness and critical entities) plus an **Active Deck** of actionable Care Cards.
+- Timeline (`/timeline`): completed, skipped, postponed, future seven-day work, date browsing and Restore to today.
+- Home (`/home`): the original semantic home layout, spatial editing, inspector and room mode.
+- Routines, Actions, Supplies, Analysis, Settings: their original features in the V2 visual system.
+- A floating **House Menu** replaces the bottom navigation. Existing `/today`, `/insights` and `/task/:taskId` deep links remain compatible.
 
-For a project already upgraded through r4.2:
+The artwork is assembled locally from authored SVG objects, poses, expressions and patterns; stable routine identities and bounded occurrence editions are deterministic. No generated artwork is stored in Supabase or backups. Visuals do not determine task semantics.
 
-1. Export a household backup.
-2. Apply `supabase/migrations/20260911133000_v1_2_1_linked_activities.sql` in Supabase SQL Editor.
-3. Redeploy the existing `supabase/functions/send-push/index.ts`; keep JWT verification off and existing secrets/cron unchanged.
-4. Push the contents of this `cleaning-duty-pwa` folder to the repository used by Cloudflare.
+## Local development
 
-Do not rerun historical setup/repair scripts merely because they are included here. The ZIP contains one project root, not two alternatives.
-
-## New in this version
-
-The app now opens with a branded House Care loading sequence: the app mark, a themed spinner/wordmark, 18 rotating playful household-status phrases in English and Italian, and a soft transition into the ready screen. Appearance settings now include 17 presets spanning Classic, Night, Greyscale, Colourblind safe, Very colourful and Cool groups. Custom palettes can be saved without contrast restrictions; contrast checks remain informational.
-
-Recurring routines can append separately actionable work on every N scheduled occurrences. Each extra has its own activity title, action, targets, Regular/Deep channel, products and cleanliness participation. It inherits its parent's cadence, assignment, reminder and lifecycle. Skips do not reset the counter.
-
-A Counts toward cleanliness toggle excludes a routine's contributions and completion refresh without removing its tasks or reminders. Overview uses a horizontal cleanliness rail with explicit channel labels, numerical scores and mood feedback; urgency/today and Upcoming have distinct visual grouping. Cards show activity title, then item - action name; notifications show activity title and item. A new house/floor-plan icon is included.
-
-Read [docs/RELEASE_NOTES_v1.2.1.md](docs/RELEASE_NOTES_v1.2.1.md) for scope and limits.
-
-## Local development and build
-
-Use Node.js 22+ and install the declared project dependencies:
+Use Node.js 22+ and npm:
 
 ```bash
 cp .env.example .env
 npm install
 npm test
+npm run typecheck
 npm run build
 npm run dev
 ```
 
-The normal production build remains `tsc -b && vite build`. Keep private `.env` files out of Git. For local-only use, keep `VITE_APP_MODE=local`.
+Default `.env.example` runs **local-only** without cloud credentials. For cloud mode, configure `VITE_APP_MODE=cloud`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY`; optional Web Push also uses `VITE_VAPID_PUBLIC_KEY`. Never commit private credentials.
 
-Cloudflare deployment uses the existing build variables and `npm run build`. Initial deployment documentation remains in `docs/DEPLOYMENT.md` and `docs/DEPLOYMENT_NO_ADMIN.md`; apply all required timestamped migrations for a new database. Existing installations should follow the version-specific update guide instead.
+`npm run qa:static` performs offline source/asset checks. `npm run qa:release` is the **blocking code gate** (static audit, source syntax, regression tests, typecheck and Vite build); it must finish successfully on a dependency-complete machine. Browser, cloud and physical-device sign-off are additional mandatory gates. This archive has **no generated or fabricated lockfile** because the isolated build environment cannot access npm. Generate and commit `package-lock.json` using `npm install` and verify `npm ci` before promotion.
 
-## Backup
+## Upgrade and release status
 
-Settings > Backup > Export JSON creates schema 9 backups. Schemas 2-8 remain importable. Linked routine/task IDs and stock snapshots are retained. Account-specific preferences, push subscriptions and derived reminder jobs are not portable household backup data.
+For current V1 households, first export a backup. V2 introduces no new database schema migration; the existing cloud database must already have all V1.2.1 linked-activity migrations. Legacy backup schemas 2–9 remain importable. Keep theme preferences and canonical occurrence identities intact.
 
-## Verification boundary
+- [V2 release/regression report](docs/V2_PHASE15_RELEASE_REGRESSION.md)
+- [Browser, device and PWA acceptance checklist](docs/qa/V2_BROWSER_ACCEPTANCE.md)
+- [V2 implementation contract](docs/V2_IMPLEMENTATION_CONTRACT.md)
+- [V2 release-candidate notes](docs/RELEASE_NOTES_V2_RC1.md)
+- [Historical V1 upgrade instructions](docs/UPDATE_v1.2.1_R1.md)
 
-All eight pure TypeScript domain suites and source/asset checks pass. npm installation could not reach the package registry in the packaging environment, so a complete dependency-backed React/Vite build was not run there. Live Supabase migration execution, device push delivery and browser end-to-end interaction checks are also deployment checks, not claimed local passes. See the update guide.
-
-Historical release notes and migrations are retained for traceability; they do not replace the v1.2.1 upgrade instructions above.
+**Do not deploy as a certified V2 final release** before the unverified typecheck/build, device interactions, actual PWA update and cloud push flows have been checked. See the report for exact gates.

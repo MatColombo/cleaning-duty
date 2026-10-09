@@ -1,0 +1,15 @@
+:root {
+  --hc-motion-press: 100ms;
+  --hc-motion-hover: 140ms;
+  --hc-motion-card: 200ms;
+  --hc-motion-sheet: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hc-motion-press: 0ms;
+    --hc-motion-hover: 0ms;
+    --hc-motion-card: 0ms;
+    --hc-motion-sheet: 0ms;
+  }
+}

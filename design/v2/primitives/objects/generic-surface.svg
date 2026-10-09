@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-generic-surface-export-generic-s-1ljrmlw-title" focusable="false" data-hc-primitive="generic-surface" data-hc-id-scope="hc-v2-generic-surface-export-generic-s-1ljrmlw">
+    <title id="hc-v2-generic-surface-export-generic-s-1ljrmlw-title">generic-surface</title>
+    <defs><pattern id="hc-v2-generic-surface-export-generic-s-1ljrmlw-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="82" ry="9" fill="var(--hc-art-ink)" opacity=".12"/><path d="M25 110 L71 76 H176 L214 110 V125 H25 Z" fill="var(--hc-art-mustard)" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="35" y="124" width="171" height="61" rx="7" fill="var(--hc-art-primary-soft)" stroke="var(--hc-art-ink)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><rect x="40" y="163" width="161" height="21" fill="url(#hc-v2-generic-surface-export-generic-s-1ljrmlw-halftoneFine)"/><path d="M53 186 L43 217 M187 186 L197 217" stroke="var(--hc-art-ink)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M49 138 H190" stroke="var(--hc-art-surface)" stroke-width="4" stroke-dasharray="12 8"/></g>
+    
+  </svg>

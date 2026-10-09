@@ -1,0 +1,118 @@
+/* House Care V2 — Home presentation only. Spatial canvas geometry/editing is not restyled. */
+.v2-home-page { --v2-home-outline: color-mix(in srgb, var(--hc-art-ink) 16%, transparent); gap: 12px; min-width: 0; }
+.v2-home-page *, .v2-home-page *::before, .v2-home-page *::after { box-sizing: border-box; }
+.v2-home-status { display: grid; gap: 12px; }
+.v2-home-hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: clamp(10px, 3vw, 24px); margin: 0; padding: 12px clamp(12px, 3vw, 22px); min-width: 0; border: 1px solid var(--v2-home-outline); border-radius: var(--hc-radius-card); background: var(--hc-art-surface); overflow: hidden; }
+.v2-home-status.viewing .v2-home-hero { background-image: radial-gradient(circle at 83% 48%, color-mix(in srgb, var(--hc-art-mustard) 15%, transparent), transparent 45%); }
+.v2-home-hero-copy { position: relative; z-index: 1; flex: 1 1 auto; min-width: 0; }
+.v2-home-hero h1 { margin: 4px 0 2px; font-size: clamp(1.6rem, 5vw, 2.8rem); line-height: .99; overflow-wrap: anywhere; }
+.v2-home-hero-subtitle { margin: 5px 0 0; color: var(--color-ink-muted); font-size: .83rem; line-height: 1.35; overflow-wrap: anywhere; }
+.v2-home-hero-art { flex: 0 0 clamp(70px, 14vw, 132px); width: clamp(70px, 14vw, 132px); align-self: end; pointer-events: none; }
+.v2-home-edit-toggle { position: relative; z-index: 2; align-self: flex-start; flex: 0 0 auto; min-height: 40px; }
+.v2-home-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.v2-home-summary .v2-clean-panel { min-height: 112px; }
+.v2-home-summary .v2-clean-panel-copy { width: 70%; }
+.v2-home-summary .v2-clean-panel h3 { font-size: clamp(.7rem, 2.2vw, .88rem); }
+.v2-home-summary .v2-clean-panel strong { font-size: clamp(1.55rem, 4.6vw, 2.25rem); }
+.v2-home-summary .v2-clean-mascot { width: clamp(52px, 16%, 90px); }
+.v2-home-page .scene-row { align-items: center; }
+.v2-home-page .scene-tab { border-radius: 8px; font-weight: 750; min-height: 42px; }
+.v2-home-page .scene-tab.selected { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+.v2-home-layout-card { padding: 0; border: 1px solid var(--v2-home-outline); background: var(--color-surface); border-radius: var(--hc-radius-card); }
+.v2-home-layout-caption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 6px; min-width: 0; background: var(--color-surface); color: var(--color-ink); }
+.v2-home-layout-caption > strong { font-family: var(--hc-font-display); font-size: clamp(.93rem, 2.2vw, 1.25rem); min-width: 0; overflow-wrap: anywhere; }
+.v2-home-layout-key { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--color-ink-muted); font-size: .67rem; font-weight: 750; }
+.v2-home-map-key { width: 11px; height: 11px; display: inline-block; border: 2px solid var(--color-overdue); border-radius: 3px; }
+.v2-home-map-key.due { border-color: var(--color-due); border-style: dotted; }
+.v2-home-page .layout-zoom-controls { border-top: 1px solid var(--color-line); background: var(--color-surface); }
+/* Only static normal-mode frame uses gentle print styling; the canvas stays clean. */
+.v2-home-page.is-viewing .v2-home-layout-caption { border-bottom: 1px solid var(--color-line); }
+.v2-home-inspector { margin-top: 0; border: 1px solid var(--v2-home-outline); border-radius: var(--hc-radius-card); background: var(--color-surface); min-width: 0; }
+.v2-home-inspector .v2-home-inspector-content { padding: clamp(13px, 2.5vw, 19px); gap: 14px; min-width: 0; }
+.v2-home-inspector-heading { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.v2-home-inspector-art { flex: 0 0 clamp(65px, 12vw, 92px); width: clamp(65px, 12vw, 92px); padding: 7px; border: 1px solid var(--v2-home-outline); border-radius: 11px; background: color-mix(in srgb, var(--hc-art-mustard) 13%, var(--hc-art-surface)); }
+.v2-home-inspector-heading-copy { flex: 1 1 auto; min-width: 0; }
+.v2-home-inspector-heading h2 { margin: 5px 0; line-height: 1.1; font-size: clamp(1.25rem, 4vw, 1.85rem); overflow-wrap: anywhere; }
+.v2-home-inspector-heading .room-detail-close { flex: 0 0 auto; align-self: flex-start; margin-top: 0; }
+.v2-home-status-stamp { display: inline-flex; padding: 4px 7px; border: 1px solid currentColor; border-radius: 5px; text-transform: uppercase; letter-spacing: .035em; font-size: .65rem; font-weight: 850; line-height: 1.25; }
+.v2-home-status-stamp.overdue { color: var(--color-overdue); }
+.v2-home-status-stamp.due { color: var(--color-ink); background: color-mix(in srgb, var(--hc-art-mustard) 18%, var(--color-surface)); }
+.v2-home-care-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 0; background: transparent; }
+.v2-home-care-channel { min-width: 0; padding: 12px; border: 1px solid var(--color-line); border-radius: 11px; background: color-mix(in srgb, var(--hc-art-primary) 7%, var(--color-surface)); }
+.v2-home-care-channel.deep { background: color-mix(in srgb, var(--hc-art-coral) 7%, var(--color-surface)); }
+.v2-home-care-channel .care-health-heading { flex-wrap: wrap; gap: 3px 8px; }
+.v2-home-care-channel .care-health-heading strong { overflow-wrap: anywhere; }
+.v2-home-care-channel b { font-family: var(--hc-font-display); font-size: 1.22rem; }
+.v2-home-care-channel .care-health-track-ui { height: 10px; }
+.v2-home-care-channel.deep .care-health-track-ui span { background: var(--color-overdue); }
+.v2-home-inspector-content .inspector-section { padding-top: 13px; border-top: 1px solid var(--color-line); }
+.v2-home-inspector-content .inspector-section .section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.v2-home-inspector-content .section-header h3 { margin: 0; font-family: var(--hc-font-display); font-size: 1rem; }
+.v2-home-inspector-content .v2-home-task-list { min-width: 0; }
+.v2-home-inspector-content .room-task-row { grid-template-columns: minmax(0, 1fr) minmax(65px, auto); align-items: start; }
+.v2-home-inspector-content .room-task-row strong { white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }
+.v2-home-inspector-content .room-task-row small, .v2-home-inspector-content .mini-list-row small { overflow-wrap: anywhere; }
+.v2-home-inspector-content .v2-home-task-copy { min-width: 0; }
+.v2-home-inspector-content .room-task-row > small, .v2-home-inspector-content .mini-list-row > small { overflow-wrap: anywhere; max-width: 110px; }
+.v2-home-inspector-content .v2-home-stock-section .mini-list-row { flex-wrap: wrap; }
+.v2-home-inspector-content .v2-home-stock-section strong { min-width: 0; overflow-wrap: anywhere; }
+.v2-home-inspector-content .start-room-button { min-height: 48px; border-radius: 9px; font-weight: 850; }
+.v2-home-inspector-empty { min-height: 178px; gap: 5px; }
+.v2-home-empty-art, .v2-home-empty-layout-art { display: inline-flex; width: 86px; max-width: 100%; }
+.v2-home-empty-layout-art { width: 112px; }
+/* Room mode: one actual generator-v1 card artwork. Commands remain HTML outside SVG. */
+.v2-room-mode { padding: 7px 18px max(12px, env(safe-area-inset-bottom)); }
+.v2-room-mode-progress { color: var(--color-ink-muted); }
+.v2-room-mode-card { display: grid; grid-template-columns: minmax(0, .43fr) minmax(0, .57fr); gap: 14px; align-items: center; min-height: 210px; padding: 14px; border: 2px solid var(--color-primary); background: color-mix(in srgb, var(--hc-art-mustard) 14%, var(--color-surface)); }
+.v2-room-mode-card .v2-card-art { width: 100%; }
+.v2-room-mode-card .v2-card-art > svg { max-height: 240px; }
+.v2-room-mode-art, .v2-room-mode-copy { min-width: 0; }
+.v2-room-mode-copy { display: grid; gap: 8px; }
+.v2-room-mode-copy h2 { font-size: clamp(1.2rem, 4.5vw, 1.8rem); margin: 4px 0; line-height: 1.1; overflow-wrap: anywhere; }
+.v2-room-mode-copy p { overflow-wrap: anywhere; margin: 0; }
+.v2-room-mode-copy small { overflow-wrap: anywhere; }
+.v2-home-extra-label { display: inline-flex; width: fit-content; padding: 5px 8px; background: var(--color-primary-soft); color: var(--color-primary); font-weight: 800; font-size: .72rem; }
+.v2-room-complete { min-height: 300px; }
+.v2-room-complete-art { width: 132px; }
+.v2-room-complete h2, .v2-room-complete p { overflow-wrap: anywhere; }
+/* Keep edit mode functional, high contrast, precise and nearly undecorated. */
+.v2-home-page.is-editing .v2-home-hero { background: var(--color-surface); }
+.v2-home-page.is-editing .v2-home-summary .v2-clean-panel::after { content: none; }
+.v2-home-page.is-editing .editor-toolbar { background: var(--color-surface); border: 1px solid var(--color-line); }
+.v2-home-page.is-editing .v2-home-layout-caption { background: var(--color-surface); }
+.v2-home-page.is-editing .v2-home-inspector { background: var(--color-surface); }
+.v2-home-page.is-editing .v2-home-inspector .inspector-content { padding: 14px; }
+@media (max-width: 620px) {
+  .v2-home-hero { flex-wrap: wrap; }
+  .v2-home-hero-art { flex-basis: 76px; width: 76px; }
+  .v2-home-edit-toggle { margin-left: auto; }
+  .v2-home-summary .v2-clean-panel { min-height: 100px; }
+  .v2-home-inspector-heading { flex-wrap: wrap; }
+  .v2-home-inspector-heading .room-detail-close { margin-left: auto; }
+  .v2-home-care-details { gap: 7px; }
+  .v2-room-mode-card { grid-template-columns: 1fr; }
+  .v2-room-mode-card .v2-card-art > svg { max-height: 135px; }
+}
+@media (max-width: 350px) {
+  .v2-home-care-details { grid-template-columns: 1fr; }
+  .v2-home-hero-art { display: none; }
+  .v2-home-summary .v2-clean-panel { padding: 8px; }
+  .v2-home-summary .v2-clean-panel-copy { width: 100%; }
+  .v2-home-summary .v2-clean-mascot { display: none; }
+  .v2-home-inspector-heading .v2-home-inspector-art { flex-basis: 60px; width: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-home-page *, .v2-room-mode *, .v2-home-page *::before, .v2-home-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+body[data-v2-no-art="true"] .v2-home-hero-art,
+body[data-v2-no-art="true"] .v2-home-inspector-art,
+body[data-v2-no-art="true"] .v2-home-empty-layout-art,
+body[data-v2-no-art="true"] .v2-home-empty-art,
+body[data-v2-no-art="true"] .v2-room-mode-art,
+body[data-v2-no-art="true"] .v2-room-complete-art { display: none !important; }
+/* Editing stays analytical: semantic values remain, decorative ink is subdued. */
+.v2-home-page.is-editing .v2-home-summary .v2-clean-panel { color: var(--color-ink); background: var(--color-surface); border-color: var(--color-line); }
+.v2-home-page.is-editing .v2-home-summary .v2-clean-panel.deep { border-left: 3px solid var(--color-overdue); }
+.v2-home-page.is-editing .v2-home-summary .v2-clean-panel:not(.deep) { border-left: 3px solid var(--color-primary); }
+.v2-home-page.is-editing .v2-home-summary .v2-clean-mascot { display: none; }
+.v2-home-page.is-editing .v2-home-summary .v2-clean-panel-copy { width: 100%; }

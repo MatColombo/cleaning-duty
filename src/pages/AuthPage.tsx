@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../contexts/I18nContext'
 import { FormField } from '../components/FormField'
+import { V2BrandLockup } from '../components/brand/V2BrandLockup'
+import { SvgCharacter } from '../visual/SvgCharacter'
 import { logClientError, normalizeError } from '../lib/errorLog'
 
 export function AuthPage() {
@@ -23,9 +25,9 @@ export function AuthPage() {
     finally { setBusy(false) }
   }
 
-  return <main className="center-page">
-    <form className="card auth-card stack" onSubmit={submit}>
-      <div><div className="eyebrow">House Care</div><h1>{mode === 'signin' ? t('signIn') : t('signUp')}</h1></div>
+  return <main className="center-page v2-entry-page">
+    <form className="card auth-card stack v2-entry-card" onSubmit={submit}>
+      <header className="v2-entry-head"><div><V2BrandLockup /><h1 className="hc-display">{mode === 'signin' ? t('signIn') : t('signUp')}</h1></div><span className="v2-entry-art" aria-hidden="true"><SvgCharacter id="house" expression="smile" decorative pose="wave" misregistration={false} /></span></header>
       <FormField label={t('email')}><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></FormField>
       <FormField label={t('password')}><input type="password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} /></FormField>
       {message && <div className="notice">{message}</div>}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-table-export-table-1m8rqku-title" focusable="false" data-hc-primitive="table" data-hc-id-scope="hc-v2-table-export-table-1m8rqku">
+    <title id="hc-v2-table-export-table-1m8rqku-title">table</title>
+    <defs><pattern id="hc-v2-table-export-table-1m8rqku-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><path d="M32 120 L66 89 H176 L208 120 V139 H32 Z" fill="var(--hc-art-mustard)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><path d="M52 143 V212 M186 143 V212" stroke="var(--hc-art-ink)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" fill="none"/><path d="M53 179 H187" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none"/><path d="M51 120 H193 V134 H51 Z" fill="url(#hc-v2-table-export-table-1m8rqku-halftoneFine)" opacity=".45"/><rect x="106" y="62" width="30" height="27" rx="5" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M117 62 Q102 50 107 42 M123 61 Q139 51 137 42" fill="none" stroke="var(--hc-art-primary)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>
+    
+  </svg>

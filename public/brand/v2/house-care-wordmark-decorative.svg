@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img" aria-labelledby="title desc">
+  <title id="title">House Care decorative wordmark</title>
+  <desc id="desc">A display-sized House Care wordmark with mid-century rays, dots and the geometric house mark.</desc>
+  <defs>
+    <pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.7" fill="#1F6B63" opacity=".26"/>
+    </pattern>
+  </defs>
+  <path d="M26 184C108 128 169 105 259 94c121-15 214 3 421 79" fill="none" stroke="#C38A32" stroke-width="8" stroke-linecap="round" opacity=".72"/>
+  <path d="M540 27h142v95H540z" fill="url(#dots)"/>
+  <g transform="translate(34 44) scale(1.06)">
+    <path d="M22 59 64 24l42 35v42a8 8 0 0 1-8 8H30a8 8 0 0 1-8-8Z" fill="#FFF9EC" stroke="#153D3A" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M47 108V72h34v36M47 88h34" fill="none" stroke="#1F6B63" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M93 26v14M86 33h14" stroke="#C38A32" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="93" cy="33" r="2.5" fill="#C65E48"/>
+  </g>
+  <text x="176" y="116" fill="#153D3A" font-family="Fraunces Variable, Fraunces, Georgia, serif" font-size="78" font-weight="800" letter-spacing="-3">House Care</text>
+  <text x="182" y="154" fill="#586663" font-family="Manrope, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="3.5">A CLEANER, HAPPIER HOME</text>
+  <path d="M628 48v31M613 63h30M670 99v21M660 109h20" stroke="#C65E48" stroke-width="6" stroke-linecap="round"/>
+  <path d="M575 166c18-14 35-14 51 0M578 181c16-9 31-9 46 0" fill="none" stroke="#4E9D94" stroke-width="5" stroke-linecap="round"/>
+</svg>

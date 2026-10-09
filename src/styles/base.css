@@ -1,0 +1,18 @@
+/* V2 base layer intentionally stays conservative while V1 pages remain mounted. */
+html {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--hc-font-ui);
+}
+
+.hc-v2-surface {
+  color: var(--color-ink);
+  background: var(--color-surface);
+}

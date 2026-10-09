@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 160" role="img" aria-labelledby="title desc">
+  <title id="title">House Care wordmark</title>
+  <desc id="desc">House Care compact house mark beside the House Care name.</desc>
+  <g transform="translate(18 18) scale(.95)">
+    <path d="M22 59 64 24l42 35v42a8 8 0 0 1-8 8H30a8 8 0 0 1-8-8Z" fill="#FFF9EC" stroke="#153D3A" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M47 108V72h34v36M47 88h34" fill="none" stroke="#1F6B63" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M93 26v14M86 33h14" stroke="#C38A32" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="93" cy="33" r="2.5" fill="#C65E48"/>
+  </g>
+  <text x="155" y="83" fill="#153D3A" font-family="Fraunces Variable, Fraunces, Georgia, serif" font-size="62" font-weight="800" letter-spacing="-2">House Care</text>
+  <text x="160" y="119" fill="#586663" font-family="Manrope, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="3">CARE FOR THE PLACE YOU LIVE</text>
+</svg>

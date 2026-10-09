@@ -1,0 +1,2034 @@
+{
+  "documentation": "Generated from src/visual. Do not hand-edit exported SVG files.",
+  "artboard": "240x240 for objects/poses, 80x80 expressions, 128x128 decorations/patterns",
+  "objects": [
+    {
+      "id": "house",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 138
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 42,
+          "y": 145
+        },
+        "rightArm": {
+          "x": 196,
+          "y": 145
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "maintain",
+        "tidy",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "sink",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 157
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 39,
+          "y": 156
+        },
+        "rightArm": {
+          "x": 202,
+          "y": 158
+        },
+        "leftLeg": {
+          "x": 91,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 152,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "wash",
+        "descale",
+        "scrub"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom",
+        "utility"
+      ]
+    },
+    {
+      "id": "shower-head",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 117,
+        "y": 90
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 44,
+          "y": 133
+        },
+        "rightArm": {
+          "x": 187,
+          "y": 129
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "descale",
+        "scrub"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom"
+      ]
+    },
+    {
+      "id": "oven",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 148
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 52,
+          "y": 140
+        },
+        "rightArm": {
+          "x": 188,
+          "y": 140
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "degrease",
+        "wipe",
+        "scrub",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen"
+      ]
+    },
+    {
+      "id": "stovetop",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 155
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 37,
+          "y": 147
+        },
+        "rightArm": {
+          "x": 203,
+          "y": 147
+        }
+      },
+      "supportedActionFamilies": [
+        "degrease",
+        "wipe",
+        "scrub"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen"
+      ]
+    },
+    {
+      "id": "coffee-machine",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 118,
+        "y": 139
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 52,
+          "y": 140
+        },
+        "rightArm": {
+          "x": 188,
+          "y": 140
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "descale",
+        "wipe",
+        "wash",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen"
+      ]
+    },
+    {
+      "id": "sofa",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 149
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 42,
+          "y": 146
+        },
+        "rightArm": {
+          "x": 198,
+          "y": 146
+        }
+      },
+      "supportedActionFamilies": [
+        "vacuum",
+        "dust",
+        "tidy",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom"
+      ]
+    },
+    {
+      "id": "countertop",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 154
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 52,
+          "y": 140
+        },
+        "rightArm": {
+          "x": 188,
+          "y": 140
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "degrease",
+        "disinfect",
+        "polish"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom",
+        "utility"
+      ]
+    },
+    {
+      "id": "window",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "wash",
+        "polish"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "kitchen",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "spray-bottle",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 147
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 57,
+          "y": 143
+        },
+        "rightArm": {
+          "x": 185,
+          "y": 141
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "spray",
+        "wipe",
+        "disinfect",
+        "degrease"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior",
+        "kitchen",
+        "bathroom",
+        "living"
+      ]
+    },
+    {
+      "id": "sponge",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 146
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 44,
+          "y": 147
+        },
+        "rightArm": {
+          "x": 198,
+          "y": 147
+        }
+      },
+      "supportedActionFamilies": [
+        "scrub",
+        "wipe",
+        "degrease",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "cloth",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 150
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 38,
+          "y": 153
+        },
+        "rightArm": {
+          "x": 202,
+          "y": 154
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "dust",
+        "polish",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior",
+        "kitchen",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "mop",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 116,
+        "y": 162
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 73,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 160,
+          "y": 143
+        }
+      },
+      "supportedActionFamilies": [
+        "mop",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom",
+        "hallway",
+        "living"
+      ]
+    },
+    {
+      "id": "vacuum",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 123,
+        "y": 148
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 69,
+          "y": 134
+        },
+        "rightArm": {
+          "x": 181,
+          "y": 135
+        }
+      },
+      "supportedActionFamilies": [
+        "vacuum",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "hallway",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "cleaner-bottle",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 151
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 61,
+          "y": 140
+        },
+        "rightArm": {
+          "x": 179,
+          "y": 139
+        }
+      },
+      "supportedActionFamilies": [
+        "spray",
+        "wash",
+        "scrub",
+        "refill",
+        "disinfect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior",
+        "utility",
+        "kitchen",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "plant",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 183
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "water",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "kitchen",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "lamp",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "framed-art",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "wipe"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "generic-appliance",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 146
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 52,
+          "y": 140
+        },
+        "rightArm": {
+          "x": 188,
+          "y": 140
+        },
+        "leftLeg": {
+          "x": 94,
+          "y": 202
+        },
+        "rightLeg": {
+          "x": 147,
+          "y": 202
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "maintain",
+        "wash",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "utility",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "generic-surface",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 9,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 145
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 39,
+          "y": 146
+        },
+        "rightArm": {
+          "x": 201,
+          "y": 146
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "polish",
+        "scrub",
+        "tidy",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "bathtub",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 124,
+        "y": 151
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 30,
+          "y": 157
+        },
+        "rightArm": {
+          "x": 207,
+          "y": 157
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "wipe",
+        "disinfect",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "utility"
+      ]
+    },
+    {
+      "id": "toilet",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 122,
+        "y": 159
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 58,
+          "y": 152
+        },
+        "rightArm": {
+          "x": 186,
+          "y": 152
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "wipe",
+        "disinfect",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "utility"
+      ]
+    },
+    {
+      "id": "refrigerator",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 124,
+        "y": 153
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "scrub",
+        "wash",
+        "dust",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "dishwasher",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 122,
+        "y": 157
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "refill",
+        "maintain",
+        "wipe"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "washer",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 150
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "tidy",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "utility",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "dryer",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 148
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "tidy",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "utility",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "kettle",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 115,
+        "y": 155
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 74,
+          "y": 144
+        },
+        "rightArm": {
+          "x": 168,
+          "y": 145
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "descale",
+        "wash",
+        "refill",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "chair",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 124,
+        "y": 137
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 57,
+          "y": 131
+        },
+        "rightArm": {
+          "x": 180,
+          "y": 131
+        }
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "wipe",
+        "polish",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "table",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 118,
+        "y": 139
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 36,
+          "y": 135
+        },
+        "rightArm": {
+          "x": 201,
+          "y": 135
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "dust",
+        "polish",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "bookcase",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 169
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 44,
+          "y": 153
+        },
+        "rightArm": {
+          "x": 196,
+          "y": 153
+        }
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "tidy",
+        "wipe",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "bed",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 162
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 37,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 203,
+          "y": 142
+        }
+      },
+      "supportedActionFamilies": [
+        "tidy",
+        "wash",
+        "move",
+        "vacuum"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bedroom"
+      ]
+    },
+    {
+      "id": "cabinet",
+      "family": "object",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 152
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "dust",
+        "tidy",
+        "polish"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "floor-patch",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "mop",
+        "vacuum",
+        "wipe",
+        "wash",
+        "scrub"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom",
+        "hallway",
+        "living",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "mirror",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 137
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "polish",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "bedroom",
+        "hallway"
+      ]
+    },
+    {
+      "id": "bucket",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 150
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 60,
+          "y": 145
+        },
+        "rightArm": {
+          "x": 178,
+          "y": 145
+        }
+      },
+      "supportedActionFamilies": [
+        "mop",
+        "wash",
+        "scrub",
+        "refill"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "kitchen",
+        "utility",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "duster",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 114,
+        "y": 105
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 61,
+          "y": 101
+        },
+        "rightArm": {
+          "x": 176,
+          "y": 104
+        }
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "wipe",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "scrub-brush",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 120,
+        "y": 120
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 53,
+          "y": 117
+        },
+        "rightArm": {
+          "x": 188,
+          "y": 118
+        }
+      },
+      "supportedActionFamilies": [
+        "scrub",
+        "degrease",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "broom",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 116,
+        "y": 170
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 83,
+          "y": 144
+        },
+        "rightArm": {
+          "x": 160,
+          "y": 144
+        }
+      },
+      "supportedActionFamilies": [
+        "tidy",
+        "dust",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "hallway",
+        "living",
+        "outdoor",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "squeegee",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 123
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 71,
+          "y": 112
+        },
+        "rightArm": {
+          "x": 167,
+          "y": 112
+        }
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "polish",
+        "wash"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "kitchen",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "generic-tool",
+      "family": "tool",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 122,
+        "y": 143
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "maintain",
+        "inspect",
+        "wipe",
+        "move"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior",
+        "utility"
+      ]
+    },
+    {
+      "id": "detergent-bottle",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 151
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "refill",
+        "disinfect",
+        "scrub"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "bathroom",
+        "utility"
+      ]
+    },
+    {
+      "id": "tablet-pack",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 119,
+        "y": 154
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "refill",
+        "maintain"
+      ],
+      "supportedEnvironmentFamilies": [
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "paper-roll",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 151
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 56,
+          "y": 156
+        },
+        "rightArm": {
+          "x": 186,
+          "y": 156
+        }
+      },
+      "supportedActionFamilies": [
+        "refill",
+        "wipe",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "bathroom",
+        "kitchen",
+        "utility"
+      ]
+    },
+    {
+      "id": "microfiber-stack",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 121,
+        "y": 146
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 44,
+          "y": 149
+        },
+        "rightArm": {
+          "x": 200,
+          "y": 149
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "wipe",
+        "dust",
+        "polish",
+        "refill"
+      ],
+      "supportedEnvironmentFamilies": [
+        "utility",
+        "kitchen",
+        "bathroom"
+      ]
+    },
+    {
+      "id": "generic-supply",
+      "family": "supply",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "faceAnchor": {
+        "x": 122,
+        "y": 144
+      },
+      "limbAnchors": {
+        "leftArm": {
+          "x": 51,
+          "y": 142
+        },
+        "rightArm": {
+          "x": 189,
+          "y": 142
+        },
+        "leftLeg": {
+          "x": 95,
+          "y": 205
+        },
+        "rightLeg": {
+          "x": 145,
+          "y": 205
+        }
+      },
+      "supportedActionFamilies": [
+        "wash",
+        "wipe",
+        "scrub",
+        "refill"
+      ],
+      "supportedEnvironmentFamilies": [
+        "generic-interior",
+        "utility"
+      ]
+    },
+    {
+      "id": "rug",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "vacuum",
+        "wash",
+        "tidy"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "hallway"
+      ]
+    },
+    {
+      "id": "shelf-prop",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "dust",
+        "tidy",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "dining",
+        "generic-interior"
+      ]
+    },
+    {
+      "id": "room-window-fragment",
+      "family": "environment",
+      "artboard": {
+        "id": "main-object",
+        "width": 240,
+        "height": 240,
+        "viewBox": "0 0 240 240"
+      },
+      "safeInset": {
+        "top": 8,
+        "right": 8,
+        "bottom": 8,
+        "left": 8
+      },
+      "supportedActionFamilies": [
+        "wipe",
+        "dust",
+        "wash",
+        "inspect"
+      ],
+      "supportedEnvironmentFamilies": [
+        "living",
+        "bedroom",
+        "kitchen",
+        "generic-interior"
+      ]
+    }
+  ],
+  "expressions": [
+    "joyful",
+    "smile",
+    "proud",
+    "neutral",
+    "focused",
+    "worried",
+    "tired",
+    "sweaty",
+    "angry",
+    "sleepy",
+    "relieved",
+    "surprised"
+  ],
+  "poses": [
+    "arms-down",
+    "thumbs-up",
+    "wave",
+    "point",
+    "fist-pump",
+    "hands-on-hips",
+    "hold-sponge",
+    "hold-cloth",
+    "scrub",
+    "shrug",
+    "celebrate",
+    "present"
+  ],
+  "decorations": [
+    "sparkle-4",
+    "sparkle-6",
+    "starburst-round",
+    "starburst-jagged",
+    "action-rays",
+    "steam",
+    "droplets",
+    "bubbles",
+    "dust",
+    "shine",
+    "tiles",
+    "checker",
+    "halftone-patch",
+    "diagonal-patch"
+  ],
+  "patterns": [
+    "halftoneFine",
+    "halftoneMedium",
+    "halftoneCoarse",
+    "halftoneDiagonal",
+    "halftoneRadialComic",
+    "sparkles",
+    "actionRays"
+  ]
+}

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 're
 import { X } from '@phosphor-icons/react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../contexts/I18nContext'
+import { nextWrappedFocus } from './dialogFocus'
 
 export function Sheet({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   const { t } = useI18n()
@@ -27,20 +28,17 @@ export function Sheet({ title, children, onClose }: { title: string; children: R
     if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
     if (event.key !== 'Tab' || !sheetRef.current) return
     const focusable = [...sheetRef.current.querySelectorAll<HTMLElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')]
-    if (!focusable.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    const next = nextWrappedFocus(focusable, document.activeElement as HTMLElement | null, event.shiftKey)
+    if (next) { event.preventDefault(); next.focus() }
   }
 
   const content = (
-    <div className="sheet-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <section ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={onKeyDown} onPointerDown={(event) => event.stopPropagation()}>
+    <div className="sheet-backdrop hc-v2-sheet-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <section ref={sheetRef} className="sheet hc-v2-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={onKeyDown} onPointerDown={(event) => event.stopPropagation()}>
         <div className="sheet-handle" aria-hidden="true" />
-        <header className="sheet-header">
+        <header className="sheet-header hc-v2-sheet-header">
           <h2 id={titleId}>{title}</h2>
-          <button className="icon-button sheet-close" aria-label={t('close')} title={t('close')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
+          <button type="button" className="icon-button sheet-close" aria-label={t('close')} title={t('close')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
         </header>
         {children}
       </section>
