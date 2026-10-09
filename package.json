@@ -1,15 +1,30 @@
 {
   "name": "cleaning-duty-pwa",
   "private": true,
-  "version": "1.2.1-r4",
+  "version": "2.0.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run check:version && tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "deploy": "npm run build && wrangler deploy",
-    "test": "node tools/run-tests.cjs"
+    "test": "npm run check:version && npm run validate:vectors && node tools/run-tests.cjs",
+    "check:version": "node tools/check-version.cjs",
+    "validate:vectors": "node tools/validate-v2-svg.cjs",
+    "build:v2-vocabulary": "node tools/export-v2-vocabulary.cjs",
+    "build:v2-visual-lab": "node tools/build-v2-visual-lab.cjs",
+    "build:v2-proof": "node tools/render-v2-phase4-proof.cjs",
+    "build:v2-procedural-proof": "node tools/build-v2-procedural-proof.cjs",
+    "build:v2-phase9-proof": "node tools/build-v2-phase9-proof.cjs",
+    "bench:v2-phase9-vectors": "node tools/bench-v2-phase9-vectors.cjs",
+    "build:v2-phase12-proof": "node tools/build-v2-phase12-proof.cjs",
+    "build:v2-phase14-theme-proof": "node tools/build-v2-phase14-theme-proof.cjs",
+    "build:v2-pwa-icons": "python3 tools/build-v2-pwa-icons.py",
+    "qa:static": "npm run check:version && npm run validate:vectors && node tools/phase15-static-audit.cjs",
+    "qa:release": "npm run qa:static && npm run qa:syntax && npm test && npm run typecheck && npm run build",
+    "qa:syntax": "node tools/phase15-syntax-audit.cjs",
+    "qa:browser:capture": "node tools/phase15-browser-capture.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -17,6 +32,7 @@
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
     "@phosphor-icons/react": "^2.1.10",
+    "@fontsource-variable/fraunces": "^5.2.8",
     "@fontsource-variable/manrope": "^5.2.8"
   },
   "devDependencies": {

@@ -1,39 +1,23 @@
 import { useEffect, useState } from 'react'
-import { ArrowsClockwise, CalendarCheck, ChartLineUp, GearSix, House, Package, CheckSquare } from '@phosphor-icons/react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { useI18n } from '../contexts/I18nContext'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
 import { localDateInZone } from '../lib/date'
 import { isRoutineActive } from '../lib/scheduler'
 import { applyTheme } from '../lib/theme'
 import { syncPushSubscription } from '../lib/push'
-import { WorkspaceSwitcher } from './WorkspaceSwitcher'
-
-const nav = [
-  { to: '/', key: 'overview', icon: CalendarCheck },
-  { to: '/home', key: 'home', icon: House },
-  { to: '/actions', key: 'actions', icon: CheckSquare },
-  { to: '/routines', key: 'routines', icon: ArrowsClockwise },
-  { to: '/supplies', key: 'stock', icon: Package },
-  { to: '/insights', key: 'insights', icon: ChartLineUp },
-  { to: '/settings', key: 'settings', icon: GearSix },
-] as const
+import { AppHeader } from './AppHeader'
+import { HouseMenuButton } from './HouseMenuButton'
+import { HouseMenuSheet } from './HouseMenuSheet'
+import { RuntimeBanners } from './RuntimeBanners'
 
 export function AppShell() {
-  const { t } = useI18n()
   const { appearancePalette, isCloud } = useAuth()
-  const { data, currentMember, saving, error, clearError, online, pendingSync, syncConflicts, dismissSyncConflicts } = useData()
-  const navigate = useNavigate()
-  const [updateReady, setUpdateReady] = useState(false)
+  const { data, currentMember } = useData()
+  const { pathname, search, hash } = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => { applyTheme(appearancePalette) }, [appearancePalette])
-
-  useEffect(() => {
-    const onReady = () => setUpdateReady(true)
-    window.addEventListener('housecare:update-ready', onReady)
-    return () => window.removeEventListener('housecare:update-ready', onReady)
-  }, [])
 
   useEffect(() => {
     if (!isCloud || !data?.workspace.id || !currentMember?.id) return
@@ -50,36 +34,14 @@ export function AppShell() {
     else if (badgeApi.clearAppBadge) void badgeApi.clearAppBadge()
   }, [data, currentMember])
 
-  function applyUpdate() {
-    navigator.serviceWorker?.getRegistration().then((registration) => {
-      if (!registration?.waiting) return location.reload()
-      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true })
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
-    })
-  }
+  // Also handle browser back/forward, redirects and links outside the House Menu.
+  useEffect(() => { setMenuOpen(false) }, [pathname, search, hash])
 
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div>
-          <WorkspaceSwitcher />
-          {saving && <span className="sync-state">{t('saving')}</span>}
-          {!saving && pendingSync > 0 && <span className="sync-state">{pendingSync} {t('waitingToSync')}</span>}
-        </div>
-      </header>
-      {!online && <div className="runtime-banner offline-banner">{t('offlineMode')}</div>}
-      {syncConflicts.length > 0 && <div className="runtime-banner conflict-banner"><span>{t('syncConflict')} · {syncConflicts.length}</span><button onClick={dismissSyncConflicts}>{t('dismiss')}</button></div>}
-      {updateReady && <div className="runtime-banner update-banner"><span>{t('updateReady')}</span><button onClick={applyUpdate}>{t('updateNow')}</button></div>}
-      {error && <div className="error-banner app-error-banner" role="alert"><span>{error}</span><div className="runtime-actions"><button onClick={() => navigate('/settings?errors=1')}>{t('details')}</button><button onClick={clearError}>{t('dismiss')}</button></div></div>}
-      <main className="page"><Outlet /></main>
-      <nav className="bottom-nav" aria-label="Primary">
-        {nav.map((item) => {
-          const Icon = item.icon
-          return <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-            {({ isActive }) => <><Icon aria-hidden="true" size={22} weight={isActive ? 'fill' : 'regular'} /><small>{t(item.key)}</small></>}
-          </NavLink>
-        })}
-      </nav>
-    </div>
-  )
+  return <div className={`app-shell house-v2-shell ${pathname === '/' ? 'house-v2-cockpit-shell' : ''}`}>
+    <AppHeader />
+    <RuntimeBanners />
+    <main className="page" id="house-main"><Outlet /></main>
+    <HouseMenuButton open={menuOpen} onClick={() => setMenuOpen(true)} />
+    {menuOpen && <HouseMenuSheet onClose={() => setMenuOpen(false)} />}
+  </div>
 }

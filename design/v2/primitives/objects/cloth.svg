@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-cloth-export-cloth-1k5iqfq-title" focusable="false" data-hc-primitive="cloth" data-hc-id-scope="hc-v2-cloth-export-cloth-1k5iqfq">
+    <title id="hc-v2-cloth-export-cloth-1k5iqfq-title">cloth</title>
+    <defs><pattern id="hc-v2-cloth-export-cloth-1k5iqfq-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="82" ry="9" fill="var(--hc-art-ink)" opacity=".12"/><path d="M32 79 Q72 69 108 75 Q149 82 205 69 L210 185 Q184 198 157 194 Q128 188 104 206 Q70 218 36 196 Z" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M83 76 L97 192 Q123 178 151 185 L142 81" fill="var(--hc-art-primary-soft)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M47 131 H191 V179 H47 Z" fill="url(#hc-v2-cloth-export-cloth-1k5iqfq-halftoneFine)" opacity=".6"/><path d="M53 93 L67 190 M164 86 L178 185" stroke="var(--hc-art-surface)" stroke-width="5" stroke-dasharray="4 8"/></g>
+    
+  </svg>

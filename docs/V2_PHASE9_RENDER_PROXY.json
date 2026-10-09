@@ -1,0 +1,26 @@
+{
+  "name": "House Care V2 Phase 9 Node render proxy",
+  "platform": "linux",
+  "node": "v22.16.0",
+  "caveat": "Pure Node CPU/SVG-size proxy only; does not measure mobile paint, GPU, device memory or FPS.",
+  "counts": {
+    "recipes": 10000,
+    "renderedSvg": 240,
+    "visibleFullArtInOverview": 1
+  },
+  "elapsedMs": {
+    "recipeBatch": 4292.2,
+    "svgBatch": 72.19,
+    "perSvg": 0.301
+  },
+  "svgBytes": {
+    "median": 7431,
+    "p95": 8811,
+    "max": 9805
+  },
+  "pathCount": {
+    "median": 27,
+    "max": 56
+  },
+  "nestedSvgMax": 3
+}

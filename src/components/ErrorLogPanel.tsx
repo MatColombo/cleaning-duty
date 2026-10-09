@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { clearErrorLog, getErrorLog, subscribeErrorLog, type ErrorLogEntry } from '../lib/errorLog'
 import { useI18n } from '../contexts/I18nContext'
 import { Sheet } from './Sheet'
+import { APP_VERSION } from '../app/version'
 
 export function ErrorLogPanel({ autoOpen = false }: { autoOpen?: boolean }) {
   const { t, locale } = useI18n()
@@ -19,7 +20,7 @@ export function ErrorLogPanel({ autoOpen = false }: { autoOpen?: boolean }) {
 
   return <>
     <section className="card section-card" id="diagnostics">
-      <div className="section-header"><div><h2>{t('diagnostics')}</h2><p className="muted compact-text">{t('errorLogHint')}</p></div><span className="count-pill small-pill">{entries.length}</span></div>
+      <div className="section-header"><div><h2>{t('diagnostics')}</h2><p className="muted compact-text">{t('errorLogHint')}</p></div><div className="v2-diagnostics-version"><span className="count-pill small-pill">{entries.length}</span><small>House Care v{APP_VERSION}</small></div></div>
       <div className="row-actions diagnostics-actions">
         <button className="button secondary" onClick={() => setOpen(true)}>{t('viewErrorLog')}</button>
         {entries.length > 0 && <button className="button ghost danger-text" onClick={clear}>{t('clearLog')}</button>}

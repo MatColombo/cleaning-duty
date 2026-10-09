@@ -11,6 +11,9 @@ import { isStandalone, promptInstall } from '../lib/pwa'
 import type { CareSensitivity, MetadataFieldDefinition, MetadataFieldType, MetadataTarget, WorkspaceMember } from '../types/domain'
 import { dateTimeLocalValue, localInputToUtc } from '../lib/date'
 import { ErrorLogPanel } from '../components/ErrorLogPanel'
+import { V2BrandLockup } from '../components/brand/V2BrandLockup'
+import { SvgCharacter } from '../visual/SvgCharacter'
+import { VisualInkPreview } from '../components/appearance/VisualInkPreview'
 import { logClientError, normalizeError } from '../lib/errorLog'
 import { contrastIssues, themeCategoryOrder, themePreset, themePresets, themeTokenKeys, type ThemeCategory, type ThemeId, type ThemePalette, type ThemeTokenKey } from '../lib/theme'
 
@@ -121,8 +124,8 @@ export function SettingsPage() {
     return target === 'entity' ? t('entitiesTarget') : target === 'action' ? t('actionsTarget') : t('suppliesTarget')
   }
 
-  return <div className="stack page-stack">
-    <header className="page-title-row"><div><div className="eyebrow">{t('settings')}</div><h1>{t('settings')}</h1></div></header>
+  return <div className="stack page-stack v2-settings-page">
+    <header className="page-title-row v2-settings-hero"><div><V2BrandLockup compact /><h1 className="hc-display">{t('settings')}</h1></div><div className="v2-settings-hero-art" aria-hidden="true"><SvgCharacter id="house" decorative expression="proud" pose="thumbs-up" misregistration={false} /></div></header>
     <section className="card section-card"><div className="section-header"><h2>{t('household')}</h2></div><form className="stack" onSubmit={saveHousehold}><FormField label={t('householdName')}><input disabled={!canManageHousehold} value={houseName} onChange={(e) => setHouseName(e.target.value)} /></FormField><FormField label={t('timezone')} hint="IANA · Europe/Rome"><input disabled={!canManageHousehold} value={timezone} onChange={(e) => setTimezone(e.target.value)} /></FormField><FormField label={t('careSensitivity')} hint={t('careSensitivityHint')}><select disabled={!canManageHousehold} value={careSensitivity} onChange={(event) => setCareSensitivity(event.target.value as CareSensitivity)}><option value="relaxed">{t('relaxed')}</option><option value="balanced">{t('balanced')}</option><option value="strict">{t('strict')}</option></select></FormField><button disabled={!canManageHousehold} className="button secondary align-start">{t('save')}</button></form></section>
 
     <section className="card section-card"><div className="section-header"><h2>{t('people')}</h2><button disabled={!canManageHousehold} className="button secondary small" onClick={() => setMemberOpen(true)}>+ {t('addPerson')}</button></div><div className="people-list">{data.members.map((member) => <div className="person-row" key={member.id}><div><strong>{member.displayName}</strong><small>{member.email || '—'}{member.labels.length ? ` · ${member.labels.join(', ')}` : ''}</small>{member.unavailableUntil && <small>{t('unavailableUntil')} · {new Date(member.unavailableUntil).toLocaleString()}</small>}</div><div className="person-tags"><span className="status">{t(member.role)}</span>{member.status === 'invited' && <span className="status warn">invited</span>}{canManageHousehold && <button className="icon-button" onClick={() => setEditingMember(member)}>{t('assignmentProfile')}</button>}</div></div>)}</div>{isCloud && <p className="muted compact-text">{locale === 'it' ? 'Per collegare il secondo account, usa qui la sua email esatta.' : 'For a linked second account, add their exact email here.'}</p>}</section>
@@ -158,6 +161,7 @@ export function SettingsPage() {
         {contrastIssues(palette).length > 0 && <div className="contrast-warning"><strong>{t('paletteContrastWarning')}</strong><span>{t('paletteContrastBlocked')}</span><ul>{contrastIssues(palette).map((issue) => <li key={issue.pair}>{issue.pair}: {issue.ratio.toFixed(2)}:1</li>)}</ul></div>}
         <div className="palette-actions"><button className="button secondary small" onClick={() => setPalette(themePreset(customBasePresetId).palette)}>{t('resetToPreset')}</button><button className="button secondary small" onClick={() => { const fresh = themePreset('fresh-sage'); setThemeId('fresh-sage'); setPalette(fresh.palette); setCustomizingPalette(false); setCustomBasePresetId('fresh-sage'); void setAppearancePreferences('fresh-sage', fresh.palette) }}>{t('resetToDefault')}</button><button className="button primary small" onClick={() => void setAppearancePreferences('custom', palette)}>{t('saveAppearance')}</button></div>
       </div>}
+      <VisualInkPreview theme={palette} />
     </section>
 
     <section className="card section-card"><div className="section-header"><h2>{t('notifications')}</h2></div><p className="muted compact-text">{pushCapability === 'cloud_required' ? t('pushNeedsCloud') : pushCapability === 'unsupported' ? t('pushUnsupported') : pushCapability === 'blocked' ? t('pushBlocked') : t('pushHint')}</p>{pushCapability !== 'cloud_required' && pushCapability !== 'unsupported' && pushCapability !== 'blocked' && <button className="button secondary" onClick={() => void togglePush()}>{pushCapability === 'subscribed' ? t('disableOnDevice') : t('enableOnDevice')}</button>}{pushMessage && <div className="error-banner">{pushMessage}</div>}</section>

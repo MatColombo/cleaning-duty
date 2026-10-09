@@ -1,47 +1,50 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
-import { FormField } from '../components/FormField'
-import { MetadataFields } from '../components/MetadataFields'
-import { Sheet } from '../components/Sheet'
+import { ActionEditorSheet } from '../components/actions/ActionEditorSheet'
+import { ActionLibraryCard } from '../components/actions/ActionLibraryCard'
+import { actionLibraryVisual, filterActionLibrary } from '../components/actions/actionPresentation'
+import { SvgCharacter } from '../visual/SvgCharacter'
 import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
-import type { ActionDefinition, MetadataValue } from '../types/domain'
+import type { ActionDefinition } from '../types/domain'
+import type { ActionFamily } from '../visual/procedural/taxonomy'
 
+/** V2 Actions surface. Definition mutations stay exclusively in DataContext. */
 export function ActionsPage() {
   const { data, addAction, updateAction, archiveAction } = useData()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ActionDefinition | null>(null)
+  const [query, setQuery] = useState('')
+  const [family, setFamily] = useState<ActionFamily | 'all'>('all')
   if (!data) return null
-  const actions = data.actions.filter((item) => !item.archivedAt)
-  const supplies = data.supplies.filter((item) => !item.archivedAt)
 
-  return <div className="stack page-stack">
-    <header className="page-title-row"><div><div className="eyebrow">{t('actions')}</div><h1>{t('actions')}</h1></div><button className="button primary small" onClick={() => { setEditing(null); setOpen(true) }}>+ {t('addAction')}</button></header>
-    {!actions.length ? <EmptyState>{t('noActions')}</EmptyState> : <div className="card-list">{actions.map((action) => <article className="card list-card" key={action.id}><div className="list-icon">{action.icon || '↻'}</div><div className="list-grow"><h2>{action.name}</h2>{action.instructions && <p>{action.instructions}</p>}{action.defaultSupplyIds.length > 0 && <p>{t('defaultSupplies')}: {action.defaultSupplyIds.map((id) => supplies.find((supply) => supply.id === id)?.name).filter(Boolean).join(', ')}</p>}</div><div className="row-actions"><button className="icon-button" onClick={() => { setEditing(action); setOpen(true) }}>{t('edit')}</button><button className="icon-button danger-text" disabled={data!.routines.some((routine) => !routine.archivedAt && routine.actionId === action.id)} title={data!.routines.some((routine) => !routine.archivedAt && routine.actionId === action.id) ? 'In use by a routine' : t('archive')} onClick={() => void archiveAction(action.id)}>{t('archive')}</button></div></article>)}</div>}
-    {open && <ActionSheet action={editing} onClose={() => { setOpen(false); setEditing(null) }} />}
+  const actions = data.actions.filter((action) => !action.archivedAt)
+  const supplies = data.supplies.filter((supply) => !supply.archivedAt)
+  const families = [...new Set(actions.map((action) => actionLibraryVisual(action).family))].sort()
+  const displayed = filterActionLibrary(actions, supplies, query, family)
+  const labels = locale === 'it'
+    ? { subtitle: 'Un atlante di gesti per prenderti cura della casa.', kicker: 'LA LIBRERIA DEI GESTI', search: 'Cerca azioni, istruzioni o prodotti', category: 'Famiglia', results: 'Azioni trovate', none: 'Nessuna azione corrisponde ai filtri.', clear: 'Ripristina filtri' }
+    : { subtitle: 'Your illustrated toolbox for taking care of the home.', kicker: 'THE CARE TOOLBOX', search: 'Search actions, instructions or supplies', category: 'Family', results: 'Actions found', none: 'No actions match these filters.', clear: 'Clear filters' }
+  function openEditor(action: ActionDefinition | null) { setEditing(action); setOpen(true) }
+  function closeEditor() { setEditing(null); setOpen(false) }
+
+  return <div className="stack page-stack v2-actions-page">
+    <header className="v2-library-hero v2-action-hero">
+      <div className="v2-library-hero-copy"><span className="v2-print-eyebrow">HOUSE CARE · {labels.kicker}</span><h1 className="hc-display">{t('actions')}</h1><p>{labels.subtitle}</p><Link to="/routines" className="text-link">{t('routines')} ↗</Link></div>
+      <div className="v2-library-hero-art" aria-hidden="true"><SvgCharacter id="scrub-brush" decorative expression="proud" pose="thumbs-up" misregistration={false} /></div>
+      <button type="button" className="button primary v2-library-add" onClick={() => openEditor(null)}>+ {t('addAction')}</button>
+    </header>
+    {actions.length > 0 && <section className="v2-library-controls" aria-label={t('actions')}>
+      <label className="v2-library-search"><span className="v2-sr-only">{labels.search}</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={labels.search} aria-label={labels.search} /></label>
+      <label className="v2-library-select">{labels.category}<select value={family} onChange={(event) => setFamily(event.target.value as ActionFamily | 'all')}><option value="all">{t('all')}</option>{families.map((value) => <option key={value} value={value}>{value.replaceAll('-', ' ')}</option>)}</select></label>
+    </section>}
+    {actions.length === 0 ? <EmptyState>{t('noActions')}</EmptyState> : displayed.length === 0
+      ? <div className="v2-library-empty"><p>{labels.none}</p><button type="button" className="button secondary small" onClick={() => { setQuery(''); setFamily('all') }}>{labels.clear}</button></div>
+      : <section className="v2-actions-library" aria-label={t('actions')}><div className="v2-library-section-head"><h2 className="hc-display">{t('actions')}</h2><span>{labels.results}: {displayed.length}</span></div>
+        <div className="v2-action-grid">{displayed.map((action) => <ActionLibraryCard key={action.id} action={action} supplies={supplies} routines={data.routines} onEdit={openEditor} onArchive={(id) => { void archiveAction(id) }} />)}</div>
+      </section>}
+    {open && <ActionEditorSheet key={editing?.id ?? 'new'} action={editing} data={data} onClose={closeEditor} addAction={addAction} updateAction={updateAction} />}
   </div>
-
-  function ActionSheet({ action, onClose }: { action: ActionDefinition | null; onClose: () => void }) {
-    const fields = data!.fieldDefinitions.filter((field) => !field.archivedAt && field.target === 'action')
-    const [name, setName] = useState(action?.name ?? '')
-    const [icon, setIcon] = useState(action?.icon ?? '')
-    const [instructions, setInstructions] = useState(action?.instructions ?? '')
-    const [defaultSupplyIds, setDefaultSupplyIds] = useState<string[]>(action?.defaultSupplyIds ?? [])
-    const [metadata, setMetadata] = useState<Record<string, MetadataValue>>(action?.metadata ?? {})
-    async function submit(event: FormEvent) {
-      event.preventDefault()
-      const input = { name: name.trim(), icon: icon.trim() || undefined, instructions: instructions.trim() || undefined, defaultSupplyIds, metadata }
-      if (action) await updateAction(action.id, input); else await addAction(input)
-      onClose()
-    }
-    return <Sheet title={action ? t('edit') : t('addAction')} onClose={onClose}><form className="stack" onSubmit={submit}>
-      <FormField label={t('name')}><input required autoFocus value={name} onChange={(e) => setName(e.target.value)} /></FormField>
-      <FormField label={t('icon')}><input maxLength={4} value={icon} onChange={(e) => setIcon(e.target.value)} /></FormField>
-      <FormField label={t('instructions')}><textarea rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></FormField>
-      {supplies.length > 0 && <fieldset className="field-group"><legend>{t('defaultSupplies')}</legend><div className="check-list">{supplies.map((supply) => <label className="check-row" key={supply.id}><input type="checkbox" checked={defaultSupplyIds.includes(supply.id)} onChange={(event) => setDefaultSupplyIds(event.target.checked ? [...defaultSupplyIds, supply.id] : defaultSupplyIds.filter((id) => id !== supply.id))} /><span>{supply.name}</span><small>{supply.status === 'reserve_only' ? t('reserveOnly') : supply.status === 'out_of_stock' ? t('outOfStock') : supply.status === 'low' ? t('low') : t('available')}</small></label>)}</div></fieldset>}
-      <MetadataFields definitions={fields} values={metadata} onChange={setMetadata} />
-      <button className="button primary">{t('save')}</button>
-    </form></Sheet>
-  }
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-framed-art-export-framed-art-4jygng-title" focusable="false" data-hc-primitive="framed-art" data-hc-id-scope="hc-v2-framed-art-export-framed-art-4jygng">
+    <title id="hc-v2-framed-art-export-framed-art-4jygng-title">framed-art</title>
+    <defs><pattern id="hc-v2-framed-art-export-framed-art-4jygng-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="82" ry="9" fill="var(--hc-art-ink)" opacity=".12"/><rect x="46" y="33" width="149" height="167" rx="2" fill="var(--hc-art-ink)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><rect x="58" y="46" width="125" height="141" rx="0" fill="var(--hc-art-paper)" stroke="var(--hc-art-surface)" stroke-width="5"/><path d="M58 150 V47 H183 V111 Q143 121 123 166 Z" fill="var(--hc-art-mustard)"/><path d="M58 149 L126 84 L183 153 V187 H58 Z" fill="var(--hc-art-coral)"/><circle cx="153" cy="77" r="25" fill="var(--hc-art-turquoise)"/><path d="M91 60 L97 73 L111 77 L97 82 L91 97 L85 82 L72 77 L85 72 Z" fill="var(--hc-art-surface)"/><rect x="61" y="163" width="118" height="23" fill="url(#hc-v2-framed-art-export-framed-art-4jygng-halftoneFine)" opacity=".64"/></g>
+    
+  </svg>

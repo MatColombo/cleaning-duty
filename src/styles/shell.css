@@ -1,0 +1,128 @@
+/* Phase 6 shell only. V1 page contents deliberately retain their existing styling. */
+.house-v2-shell {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+.house-app-header {
+  min-height: calc(58px + env(safe-area-inset-top));
+  padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+  background: color-mix(in srgb, var(--color-canvas) 93%, transparent);
+}
+.house-v2-shell > .error-banner { top: calc(58px + env(safe-area-inset-top)); }
+
+.house-app-header > .house-header-inner {
+  width: min(100%, 960px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: clamp(8px, 3vw, 22px);
+  padding-block: 5px;
+}
+
+.house-header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 0 0 auto;
+  text-decoration: none;
+  color: var(--color-ink);
+  font-family: var(--hc-font-display);
+  font-size: clamp(.95rem, 2.7vw, 1.3rem);
+  font-weight: 760;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+}
+.house-header-brand img { flex: 0 0 auto; width: 32px; height: 32px; }
+
+.house-header-workspace {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 1px;
+}
+.house-header-workspace .workspace-trigger {
+  min-width: 0;
+  max-width: 100%;
+  margin-left: 0;
+  padding-inline: 6px;
+}
+.house-header-workspace > strong {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.house-header-workspace .sync-state {
+  display: block;
+  max-width: 100%;
+  font-size: .68rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.house-menu-trigger {
+  position: fixed;
+  z-index: 45;
+  right: max(calc(14px + env(safe-area-inset-right)), calc((100vw - 960px)/2 + 18px));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  display: inline-grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--color-ink) 17%, transparent), 0 9px 24px var(--color-shadow);
+  cursor: pointer;
+  transition: transform var(--hc-motion-press) ease, box-shadow var(--hc-motion-hover) ease;
+}
+.house-menu-trigger:hover { box-shadow: 0 6px 0 color-mix(in srgb, var(--color-ink) 20%, transparent), 0 12px 25px var(--color-shadow); }
+.house-menu-trigger:active { transform: translateY(2px); }
+.house-menu-trigger:focus-visible { outline: 3px solid var(--color-ink); outline-offset: 3px; }
+
+.house-menu-list { display: grid; gap: 7px; padding: 3px 0 6px; }
+.house-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 53px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--hc-radius-control);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-size: .92rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.house-menu-link.active { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.house-menu-link:hover { border-color: var(--color-primary); }
+.house-menu-link:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.house-menu-link-icon { width: 28px; min-width: 28px; display: inline-grid; place-items: center; color: var(--color-primary); }
+.house-menu-link-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.house-menu-link-arrow { flex: 0 0 auto; color: var(--color-ink-muted); }
+.house-menu-current { font-size: .72rem; color: var(--color-primary); font-weight: 800; }
+
+@media (max-width: 370px) {
+  .house-header-brand { gap: 3px; }
+  .house-header-brand img { width: 26px; height: 26px; }
+  .house-app-header { padding-inline: max(9px, env(safe-area-inset-left)); }
+  .house-header-workspace .workspace-trigger { padding-inline: 2px; }
+}
+@media (min-width: 620px) {
+  .house-menu-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .house-menu-trigger { transition: none; }
+  .house-menu-trigger:active { transform: none; }
+}

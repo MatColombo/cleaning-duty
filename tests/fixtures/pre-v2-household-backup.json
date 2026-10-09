@@ -1,0 +1,98 @@
+{
+  "schema_version": 9,
+  "exported_at": "2026-09-16T12:00:00.000Z",
+  "application_version": "1.2.1-r4",
+  "data": {
+    "workspace": {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Pre-V2 Regression Home",
+      "timezone": "Europe/Rome",
+      "careSensitivity": "balanced",
+      "createdAt": "2026-09-01T08:00:00.000Z"
+    },
+    "members": [
+      {
+        "id": "10000000-0000-4000-8000-000000000002",
+        "workspaceId": "10000000-0000-4000-8000-000000000001",
+        "displayName": "Alex",
+        "role": "owner",
+        "status": "active",
+        "labels": ["kitchen"],
+        "createdAt": "2026-09-01T08:00:00.000Z"
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000003",
+        "workspaceId": "10000000-0000-4000-8000-000000000001",
+        "displayName": "Sam",
+        "role": "member",
+        "status": "active",
+        "labels": ["bathroom"],
+        "createdAt": "2026-09-01T08:00:00.000Z"
+      }
+    ],
+    "fieldDefinitions": [],
+    "entityTypes": [
+      {"id":"10000000-0000-4000-8000-000000000010","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Room","icon":"▭","createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000011","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Appliance","icon":"◫","createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000012","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Surface","icon":"▱","createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000013","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Furniture","icon":"□","createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "entities": [
+      {"id":"10000000-0000-4000-8000-000000000020","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000010","name":"Kitchen","labels":["food-area"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000021","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000010","name":"Bathroom","labels":["wet-area"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000022","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000010","name":"Living room","labels":[],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000023","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000011","parentId":"10000000-0000-4000-8000-000000000020","name":"Oven","labels":["grease"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000024","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000012","parentId":"10000000-0000-4000-8000-000000000020","name":"Kitchen sink","labels":["wet-area"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000025","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000012","parentId":"10000000-0000-4000-8000-000000000021","name":"Shower","labels":["wet-area"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000026","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000013","parentId":"10000000-0000-4000-8000-000000000022","name":"Sofa","labels":["dustable"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000027","workspaceId":"10000000-0000-4000-8000-000000000001","typeId":"10000000-0000-4000-8000-000000000011","parentId":"10000000-0000-4000-8000-000000000020","name":"Coffee machine","labels":["descale"],"metadata":{},"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "layoutScenes": [
+      {"id":"10000000-0000-4000-8000-000000000030","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Ground floor","kind":"floor","order":0,"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "layoutElements": [
+      {"id":"10000000-0000-4000-8000-000000000031","workspaceId":"10000000-0000-4000-8000-000000000001","sceneId":"10000000-0000-4000-8000-000000000030","entityId":"10000000-0000-4000-8000-000000000020","role":"area","shape":"rect","x":40,"y":40,"width":420,"height":300,"rotation":0,"zIndex":1,"labelPosition":"center","createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000032","workspaceId":"10000000-0000-4000-8000-000000000001","sceneId":"10000000-0000-4000-8000-000000000030","entityId":"10000000-0000-4000-8000-000000000022","role":"area","shape":"rect","x":480,"y":40,"width":480,"height":300,"rotation":0,"zIndex":2,"labelPosition":"center","createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000033","workspaceId":"10000000-0000-4000-8000-000000000001","sceneId":"10000000-0000-4000-8000-000000000030","entityId":"10000000-0000-4000-8000-000000000021","role":"area","shape":"rect","x":40,"y":360,"width":360,"height":250,"rotation":0,"zIndex":3,"labelPosition":"center","createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "entityRelations": [],
+    "actions": [
+      {"id":"10000000-0000-4000-8000-000000000040","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Degrease","icon":"◇","instructions":"Break down grease and wipe clean.","defaultSupplyIds":["10000000-0000-4000-8000-000000000070"],"metadata":{},"revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000041","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Wipe","icon":"◇","instructions":"Wipe the surface clean.","defaultSupplyIds":["10000000-0000-4000-8000-000000000071"],"metadata":{},"revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000042","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Vacuum","icon":"↯","instructions":"Vacuum the area thoroughly.","defaultSupplyIds":[],"metadata":{},"revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000043","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Descale","icon":"≈","instructions":"Remove mineral build-up.","defaultSupplyIds":["10000000-0000-4000-8000-000000000072"],"metadata":{},"revision":1,"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "routines": [
+      {"id":"10000000-0000-4000-8000-000000000050","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Deep clean oven","actionId":"10000000-0000-4000-8000-000000000040","targetEntityIds":["10000000-0000-4000-8000-000000000023"],"includeDescendantTargetIds":[],"recurrence":{"kind":"interval","unit":"week","interval":2,"anchorDate":"2026-09-01"},"timeOfDay":"18:30","routineTimezone":"Europe/Rome","scheduleMode":"fixed","exceptions":{"excludedDates":[],"includedDateTimes":[]},"assignment":{"mode":"member","memberId":"10000000-0000-4000-8000-000000000002"},"reminder":{"mode":"offset","minutesBefore":60},"cleanlinessChannel":"deep","careLevel":"deep","refreshLevelPct":100,"affectsCleanliness":true,"status":"active","revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000051","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Wipe kitchen sink","actionId":"10000000-0000-4000-8000-000000000041","targetEntityIds":["10000000-0000-4000-8000-000000000024"],"includeDescendantTargetIds":[],"recurrence":{"kind":"interval","unit":"day","interval":2,"anchorDate":"2026-09-01"},"timeOfDay":"08:00","routineTimezone":"Europe/Rome","scheduleMode":"fixed","exceptions":{"excludedDates":[],"includedDateTimes":[]},"assignment":{"mode":"everyone"},"reminder":{"mode":"at_due"},"cleanlinessChannel":"regular","careLevel":"routine","refreshLevelPct":100,"affectsCleanliness":true,"status":"active","revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000052","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Vacuum living room","actionId":"10000000-0000-4000-8000-000000000042","targetEntityIds":["10000000-0000-4000-8000-000000000022"],"includeDescendantTargetIds":["10000000-0000-4000-8000-000000000022"],"recurrence":{"kind":"interval","unit":"week","interval":1,"anchorDate":"2026-09-01"},"timeOfDay":"10:00","routineTimezone":"Europe/Rome","scheduleMode":"after_completion","exceptions":{"excludedDates":[],"includedDateTimes":[]},"assignment":{"mode":"alternate","memberIds":["10000000-0000-4000-8000-000000000002","10000000-0000-4000-8000-000000000003"]},"reminder":{"mode":"previous_day","time":"19:00"},"cleanlinessChannel":"regular","careLevel":"routine","refreshLevelPct":80,"affectsCleanliness":true,"status":"active","revision":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000053","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Descale coffee machine","actionId":"10000000-0000-4000-8000-000000000043","targetEntityIds":["10000000-0000-4000-8000-000000000027"],"includeDescendantTargetIds":[],"recurrence":{"kind":"interval","unit":"week","interval":2,"anchorDate":"2026-09-01"},"timeOfDay":"18:30","routineTimezone":"Europe/Rome","scheduleMode":"fixed","exceptions":{"excludedDates":[],"includedDateTimes":[]},"assignment":{"mode":"member","memberId":"10000000-0000-4000-8000-000000000002"},"reminder":{"mode":"none"},"cleanlinessChannel":"deep","careLevel":"deep","refreshLevelPct":100,"affectsCleanliness":true,"parentRoutineId":"10000000-0000-4000-8000-000000000050","triggerEvery":3,"status":"active","supplyIdsOverride":["10000000-0000-4000-8000-000000000072"],"revision":1,"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "tasks": [
+      {"id":"10000000-0000-4000-8000-000000000060","workspaceId":"10000000-0000-4000-8000-000000000001","routineId":"10000000-0000-4000-8000-000000000050","routineRevision":1,"triggerOrdinal":2,"routineNameSnapshot":"Deep clean oven","actionNameSnapshot":"Degrease","cleanlinessChannel":"deep","careLevel":"deep","scheduledSlotAt":"2026-09-15T16:30:00.000Z","effectiveDueAt":"2026-09-15T16:30:00.000Z","originalDueAt":"2026-09-15T16:30:00.000Z","dueAt":"2026-09-15T16:30:00.000Z","state":"scheduled","assignmentScope":"member","assigneeMemberId":"10000000-0000-4000-8000-000000000002","targets":[{"entityId":"10000000-0000-4000-8000-000000000023","entityName":"Oven","entityTypeName":"Appliance","matchReasons":["Selected directly"]}],"supplies":[{"supplyId":"10000000-0000-4000-8000-000000000070","supplyName":"Degreaser"}],"explanation":{"schedule":"Every 2 weeks","assignment":"Assigned to Alex","targetSummary":"Oven"},"version":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000061","workspaceId":"10000000-0000-4000-8000-000000000001","routineId":"10000000-0000-4000-8000-000000000051","routineRevision":1,"triggerOrdinal":8,"routineNameSnapshot":"Wipe kitchen sink","actionNameSnapshot":"Wipe","cleanlinessChannel":"regular","careLevel":"routine","scheduledSlotAt":"2026-09-15T06:00:00.000Z","effectiveDueAt":"2026-09-15T06:00:00.000Z","originalDueAt":"2026-09-15T06:00:00.000Z","dueAt":"2026-09-15T06:00:00.000Z","completedAt":"2026-09-15T06:12:00.000Z","state":"completed","assignmentScope":"everyone","targets":[{"entityId":"10000000-0000-4000-8000-000000000024","entityName":"Kitchen sink","entityTypeName":"Surface","matchReasons":["Selected directly"],"completedAt":"2026-09-15T06:12:00.000Z","completedByMemberId":"10000000-0000-4000-8000-000000000003"}],"supplies":[{"supplyId":"10000000-0000-4000-8000-000000000071","supplyName":"General cleaner"}],"explanation":{"schedule":"Every 2 days","assignment":"Household","targetSummary":"Kitchen sink"},"version":2,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000062","workspaceId":"10000000-0000-4000-8000-000000000001","routineId":"10000000-0000-4000-8000-000000000052","routineRevision":1,"triggerOrdinal":3,"routineNameSnapshot":"Vacuum living room","actionNameSnapshot":"Vacuum","cleanlinessChannel":"regular","careLevel":"routine","scheduledSlotAt":"2026-09-14T08:00:00.000Z","effectiveDueAt":"2026-09-16T08:00:00.000Z","originalDueAt":"2026-09-14T08:00:00.000Z","dueAt":"2026-09-16T08:00:00.000Z","state":"scheduled","assignmentScope":"member","assigneeMemberId":"10000000-0000-4000-8000-000000000003","targets":[{"entityId":"10000000-0000-4000-8000-000000000022","entityName":"Living room","entityTypeName":"Room","matchReasons":["Selected directly"]},{"entityId":"10000000-0000-4000-8000-000000000026","entityName":"Sofa","entityTypeName":"Furniture","matchReasons":["Descendant of Living room"]}],"supplies":[],"explanation":{"schedule":"Weekly after completion","assignment":"Alternate members","targetSummary":"Living room and descendants"},"version":2,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000063","workspaceId":"10000000-0000-4000-8000-000000000001","routineId":"10000000-0000-4000-8000-000000000050","routineRevision":1,"triggerOrdinal":3,"routineNameSnapshot":"Deep clean oven","actionNameSnapshot":"Degrease","cleanlinessChannel":"deep","careLevel":"deep","scheduledSlotAt":"2026-09-29T16:30:00.000Z","effectiveDueAt":"2026-09-29T16:30:00.000Z","originalDueAt":"2026-09-29T16:30:00.000Z","dueAt":"2026-09-29T16:30:00.000Z","state":"scheduled","assignmentScope":"member","assigneeMemberId":"10000000-0000-4000-8000-000000000002","targets":[{"entityId":"10000000-0000-4000-8000-000000000023","entityName":"Oven","entityTypeName":"Appliance","matchReasons":["Selected directly"]}],"supplies":[{"supplyId":"10000000-0000-4000-8000-000000000070","supplyName":"Degreaser"}],"explanation":{"schedule":"Every 2 weeks","assignment":"Assigned to Alex","targetSummary":"Oven"},"version":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000064","workspaceId":"10000000-0000-4000-8000-000000000001","routineId":"10000000-0000-4000-8000-000000000053","routineRevision":1,"triggerOrdinal":3,"parentOccurrenceId":"10000000-0000-4000-8000-000000000063","routineNameSnapshot":"Descale coffee machine","actionNameSnapshot":"Descale","cleanlinessChannel":"deep","careLevel":"deep","scheduledSlotAt":"2026-09-29T16:30:00.000Z","effectiveDueAt":"2026-09-29T16:30:00.000Z","originalDueAt":"2026-09-29T16:30:00.000Z","dueAt":"2026-09-29T16:30:00.000Z","state":"scheduled","assignmentScope":"member","assigneeMemberId":"10000000-0000-4000-8000-000000000002","targets":[{"entityId":"10000000-0000-4000-8000-000000000027","entityName":"Coffee machine","entityTypeName":"Appliance","matchReasons":["Linked every 3 parent triggers"]}],"supplies":[{"supplyId":"10000000-0000-4000-8000-000000000072","supplyName":"Descaler"}],"explanation":{"schedule":"Every 3 parent triggers","assignment":"Inherited from parent","targetSummary":"Coffee machine"},"version":1,"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "taskEvents": [
+      {"id":"10000000-0000-4000-8000-000000000080","workspaceId":"10000000-0000-4000-8000-000000000001","taskId":"10000000-0000-4000-8000-000000000061","type":"COMPLETED","at":"2026-09-15T06:12:00.000Z","actorMemberId":"10000000-0000-4000-8000-000000000003","metadata":{}},
+      {"id":"10000000-0000-4000-8000-000000000081","workspaceId":"10000000-0000-4000-8000-000000000001","taskId":"10000000-0000-4000-8000-000000000062","type":"POSTPONED","at":"2026-09-14T07:30:00.000Z","actorMemberId":"10000000-0000-4000-8000-000000000003","metadata":{"from":"2026-09-14T08:00:00.000Z","to":"2026-09-16T08:00:00.000Z"}}
+    ],
+    "healthTrajectories": [
+      {"workspaceId":"10000000-0000-4000-8000-000000000001","itemId":"10000000-0000-4000-8000-000000000024","routineId":"10000000-0000-4000-8000-000000000051","cleanlinessChannel":"regular","healthAnchorAt":"2026-09-15T06:12:00.000Z","healthAnchorPct":100,"healthDueAt":"2026-09-17T06:00:00.000Z","healthOverdueEndAt":"2026-09-19T06:00:00.000Z","lastRefreshCompletionId":"10000000-0000-4000-8000-000000000090","updatedAt":"2026-09-15T06:12:00.000Z"},
+      {"workspaceId":"10000000-0000-4000-8000-000000000001","itemId":"10000000-0000-4000-8000-000000000023","routineId":"10000000-0000-4000-8000-000000000050","cleanlinessChannel":"deep","healthAnchorAt":"2026-09-01T16:45:00.000Z","healthAnchorPct":100,"healthDueAt":"2026-09-15T16:30:00.000Z","healthOverdueEndAt":"2026-09-29T16:30:00.000Z","lastRefreshCompletionId":"10000000-0000-4000-8000-000000000091","updatedAt":"2026-09-01T16:45:00.000Z"}
+    ],
+    "completionSnapshots": [
+      {"id":"10000000-0000-4000-8000-000000000090","workspaceId":"10000000-0000-4000-8000-000000000001","occurrenceId":"10000000-0000-4000-8000-000000000061","sourceRoutineId":"10000000-0000-4000-8000-000000000051","trajectoryRoutineId":"10000000-0000-4000-8000-000000000051","itemId":"10000000-0000-4000-8000-000000000024","cleanlinessChannel":"regular","completedAt":"2026-09-15T06:12:00.000Z","refreshLevelPctSnapshot":100,"cleanlinessBeforePct":8,"cleanlinessAfterPct":100,"healthRefreshApplied":true,"scheduledSlotAt":"2026-09-15T06:00:00.000Z","actorMemberId":"10000000-0000-4000-8000-000000000003"}
+    ],
+    "supplies": [
+      {"id":"10000000-0000-4000-8000-000000000070","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Degreaser","status":"low","quantity":1,"unit":"bottle","metadata":{},"version":2,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000071","workspaceId":"10000000-0000-4000-8000-000000000001","name":"General cleaner","status":"available","quantity":2,"unit":"bottles","metadata":{},"version":1,"createdAt":"2026-09-01T08:00:00.000Z"},
+      {"id":"10000000-0000-4000-8000-000000000072","workspaceId":"10000000-0000-4000-8000-000000000001","name":"Descaler","status":"reserve_only","quantity":1,"unit":"sachet","metadata":{},"version":1,"createdAt":"2026-09-01T08:00:00.000Z"}
+    ],
+    "supplyEvents": [
+      {"id":"10000000-0000-4000-8000-000000000100","workspaceId":"10000000-0000-4000-8000-000000000001","supplyId":"10000000-0000-4000-8000-000000000070","type":"STOCK_CHANGED","at":"2026-09-15T18:00:00.000Z","actorMemberId":"10000000-0000-4000-8000-000000000002","metadata":{"status":"low"}}
+    ]
+  }
+}

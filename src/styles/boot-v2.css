@@ -1,0 +1,16 @@
+/* Phase 14 branded boot: vector characters + restrained screenprint motif. */
+.boot-screen { background:var(--color-canvas); }
+.boot-screenprint { position:absolute; inset:0; opacity:.24; pointer-events:none;
+  background-image:radial-gradient(circle at 2px 2px,color-mix(in srgb,var(--hc-art-ink) 15%,transparent) 0 .8px,transparent 1px);
+  background-size:12px 12px; mask-image:radial-gradient(circle at 55% 48%,transparent 10%,black 125%); }
+.boot-logo-shell { border:2px solid var(--hc-art-ink); border-radius:25px; background:var(--hc-art-paper); box-shadow:6px 6px 0 color-mix(in srgb,var(--hc-art-primary) 18%,transparent); }
+.boot-logo-stage { width:136px; height:136px; }
+.boot-wordmark { font-family:var(--hc-font-display); letter-spacing:-.055em; }
+.boot-wordmark span,.boot-wordmark strong { font-family:inherit; }
+.boot-vector-motif { width:clamp(130px,42vw,175px); display:flex; align-items:center; justify-content:center; gap:6px; border-radius:11px;
+  background:color-mix(in srgb,var(--hc-art-mustard) 10%,var(--color-surface)); border:1px solid var(--color-line); padding:4px 7px; }
+.boot-vector-motif .hc-v2-svg-primitive { flex:1 1 0; min-width:0; aspect-ratio:1; }
+.boot-vector-motif svg { display:block; width:100%; height:100%; }
+.boot-vector-star { font-size:1.2rem; color:var(--hc-art-mustard); }
+@media(prefers-reduced-motion:reduce) { .boot-screenprint,.boot-vector-motif,.boot-vector-star { animation:none!important; } .boot-screen.boot-exiting { filter:none; transform:none; } }
+body[data-v2-no-art="true"] .boot-vector-motif { display:none; }

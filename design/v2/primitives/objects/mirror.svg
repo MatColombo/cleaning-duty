@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-mirror-export-mirror-15cueeo-title" focusable="false" data-hc-primitive="mirror" data-hc-id-scope="hc-v2-mirror-export-mirror-15cueeo">
+    <title id="hc-v2-mirror-export-mirror-15cueeo-title">mirror</title>
+    <defs><pattern id="hc-v2-mirror-export-mirror-15cueeo-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><rect x="57" y="24" width="126" height="186" rx="26" fill="var(--hc-art-mustard)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><rect x="70" y="37" width="100" height="159" rx="18" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M83 109 L133 51 M84 161 L152 83" stroke="var(--hc-art-surface)" stroke-width="10" stroke-linecap="round" fill="none" opacity=".65"/><path d="M74 175 H166 V190 H74 Z" fill="url(#hc-v2-mirror-export-mirror-15cueeo-halftoneFine)" opacity=".35"/></g>
+    
+  </svg>

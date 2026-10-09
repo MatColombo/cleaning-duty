@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>House Care V2 Phase 2 Brand Preview</title>
+<style>
+  :root { --paper:#F4E8D0; --cream:#FFF9EC; --ink:#153D3A; --teal:#1F6B63; --mustard:#C38A32; --coral:#C65E48; --turquoise:#4E9D94; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:48px; background:var(--paper); color:var(--ink); font-family:Arial,sans-serif; }
+  main { width:min(1200px,100%); margin:auto; display:grid; gap:28px; }
+  .panel { padding:28px; border:2px solid color-mix(in srgb,var(--ink) 18%,transparent); border-radius:22px; background:var(--cream); }
+  .brand-row { display:grid; grid-template-columns:2fr 1fr 1fr; gap:22px; align-items:center; }
+  img { max-width:100%; display:block; }
+  h1,h2,.display { font-family:"Fraunces Variable",Fraunces,Georgia,serif; }
+  h1 { margin:0 0 8px; font-size:60px; line-height:.95; }
+  h2 { margin:0 0 12px; font-size:30px; }
+  p { margin:0; line-height:1.55; }
+  .samples { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+  .sample { padding:20px; background:var(--paper); border-radius:16px; }
+  .sample .display { font-size:34px; font-weight:800; margin-bottom:12px; }
+  .swatches { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+  .swatch { height:86px; border-radius:14px; padding:10px; display:flex; align-items:flex-end; font-weight:700; font-size:12px; }
+  .dark { color:white; }
+</style>
+<main>
+  <section class="panel brand-row">
+    <img src="../../../public/brand/v2/house-care-wordmark.svg" alt="House Care wordmark">
+    <img src="../../../public/brand/v2/house-care-mark.svg" alt="House Care compact mark">
+    <img src="../../../public/brand/v2/house-care-app-mark.svg" alt="House Care app mark">
+  </section>
+  <section class="panel">
+    <h1>House Care</h1>
+    <p>V2 brand foundation — modern operational clarity with restrained mid-century print character.</p>
+  </section>
+  <section class="samples">
+    <div class="panel sample"><div class="display">A cleaner, happier home.</div><p>Regular cleanliness · Deep cleanliness · Complete · Reschedule · Supplies · Timeline</p></div>
+    <div class="panel sample" lang="it"><div class="display">Una casa più pulita e felice.</div><p>Pulizia ordinaria · Pulizia profonda · Completa · Ripianifica · Prodotti · Cronologia</p></div>
+  </section>
+  <section class="panel swatches">
+    <div class="swatch" style="background:#F4E8D0">Paper</div>
+    <div class="swatch" style="background:#FFF9EC">Cream</div>
+    <div class="swatch dark" style="background:#153D3A">Ink</div>
+    <div class="swatch dark" style="background:#1F6B63">Teal</div>
+    <div class="swatch" style="background:#C38A32">Mustard</div>
+    <div class="swatch" style="background:#C65E48">Coral</div>
+    <div class="swatch dark" style="background:#4E9D94">Turquoise</div>
+  </section>
+  <section class="panel"><img src="../../../public/brand/v2/house-care-wordmark-decorative.svg" alt="Decorative House Care wordmark"></section>
+</main>
+</html>

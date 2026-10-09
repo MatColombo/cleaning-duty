@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-floor-patch-export-floor-patch-oe2nz4-title" focusable="false" data-hc-primitive="floor-patch" data-hc-id-scope="hc-v2-floor-patch-export-floor-patch-oe2nz4">
+    <title id="hc-v2-floor-patch-export-floor-patch-oe2nz4-title">floor-patch</title>
+    <defs><pattern id="hc-v2-floor-patch-export-floor-patch-oe2nz4-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><path d="M20 152 L89 93 L213 126 L148 203 Z" fill="var(--hc-art-primary-soft)" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M89 93 L148 203 M153 110 L84 173 M190 120 L121 191" fill="none" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" opacity=".45"/><path d="M30 148 L148 194 L206 129" fill="none" stroke="var(--hc-art-surface)" stroke-width="6"/><path d="M84 145 L177 157 L163 186 L70 172 Z" fill="url(#hc-v2-floor-patch-export-floor-patch-oe2nz4-halftoneFine)" opacity=".6"/></g>
+    
+  </svg>

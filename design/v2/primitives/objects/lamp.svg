@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-lamp-export-lamp-bcfqg-title" focusable="false" data-hc-primitive="lamp" data-hc-id-scope="hc-v2-lamp-export-lamp-bcfqg">
+    <title id="hc-v2-lamp-export-lamp-bcfqg-title">lamp</title>
+    <defs><pattern id="hc-v2-lamp-export-lamp-bcfqg-halftoneMedium" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.45" fill="var(--hc-art-ink)" opacity="0.2" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="82" ry="9" fill="var(--hc-art-ink)" opacity=".12"/><path d="M96 69 H148 L176 127 H67 Z" fill="var(--hc-art-mustard)" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M88 105 H157 L167 126 H78 Z" fill="url(#hc-v2-lamp-export-lamp-bcfqg-halftoneMedium)" opacity=".5"/><path d="M122 128 V208" stroke="var(--hc-art-ink)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M86 208 H156" stroke="var(--hc-art-ink)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="123" cy="136" r="7" fill="var(--hc-art-surface)"/><path d="M80 65 Q115 45 150 65" stroke="var(--hc-art-coral)" stroke-width="5" fill="none" stroke-linecap="round"/></g>
+    
+  </svg>

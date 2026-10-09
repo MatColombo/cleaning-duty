@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-bucket-export-bucket-1igpuy4-title" focusable="false" data-hc-primitive="bucket" data-hc-id-scope="hc-v2-bucket-export-bucket-1igpuy4">
+    <title id="hc-v2-bucket-export-bucket-1igpuy4-title">bucket</title>
+    <defs><pattern id="hc-v2-bucket-export-bucket-1igpuy4-halftoneMedium" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.45" fill="var(--hc-art-ink)" opacity="0.2" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><path d="M66 105 Q58 42 120 40 Q180 40 174 105" fill="none" stroke="var(--hc-art-ink)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M48 92 H193 L179 207 H63 Z" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><rect x="42" y="82" width="157" height="22" rx="9" fill="var(--hc-art-surface)" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M64 182 H176 V201 H64 Z" fill="url(#hc-v2-bucket-export-bucket-1igpuy4-halftoneMedium)" opacity=".6"/><path d="M80 113 H159" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none" opacity=".35"/></g>
+    
+  </svg>

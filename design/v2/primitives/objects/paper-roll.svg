@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-paper-roll-export-paper-roll-8eudhw-title" focusable="false" data-hc-primitive="paper-roll" data-hc-id-scope="hc-v2-paper-roll-export-paper-roll-8eudhw">
+    <title id="hc-v2-paper-roll-export-paper-roll-8eudhw-title">paper-roll</title>
+    <defs><pattern id="hc-v2-paper-roll-export-paper-roll-8eudhw-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><path d="M64 64 H178 V201 H64 Q46 197 46 172 V90 Q47 65 64 64 Z" fill="var(--hc-art-surface)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="121" cy="64" rx="56" ry="20" fill="var(--hc-art-primary-soft)" stroke="var(--hc-art-ink)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="122" cy="63" rx="20" ry="9" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M60 110 H173 M59 169 H171" stroke="var(--hc-art-turquoise)" stroke-width="4" stroke-dasharray="11 8"/><path d="M64 184 H172 V197 H64 Z" fill="url(#hc-v2-paper-roll-export-paper-roll-8eudhw-halftoneFine)" opacity=".4"/></g>
+    
+  </svg>

@@ -1,3 +1,4 @@
+import { deriveVisualInkRoles } from '../visual/VisualPaletteAdapter'
 export const themeTokenKeys = [
   'canvas',
   'surface',
@@ -14,6 +15,7 @@ export const themeTokenKeys = [
 export type ThemeTokenKey = typeof themeTokenKeys[number]
 export type ThemePalette = Record<ThemeTokenKey, string>
 export type ThemePresetId =
+  | 'house-care-retro'
   | 'fresh-sage'
   | 'warm-clay'
   | 'coastal-blue'
@@ -49,6 +51,12 @@ export const themePresets: ThemePreset[] = [
     name: 'Fresh Sage',
     category: 'classic',
     palette: { canvas: '#F7F7F2', surface: '#FFFFFF', surfaceSoft: '#EEF3EF', ink: '#1D2A24', inkMuted: '#66716A', primary: '#2F6F5E', primarySoft: '#B7D8C9', due: '#E7B65A', overdue: '#D97A61', danger: '#B54A4A' },
+  },
+  {
+    id: 'house-care-retro',
+    name: 'House Care Retro',
+    category: 'classic',
+    palette: { canvas: '#F4E8D0', surface: '#FFF9EC', surfaceSoft: '#E8DDC7', ink: '#153D3A', inkMuted: '#586663', primary: '#1F6B63', primarySoft: '#C7D7CB', due: '#C38A32', overdue: '#C65E48', danger: '#A93F3A' },
   },
   {
     id: 'warm-clay',
@@ -213,6 +221,21 @@ export function applyTheme(palette: ThemePalette) {
   root.style.setProperty('--color-danger', palette.danger)
   root.style.setProperty('--color-on-primary', bestForeground(palette.primary))
   root.style.setProperty('--color-on-danger', bestForeground(palette.danger))
+  // Art-only ink safety. Never mutate or block the chosen user palette.
+  const art = deriveVisualInkRoles(palette)
+  const artVars: Record<string, string> = {
+    '--hc-art-paper': art.paper,
+    '--hc-art-surface': palette.surface,
+    '--hc-art-ink': art.outline,
+    '--hc-art-ink-muted': art.outline,
+    '--hc-art-primary': art.primary,
+    '--hc-art-primary-soft': art.soft,
+    '--hc-art-mustard': art.warning,
+    '--hc-art-coral': art.overdue,
+    '--hc-art-danger': art.overdue,
+    '--hc-art-turquoise': art.primary,
+  }
+  for (const [key, value] of Object.entries(artVars)) root.style.setProperty(key, value)
   root.style.colorScheme = luminance(palette.canvas) < 0.28 ? 'dark' : 'light'
   document.querySelector('meta[name=\"theme-color\"]')?.setAttribute('content', palette.canvas)
 }

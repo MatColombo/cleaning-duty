@@ -1,0 +1,291 @@
+{
+  "visualGeneratorVersion": 1,
+  "description": "Immutable v1 golden outputs. Changing this file requires an intentional generator-version upgrade.",
+  "cases": [
+    {
+      "input": {
+        "routineId": "routine-oven",
+        "actionId": "action-degrease",
+        "primaryTargetId": "entity-oven",
+        "occurrenceId": "task-oven-0005",
+        "triggerOrdinal": 5,
+        "subjectName": "Oven",
+        "subjectTypeName": "Appliance",
+        "actionName": "Degrease",
+        "environmentName": "Kitchen"
+      },
+      "recipe": {
+        "version": 1,
+        "stableSeed": "jj16f4",
+        "occurrenceSeed": "10vbphp",
+        "semantics": {
+          "level": "exact-subject",
+          "subjectFamily": "appliance",
+          "subjectId": "oven",
+          "toolId": "spray-bottle",
+          "actionFamily": "degrease",
+          "environment": "kitchen"
+        },
+        "paletteVariant": "teal",
+        "template": "split-panel",
+        "border": "ticket",
+        "backgroundPattern": "halftoneFine",
+        "personality": "focused",
+        "expression": "worried",
+        "pose": "fist-pump",
+        "decorations": [
+          {
+            "id": "sparkle-6",
+            "x": 68,
+            "y": 289,
+            "scale": 0.2
+          },
+          {
+            "id": "shine",
+            "x": 504,
+            "y": 268,
+            "scale": 0.37
+          }
+        ],
+        "halftone": "coarse",
+        "inkOffset": {
+          "x": -0.1,
+          "y": 0.7
+        },
+        "distress": 0.18,
+        "edition": {
+          "stamp": "edition",
+          "ordinal": 5
+        }
+      }
+    },
+    {
+      "input": {
+        "routineId": "routine-oven",
+        "actionId": "action-degrease",
+        "primaryTargetId": "entity-oven",
+        "occurrenceId": "task-oven-0006",
+        "triggerOrdinal": 6,
+        "subjectName": "Oven",
+        "subjectTypeName": "Appliance",
+        "actionName": "Degrease",
+        "environmentName": "Kitchen"
+      },
+      "recipe": {
+        "version": 1,
+        "stableSeed": "jj16f4",
+        "occurrenceSeed": "zyhmsr",
+        "semantics": {
+          "level": "exact-subject",
+          "subjectFamily": "appliance",
+          "subjectId": "oven",
+          "toolId": "spray-bottle",
+          "actionFamily": "degrease",
+          "environment": "kitchen"
+        },
+        "paletteVariant": "teal",
+        "template": "split-panel",
+        "border": "ticket",
+        "backgroundPattern": "halftoneFine",
+        "personality": "focused",
+        "expression": "focused",
+        "pose": "fist-pump",
+        "decorations": [
+          {
+            "id": "dust",
+            "x": 108,
+            "y": 215,
+            "scale": 0.26
+          },
+          {
+            "id": "sparkle-6",
+            "x": 504,
+            "y": 98,
+            "scale": 0.36
+          }
+        ],
+        "halftone": "medium",
+        "inkOffset": {
+          "x": 1.1,
+          "y": 0.6
+        },
+        "distress": 0.16,
+        "edition": {
+          "stamp": "fine-print",
+          "ordinal": 6
+        }
+      }
+    },
+    {
+      "input": {
+        "routineId": "routine-sink",
+        "actionId": "action-wipe",
+        "primaryTargetId": "entity-sink",
+        "occurrenceId": "task-sink-0001",
+        "triggerOrdinal": 1,
+        "subjectName": "Lavello cucina",
+        "subjectTypeName": "Surface",
+        "actionName": "Passare panno",
+        "environmentName": "Cucina"
+      },
+      "recipe": {
+        "version": 1,
+        "stableSeed": "4zbu6f",
+        "occurrenceSeed": "tk3wz8",
+        "semantics": {
+          "level": "exact-subject",
+          "subjectFamily": "fixture",
+          "subjectId": "sink",
+          "toolId": "cloth",
+          "actionFamily": "wipe",
+          "environment": "kitchen"
+        },
+        "paletteVariant": "mustard",
+        "template": "split-panel",
+        "border": "double",
+        "backgroundPattern": "halftoneCoarse",
+        "personality": "steady",
+        "expression": "neutral",
+        "pose": "hold-cloth",
+        "decorations": [
+          {
+            "id": "action-rays",
+            "x": 144,
+            "y": 84,
+            "scale": 0.35
+          },
+          {
+            "id": "droplets",
+            "x": 506,
+            "y": 325,
+            "scale": 0.26
+          },
+          {
+            "id": "bubbles",
+            "x": 142,
+            "y": 280,
+            "scale": 0.25
+          }
+        ],
+        "halftone": "medium",
+        "inkOffset": {
+          "x": -0.2,
+          "y": -0.4
+        },
+        "distress": 0.18,
+        "edition": {
+          "stamp": "daily-care",
+          "ordinal": 1
+        }
+      }
+    },
+    {
+      "input": {
+        "routineId": "routine-coffee",
+        "actionId": "action-descale",
+        "primaryTargetId": "entity-coffee",
+        "occurrenceId": "task-coffee-0003",
+        "triggerOrdinal": 3,
+        "isLinkedActivity": true,
+        "subjectName": "Macchina del caffe",
+        "subjectTypeName": "Appliance",
+        "actionName": "Decalcificare",
+        "environmentName": "Cucina"
+      },
+      "recipe": {
+        "version": 1,
+        "stableSeed": "zov8xb",
+        "occurrenceSeed": "xmpu69",
+        "semantics": {
+          "level": "exact-subject",
+          "subjectFamily": "appliance",
+          "subjectId": "coffee-machine",
+          "toolId": "cleaner-bottle",
+          "actionFamily": "descale",
+          "environment": "kitchen"
+        },
+        "paletteVariant": "turquoise",
+        "template": "medallion",
+        "border": "ticket",
+        "backgroundPattern": "halftoneDiagonal",
+        "personality": "focused",
+        "expression": "sweaty",
+        "pose": "hold-sponge",
+        "decorations": [
+          {
+            "id": "action-rays",
+            "x": 117,
+            "y": 110,
+            "scale": 0.32
+          }
+        ],
+        "halftone": "medium",
+        "inkOffset": {
+          "x": 1.1,
+          "y": -0.6
+        },
+        "distress": 0.23,
+        "edition": {
+          "stamp": "extra-care",
+          "ordinal": 3
+        }
+      }
+    },
+    {
+      "input": {
+        "routineId": "routine-mystery",
+        "actionId": "action-mystery",
+        "primaryTargetId": "entity-mystery",
+        "occurrenceId": "task-mystery-0007",
+        "triggerOrdinal": 7,
+        "subjectName": "Zzz blorp flub",
+        "subjectTypeName": "Unknown object",
+        "actionName": "Zrrpz",
+        "environmentName": "New world"
+      },
+      "recipe": {
+        "version": 1,
+        "stableSeed": "197s5mp",
+        "occurrenceSeed": "56r51",
+        "semantics": {
+          "level": "generic",
+          "subjectFamily": "generic-object",
+          "subjectId": "generic-surface",
+          "actionFamily": "generic-care",
+          "environment": "generic-interior"
+        },
+        "paletteVariant": "teal",
+        "template": "center-stage",
+        "border": "ticket",
+        "backgroundPattern": "halftoneFine",
+        "personality": "steady",
+        "expression": "smile",
+        "pose": "hands-on-hips",
+        "decorations": [
+          {
+            "id": "bubbles",
+            "x": 128,
+            "y": 59,
+            "scale": 0.19
+          },
+          {
+            "id": "sparkle-4",
+            "x": 531,
+            "y": 269,
+            "scale": 0.19
+          }
+        ],
+        "halftone": "medium",
+        "inkOffset": {
+          "x": -1.1,
+          "y": 1
+        },
+        "distress": 0.09,
+        "edition": {
+          "stamp": "house-care",
+          "ordinal": 7
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-window-export-window-mzqsok-title" focusable="false" data-hc-primitive="window" data-hc-id-scope="hc-v2-window-export-window-mzqsok">
+    <title id="hc-v2-window-export-window-mzqsok-title">window</title>
+    <defs><pattern id="hc-v2-window-export-window-mzqsok-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="82" ry="9" fill="var(--hc-art-ink)" opacity=".12"/><rect x="38" y="20" width="164" height="187" rx="5" fill="var(--hc-art-surface)" stroke="var(--hc-art-ink)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><rect x="51" y="32" width="138" height="160" rx="2" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M120 34 V191 M52 115 H189" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M58 100 L104 50 M128 175 L172 131" stroke="var(--hc-art-surface)" stroke-width="10" stroke-linecap="round"/><path d="M53 175 H187 V190 H53 Z" fill="url(#hc-v2-window-export-window-mzqsok-halftoneFine)"/><path d="M26 207 H215" stroke="var(--hc-art-ink)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+    
+  </svg>

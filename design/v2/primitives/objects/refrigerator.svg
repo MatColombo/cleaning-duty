@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="hc-v2-refrigerator-export-refrigerator-1t43twg-title" focusable="false" data-hc-primitive="refrigerator" data-hc-id-scope="hc-v2-refrigerator-export-refrigerator-1t43twg">
+    <title id="hc-v2-refrigerator-export-refrigerator-1t43twg-title">refrigerator</title>
+    <defs><pattern id="hc-v2-refrigerator-export-refrigerator-1t43twg-halftoneFine" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="0.8" fill="var(--hc-art-ink)" opacity="0.22" /></pattern></defs>
+    
+    <g data-hc-layer="body"><ellipse cx="120" cy="222" rx="83" ry="6" fill="var(--hc-art-ink)" opacity=".13"/><rect x="57" y="23" width="128" height="191" rx="13" fill="var(--hc-art-surface)" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><path d="M60 111 H183" stroke="var(--hc-art-ink)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill="none"/><rect x="65" y="29" width="112" height="77" rx="5" fill="var(--hc-art-turquoise)" stroke="var(--hc-art-ink)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M75 38 H171 V100 H75 Z" fill="url(#hc-v2-refrigerator-export-refrigerator-1t43twg-halftoneFine)" opacity=".33"/><path d="M76 83 V102 M77 137 V160" fill="none" stroke="var(--hc-art-ink)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M83 211 v9 M162 211 v9" stroke="var(--hc-art-ink)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/></g>
+    
+  </svg>

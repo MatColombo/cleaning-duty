@@ -1,0 +1,62 @@
+/* House Care V2 vector rendering foundation. No V1 page selectors live here. */
+.hc-v2-paper {
+  background-color: var(--hc-art-paper);
+  background-image:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--hc-art-ink) 9%, transparent) 0 0.55px, transparent 0.7px),
+    radial-gradient(circle at 4px 5px, color-mix(in srgb, var(--hc-art-coral) 5%, transparent) 0 0.45px, transparent 0.6px);
+  background-size: 7px 7px, 11px 11px;
+}
+
+.hc-v2-svg-primitive {
+  display: inline-flex;
+  width: 100%;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.hc-v2-svg-primitive > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.hc-vector-demo {
+  min-height: 100%;
+  padding: clamp(16px, 4vw, 36px);
+  color: var(--color-ink);
+}
+
+.hc-vector-demo > header {
+  max-width: 720px;
+  margin: 0 auto 24px;
+}
+
+.hc-vector-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 16px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.hc-vector-demo-card {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 24%, transparent);
+  border-radius: var(--hc-radius-card);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+}
+
+.hc-vector-demo-card .hc-v2-svg-primitive {
+  max-width: 420px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-v2-svg-primitive {
+    transition: none !important;
+    animation: none !important;
+  }
+}

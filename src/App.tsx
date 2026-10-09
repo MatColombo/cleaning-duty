@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
+import { LegacyRouteRedirect } from './components/LegacyRouteRedirect'
 import { BootScreen } from './components/BootScreen'
 import { useAuth } from './contexts/AuthContext'
 import { useData } from './contexts/DataContext'
@@ -14,6 +15,8 @@ import { SettingsPage } from './pages/SettingsPage'
 import { SuppliesPage } from './pages/SuppliesPage'
 import { SetupPage } from './pages/SetupPage'
 import { OverviewPage } from './pages/OverviewPage'
+import { TimelinePage } from './pages/TimelinePage'
+import { TaskRouteResolver } from './pages/TaskRouteResolver'
 import { applyTheme } from './lib/theme'
 
 export default function App() {
@@ -61,10 +64,12 @@ export default function App() {
       else content = <Routes>
         <Route element={<AppShell />}>
           <Route index element={<OverviewPage />} />
-          <Route path="today" element={<Navigate to="/" replace />} />
-          <Route path="task/:taskId" element={<OverviewPage />} />
+          <Route path="today" element={<LegacyRouteRedirect />} />
+          <Route path="timeline" element={<TimelinePage />} />
+          <Route path="task/:taskId" element={<TaskRouteResolver />} />
           <Route path="home" element={<HomePage />} />
-          <Route path="insights" element={<InsightsPage />} />
+          <Route path="analysis" element={<InsightsPage />} />
+          <Route path="insights" element={<LegacyRouteRedirect />} />
           <Route path="actions" element={<ActionsPage />} />
           <Route path="routines" element={<RoutinesPage />} />
           <Route path="supplies" element={<SuppliesPage />} />

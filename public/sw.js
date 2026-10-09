@@ -1,7 +1,8 @@
-const VERSION = 'v1.2.1-r4'
-const SHELL_CACHE = `house-care-shell-${VERSION}`
-const RUNTIME_CACHE = `house-care-runtime-${VERSION}`
-const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/favicon-32.png?v=1.2.1', '/apple-touch-icon.png?v=1.2.1', '/icon-192.png', '/icon-512.png', '/icon-192.png?v=1.2.1', '/icon-512.png?v=1.2.1', '/icon-maskable-192.png?v=1.2.1', '/icon-maskable-512.png?v=1.2.1']
+const VERSION = 'v2.0.0-rc.1'
+const BRAND_ASSET_REVISION = 'retro-assets-v2-rc1'
+const SHELL_CACHE = `house-care-shell-${VERSION}-${BRAND_ASSET_REVISION}`
+const RUNTIME_CACHE = `house-care-runtime-${VERSION}-${BRAND_ASSET_REVISION}`
+const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/brand/v2/house-care-app-mark.svg', '/brand/v2/house-care-maskable-mark.svg', '/brand/v2/favicon-32.png?v=2.0.0-rc.1', '/brand/v2/apple-touch-icon.png?v=2.0.0-rc.1', '/brand/v2/app-icon-192.png?v=2.0.0-rc.1', '/brand/v2/app-icon-512.png?v=2.0.0-rc.1', '/brand/v2/app-icon-maskable-192.png?v=2.0.0-rc.1', '/brand/v2/app-icon-maskable-512.png?v=2.0.0-rc.1', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL)))

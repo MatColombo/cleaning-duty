@@ -1,0 +1,64 @@
+:root {
+    font-family: "Manrope Variable", Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #17221d;
+    background: #f4f5f1;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    --ink: var(--color-ink);
+    --muted: var(--color-ink-muted);
+    --surface: var(--color-surface);
+    --surface-soft: var(--color-surface-soft);
+    --line: var(--color-line);
+    --primary: var(--color-primary);
+    --primary-ink: var(--color-on-primary);
+    --danger: var(--color-danger);
+    --warn: var(--color-due);
+    --radius: 18px;
+    --color-canvas: #F7F7F2;
+    --color-surface: #FFFFFF;
+    --color-surface-soft: #EEF3EF;
+    --color-ink: #1D2A24;
+    --color-ink-muted: #66716A;
+    --color-primary: #2F6F5E;
+    --color-primary-soft: #B7D8C9;
+    --color-due: #E7B65A;
+    --color-overdue: #D97A61;
+    --color-danger: #B54A4A;
+    --color-line: color-mix(in srgb, var(--color-ink) 12%, transparent);
+    --color-line-strong: color-mix(in srgb, var(--color-ink) 22%, transparent);
+    --color-on-primary: #FFFFFF;
+    --color-on-danger: #FFFFFF;
+    --color-shadow: color-mix(in srgb, var(--color-ink) 14%, transparent);
+    --radius-control: 10px;
+    --radius-card: 12px;
+    --radius-sheet: 16px;
+    --motion-press: 100ms;
+    --motion-hover: 140ms;
+    --motion-card: 200ms;
+    --motion-sheet: 260ms;
+    --hc-font-ui: "Manrope Variable", Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --hc-font-display: "Fraunces Variable", Fraunces, Georgia, "Times New Roman", serif;
+    --hc-brand-paper: #F4E8D0;
+    --hc-brand-cream: #FFF9EC;
+    --hc-brand-ink: #153D3A;
+    --hc-brand-teal: #1F6B63;
+    --hc-brand-mustard: #C38A32;
+    --hc-brand-coral: #C65E48;
+    --hc-brand-turquoise: #4E9D94;
+    --hc-art-paper: var(--color-canvas);
+    --hc-art-surface: var(--color-surface);
+    --hc-art-ink: var(--color-ink);
+    --hc-art-ink-muted: var(--color-ink-muted);
+    --hc-art-primary: var(--color-primary);
+    --hc-art-primary-soft: var(--color-primary-soft);
+    --hc-art-mustard: var(--color-due);
+    --hc-art-coral: var(--color-overdue);
+    --hc-art-danger: var(--color-danger);
+    --hc-art-turquoise: color-mix(in srgb, var(--color-primary) 72%, var(--color-canvas));
+    --hc-radius-control: 10px;
+    --hc-radius-card: 12px;
+    --hc-radius-sheet: 16px
+}
+/* House Care V2 foundation tokens.
+   Existing persisted appearance values continue to flow through --color-*.
+   V2 art inks are derived aliases, not new persisted theme fields. */

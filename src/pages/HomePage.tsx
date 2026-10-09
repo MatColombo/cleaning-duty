@@ -1,19 +1,20 @@
-import { CleanlinessMood } from '../components/CleanlinessMood'
-import { ProductStockList, TaskProducts } from '../components/TaskProducts'
-import { activityTitle, activitySubtitle, additionalActivityAppendix, groupLinkedTaskOccurrences } from '../lib/presentation'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
+import { HomeStatusHeader } from '../components/home/HomeStatusHeader'
+import { HomeInspector } from '../components/home/HomeInspector'
+import { RoomModeController } from '../components/home/RoomModeController'
+import { resolveHomeItemSelection } from '../components/home/homeSelection'
 import { EmptyState } from '../components/EmptyState'
 import { FormField } from '../components/FormField'
 import { HomeLayoutCanvas } from '../components/HomeLayoutCanvas'
-import { Illustration } from '../components/Illustration'
+import { SvgCharacter } from '../visual/SvgCharacter'
 import { MetadataFields } from '../components/MetadataFields'
 import { Sheet } from '../components/Sheet'
 import { useData } from '../contexts/DataContext'
 import { useI18n } from '../contexts/I18nContext'
-import { addDays, formatTaskDateTime, formatTaskTime, localDateInZone } from '../lib/date'
 import { careEstimateForEntity, homeCleanlinessSummary, scheduledTasksForEntity, supplyAlertsForEntity } from '../lib/home'
 import { buildRoomWorkflow, roomStatusMap } from '../lib/room'
-import type { Entity, LayoutElement, LayoutRole, LayoutSceneKind, MetadataValue, RelationKind, TaskOccurrence } from '../types/domain'
+import type { Entity, LayoutRole, LayoutSceneKind, MetadataValue, RelationKind, TaskOccurrence } from '../types/domain'
 
 interface UndoState { taskId: string; eventId: string; message: string; fromRoomMode?: boolean }
 
@@ -38,6 +39,7 @@ export function HomePage() {
     undoTaskAction,
   } = useData()
   const { t, locale } = useI18n()
+  const location = useLocation()
   const [editMode, setEditMode] = useState(false)
   const [activeSceneId, setActiveSceneId] = useState('')
   const [selectedElementId, setSelectedElementId] = useState('')
@@ -63,6 +65,16 @@ export function HomePage() {
     if (!scenes.length) { setActiveSceneId(''); return }
     if (!activeSceneId || !scenes.some((scene) => scene.id === activeSceneId)) setActiveSceneId(scenes[0].id)
   }, [scenes, activeSceneId])
+  // Existing critical-item links use /home?item=<entityId>. Select their real
+  // layout placement (if present) without making placement the semantic source.
+  useEffect(() => {
+    if (!data) return
+    const resolved = resolveHomeItemSelection(data, new URLSearchParams(location.search).get('item'))
+    if (!resolved) return
+    setSelectedElementId(resolved.elementId)
+    setSelectedEntityId(resolved.entityId)
+    if (resolved.sceneId) setActiveSceneId(resolved.sceneId)
+  }, [location.search, data?.workspace.id])
   useEffect(() => { const id = window.setInterval(() => setClockNow(new Date()), 60_000); return () => window.clearInterval(id) }, [])
   useEffect(() => { if (!undo) return; const id = window.setTimeout(() => setUndo(null), 7000); return () => window.clearTimeout(id) }, [undo])
 
@@ -136,21 +148,13 @@ export function HomePage() {
     return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([label, rows]) => <optgroup key={label} label={label}>{rows.sort((a, b) => a.name.localeCompare(b.name)).map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}</optgroup>)
   }
 
-  return <div className="stack page-stack home-page">
-    <header className="page-title-row">
-      <div><div className="eyebrow">{t('home')}</div><h1>{editMode ? t('editHome') : t('homeCockpit')}</h1></div>
-      {scenes.length > 0 && <button className={`button ${editMode ? 'primary' : 'secondary'} small`} onClick={() => { setEditMode((value) => !value); setSelectedElementId('') }}>
-        {editMode ? t('doneEditing') : t('editHome')}
-      </button>}
-    </header>
-
-    {scenes.length > 0 && <section className="home-cleanliness-bars" aria-label={t('homeCleanliness')}>
-      <CleanlinessSummary label={t('regularCleanliness')} score={homeCleanliness.regular} />
-      <CleanlinessSummary label={t('deepCleanliness')} score={homeCleanliness.deep} deep />
-    </section>}
+  return <div className={`stack page-stack home-page v2-home-page ${editMode ? "is-editing" : "is-viewing"}`}>
+    <HomeStatusHeader editMode={editMode} hasScenes={scenes.length > 0}
+      regular={homeCleanliness.regular} deep={homeCleanliness.deep}
+      onToggleEdit={() => { setEditMode((value) => !value); setSelectedElementId('') }} />
 
     {!scenes.length ? <section className="empty-layout card section-card">
-      <Illustration id="onboardingHome" className="empty-layout-illustration" />
+      <span className="v2-home-empty-layout-art" aria-hidden="true"><SvgCharacter id="house" decorative expression="smile" pose="wave" misregistration={false} /></span>
       <h2>{t('createHomeLayout')}</h2>
       <p className="muted compact-text">{t('createHomeLayoutHint')}</p>
       <button className="button primary align-start" onClick={() => setSceneOpen(true)}>+ {t('addFloorArea')}</button>
@@ -174,7 +178,10 @@ export function HomePage() {
       </div>}
 
       <div className="home-workspace">
-        <section className="layout-card card">
+        <section className="layout-card card v2-home-layout-card">
+          <div className="v2-home-layout-caption"><strong>{activeScene?.name ?? t('home')}</strong>
+            {!editMode && <span className="v2-home-layout-key"><span className="v2-home-map-key overdue" />{t('overdue')}<span className="v2-home-map-key due" />{t('dueTodayShort')}</span>}
+          </div>
           <div className="layout-zoom-controls" aria-label={t('layoutZoom')}>
             <button type="button" className="icon-button" aria-label={t('zoomOut')} title={t('zoomOut')} disabled={layoutZoom <= 0.75} onClick={() => setLayoutZoom((value) => Math.max(0.75, Math.round((value - 0.25) * 100) / 100))}>−</button>
             <button type="button" className="zoom-readout" title={t('fitLayout')} onClick={() => { setLayoutZoom(1); setFitRequest((value) => value + 1) }}>{Math.round(layoutZoom * 100)}%</button>
@@ -200,8 +207,12 @@ export function HomePage() {
         </section>
 
       </div>
-      <section className={`home-inspector home-selection-details${selectedIsRoom ? ' room-detail-open' : ''}`}>
-        {editMode ? <EditorInspector /> : <CockpitInspector />}
+      <section className={`home-inspector home-selection-details v2-home-inspector${selectedIsRoom && !editMode ? ' room-detail-open' : ''}`}>
+        {editMode ? <EditorInspector /> : <HomeInspector data={data} selectedEntity={selectedEntity}
+          selectedType={types.find((item) => item.id === selectedEntity?.typeId)} selectedCare={selectedCare}
+          selectedTasks={selectedTasks} selectedSupplies={selectedSupplies} isRoom={selectedIsRoom}
+          roomWorkflow={selectedRoomWorkflow} now={clockNow}
+          onClose={() => { setSelectedElementId(''); setSelectedEntityId('') }} onStartRoom={startRoom} />}
       </section>
     </>}
 
@@ -212,172 +223,14 @@ export function HomePage() {
     {connectionOpen && <ConnectionSheet onClose={() => setConnectionOpen(false)} />}
     {typesOpen && <StructureSheet onClose={() => setTypesOpen(false)} />}
     {entityEditOpen && selectedEntity && <EntitySheet entity={selectedEntity} onClose={() => setEntityEditOpen(false)} />}
-    {roomModeEntityId && <RoomModeSheet roomEntityId={roomModeEntityId} onClose={() => setRoomModeEntityId(null)} />}
+    {roomModeEntityId && entities.find((entity) => entity.id === roomModeEntityId) && <RoomModeController
+      room={entities.find((entity) => entity.id === roomModeEntityId)!} data={data} now={clockNow}
+      handled={roomSessionHandled} deferredIds={roomDeferredIds} onDeferredIds={setRoomDeferredIds}
+      onHandled={setRoomSessionHandled} onRememberUndo={(task, eventId, verb) => rememberUndo(task, eventId, verb, true)}
+      completeTask={completeTask} skipTask={skipTask} onClose={() => setRoomModeEntityId(null)} />}
     {undo && <div className="undo-snackbar" role="status"><span>{undo.message}</span><button onClick={() => void undoLast()}>{t('undo')}</button></div>}
   </div>
 
-
-  function careLabel(status: string) {
-    if (status === 'fresh') return t('fresh')
-    if (status === 'good') return t('good')
-    if (status === 'due_soon') return t('dueSoon')
-    if (status === 'needs_attention') return t('needsAttention')
-    if (status === 'overdue') return t('overdue')
-    return t('notTracked')
-  }
-
-  function stockLabel(status: string) {
-    if (status === 'available') return t('available')
-    if (status === 'low') return t('low')
-    if (status === 'reserve_only') return t('reserveOnly')
-    return t('outOfStock')
-  }
-
-  function taskDue(task: TaskOccurrence) {
-    return task.effectiveDueAt ?? task.dueAt
-  }
-
-  function roomTaskWhen(task: TaskOccurrence, compactUpcoming = false) {
-    const due = new Date(taskDue(task))
-    const day = localDateInZone(data!.workspace.timezone, due)
-    const today = localDateInZone(data!.workspace.timezone, clockNow)
-    const tomorrow = addDays(today, 1)
-    if (compactUpcoming && day === tomorrow) return `${t('tomorrow')} · ${formatTaskTime(taskDue(task), locale, data!.workspace.timezone)}`
-    if (compactUpcoming) {
-      const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: data!.workspace.timezone }).format(due)
-      return `${weekday} · ${formatTaskTime(taskDue(task), locale, data!.workspace.timezone)}`
-    }
-    return formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)
-  }
-
-  function RoomTaskRows({ tasks, upcoming = false }: { tasks: TaskOccurrence[]; upcoming?: boolean }) {
-    if (!tasks.length) return <p className="muted compact-text">{t('nothingScheduled')}</p>
-    return <div className="room-task-list">{groupLinkedTaskOccurrences(tasks).map(({ task }) => {
-      const appendix = additionalActivityAppendix(data!, task)
-      return <div className="room-task-row-group" key={task.id}>
-        <div className="room-task-row">
-          <div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div>
-          <small>{roomTaskWhen(task, upcoming)}</small>
-        </div>
-        {appendix.length > 0 && <section className="home-linked-activities configured-appendix" aria-label={t('additionalActivities')}>
-          <div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{appendix.length}</span></div>
-          {appendix.map((entry) => <div className="home-linked-activity configured" key={entry.routine.id}>
-            <div><strong>{entry.routine.name}</strong><small>{[entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')}</small><small>{entry.occurrence ? roomTaskWhen(entry.occurrence, upcoming) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small><div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div></div>
-            {entry.occurrence && <small>{entry.occurrence.state === 'completed' ? t('completed') : entry.occurrence.state === 'skipped' ? t('skipped') : t('toDo')}</small>}
-          </div>)}
-        </section>}
-      </div>
-    })}</div>
-  }
-
-  function CockpitInspector() {
-    if (!selectedEntity || !selectedCare) return <div className="inspector-empty"><span>⌖</span><p>{t('tapLayout')}</p></div>
-    const type = types.find((item) => item.id === selectedEntity.typeId)
-
-    if (selectedIsRoom && selectedRoomWorkflow) return <div className="stack inspector-content room-detail-panel">
-      <div className="room-detail-heading">
-        <div><div className="eyebrow">{t('roomDetails')}</div><h2>{selectedEntity.name}</h2></div>
-        <button className="button ghost small room-detail-close" onClick={() => { setSelectedElementId(''); setSelectedEntityId('') }}>{t('close')}</button>
-      </div>
-      <div className="dual-care-summary room-cleanliness-summary">
-        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.routine.score} /> {selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
-        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.deep?.score} /> {selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
-      </div>
-      <section className="inspector-section room-work-section overdue-room-work">
-        <div className="section-header"><h3>{t('overdue')}</h3><span className="count-pill small-pill">{selectedRoomWorkflow.overdue.length}</span></div>
-        <RoomTaskRows tasks={selectedRoomWorkflow.overdue} />
-      </section>
-      <section className="inspector-section room-work-section today-room-work">
-        <div className="section-header"><h3>{t('dueTodayShort')}</h3><span className="count-pill small-pill">{selectedRoomWorkflow.dueToday.length}</span></div>
-        <RoomTaskRows tasks={selectedRoomWorkflow.dueToday} />
-      </section>
-      <section className="inspector-section room-work-section">
-        <div className="section-header"><h3>{t('upcoming')}</h3><small>{t('nextSevenDays')}</small></div>
-        <RoomTaskRows tasks={selectedRoomWorkflow.upcoming} upcoming />
-      </section>
-      <button className="button primary start-room-button" disabled={!selectedRoomWorkflow.queue.length} onClick={() => startRoom(selectedEntity.id)}>{t('startRoom')}</button>
-      {!selectedRoomWorkflow.queue.length && <p className="muted compact-text room-start-hint">{t('nothingDueInRoom')}</p>}
-    </div>
-
-    return <div className="stack inspector-content">
-      <div><div className="eyebrow">{type?.name}</div><h2>{selectedEntity.name}</h2></div>
-      <div className="dual-care-summary">
-        <div className="care-health-detail routine"><div className="care-health-heading"><span>{t('regularCleanliness')}</span><strong>{careLabel(selectedCare.routine.status)}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.routine.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.routine.score} /> {selectedCare.routine.score == null ? '—' : `${Math.round(selectedCare.routine.score)}%`}</b></div>
-        <div className="care-health-detail deep"><div className="care-health-heading"><span>{t('deepCleanliness')}</span><strong>{selectedCare.deep ? careLabel(selectedCare.deep.status) : t('notTracked')}</strong></div><div className="care-health-track-ui"><span style={{ width: `${selectedCare.deep?.score ?? 0}%` }} /></div><b><CleanlinessMood score={selectedCare.deep?.score} /> {selectedCare.deep?.score == null ? '—' : `${Math.round(selectedCare.deep.score)}%`}</b></div>
-      </div>
-      <section className="inspector-section">
-        <div className="section-header"><h3>{t('currentTasks')}</h3><span className="count-pill small-pill">{selectedTasks.length}</span></div>
-        {!selectedTasks.length ? <p className="muted compact-text">{t('noCurrentTasks')}</p> : <div className="mini-list">{groupLinkedTaskOccurrences(selectedTasks).slice(0, 5).map(({ task }) => { const appendix = additionalActivityAppendix(data!, task); return <div className="mini-list-group" key={task.id}><div className="mini-list-row"><div><strong>{activityTitle(task)}</strong><small>{activitySubtitle(task)}</small>{task.parentOccurrenceId && <small className="linked-task-label">{t('additionalActivity')}</small>}{task.parentOccurrenceId && task.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={task} data={data!} /></div> : <TaskProducts task={task} data={data!} />}</div><small>{formatTaskDateTime(taskDue(task), locale, data!.workspace.timezone)}</small></div>{appendix.length > 0 && <section className="home-linked-activities compact configured-appendix"><div className="linked-section-heading"><strong>{t('additionalActivities')}</strong><span>{appendix.length}</span></div>{appendix.map((entry) => <div className="home-linked-activity configured" key={entry.routine.id}><div><strong>{entry.routine.name}</strong><small>{[entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')}</small><small>{entry.occurrence ? formatTaskDateTime(taskDue(entry.occurrence), locale, data!.workspace.timezone) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small><div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div></div></div>)}</section>}</div> })}</div>}
-      </section>
-      <section className="inspector-section">
-        <h3>{t('supplyAlerts')}</h3>
-        {!selectedSupplies.length ? <p className="muted compact-text">{t('noSupplyAlerts')}</p> : <div className="mini-list">{selectedSupplies.map((supply) => <div className="mini-list-row" key={supply.id}><strong>{supply.name}</strong><span className={`stock-badge stock-${supply.status}`}>{stockLabel(supply.status)}</span></div>)}</div>}
-      </section>
-      {selectedEntity.labels.length > 0 && <div className="chip-list">{selectedEntity.labels.map((label) => <span key={label} className="chip">{label}</span>)}</div>}
-    </div>
-  }
-
-  function RoomModeSheet({ roomEntityId, onClose }: { roomEntityId: string; onClose: () => void }) {
-    const room = entities.find((entity) => entity.id === roomEntityId)
-    if (!room) return null
-    const workflow = buildRoomWorkflow(data!, roomEntityId, clockNow)
-    const deferredRank = new Map(roomDeferredIds.map((id, index) => [id, index]))
-    const queue = [...workflow.queue].sort((a, b) => {
-      const aRank = deferredRank.get(a.id)
-      const bRank = deferredRank.get(b.id)
-      if (aRank == null && bRank == null) return 0
-      if (aRank == null) return -1
-      if (bRank == null) return 1
-      return aRank - bRank
-    })
-    const current = queue[0]
-    const total = roomSessionHandled + queue.length
-
-    function moveLater() {
-      if (!current) return
-      setRoomDeferredIds((ids) => [...ids.filter((id) => id !== current.id), current.id])
-    }
-
-    async function completeCurrent() {
-      if (!current || !window.confirm(t('confirmCompleteTask'))) return
-      const eventId = await completeTask(current.id)
-      rememberUndo(current, eventId, t('completed').toLowerCase(), true)
-      if (eventId) {
-        setRoomSessionHandled((count) => count + 1)
-        setRoomDeferredIds((ids) => ids.filter((id) => id !== current.id))
-      }
-    }
-
-    async function skipCurrent() {
-      if (!current || !window.confirm(t('confirmSkipTask'))) return
-      const eventId = await skipTask(current.id)
-      rememberUndo(current, eventId, t('skipped').toLowerCase(), true)
-      if (eventId) {
-        setRoomSessionHandled((count) => count + 1)
-        setRoomDeferredIds((ids) => ids.filter((id) => id !== current.id))
-      }
-    }
-
-    return <Sheet title={room.name} onClose={onClose}><div className="stack room-mode">
-      {current ? <>
-        <div className="room-mode-progress"><span>{t('roomCleaning')}</span><strong>{roomSessionHandled + 1} {t('of')} {total}</strong></div>
-        <section className="room-mode-card">
-          <span className={`room-mode-state ${workflow.overdue.some((task) => task.id === current.id) ? 'overdue' : 'today'}`}>{workflow.overdue.some((task) => task.id === current.id) ? t('overdue') : t('dueTodayShort')}</span>
-          <h2>{activityTitle(current)}</h2>
-          <p>{activitySubtitle(current)}</p>
-          {current.parentOccurrenceId && current.supplies.length > 0 ? <div className="linked-products-section standalone"><small className="linked-subsection-label">{t('additionalProducts')}</small><TaskProducts task={current} data={data!} /></div> : <TaskProducts task={current} data={data!} />}
-          <small>{roomTaskWhen(current)}</small>
-        </section>
-        <button className="button primary room-done-button" onClick={() => void completeCurrent()}>{t('done')}</button>
-        <div className="room-mode-secondary-actions"><button className="button secondary" onClick={() => void skipCurrent()}>{t('skip')}</button><button className="button ghost" onClick={moveLater}>{t('later')}</button></div>
-      </> : <div className="room-mode-complete">
-        <Illustration id="allDone" className="room-complete-illustration" />
-        <h2>{t('roomHandled')}</h2>
-        <p className="muted">{t('roomHandledHint')}</p>
-        <button className="button primary" onClick={onClose}>{t('backToLayout')}</button>
-      </div>}
-    </div></Sheet>
-  }
 
   function EditorInspector() {
     if (!activeScene) return null
@@ -596,16 +449,6 @@ export function HomePage() {
     const direct = entities.filter((item) => item.parentId === parentId)
     return direct.flatMap((item) => [item.id, ...descendantIds(item.id)])
   }
-}
-
-function CleanlinessSummary({ label, score, deep = false }: { label: string; score: number | null; deep?: boolean }) {
-  const { t } = useI18n()
-  const rounded = score == null ? null : Math.round(score)
-  const display = rounded == null ? t('notTracked') : `${rounded}%`
-  return <div className={`home-cleanliness-row${deep ? ' deep' : ''}`}>
-    <div className="home-cleanliness-label"><span>{label}</span><strong><CleanlinessMood score={score} /> {display}</strong></div>
-    <div className="home-cleanliness-track" aria-label={`${label}: ${display}`}><span style={{ width: `${rounded ?? 0}%` }} /></div>
-  </div>
 }
 
 function CommittedNumberInput({ value, min, max, onCommit }: { value: number; min: number; max: number; onCommit: (value: number) => void | Promise<void> }) {
