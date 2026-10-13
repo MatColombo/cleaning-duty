@@ -54,7 +54,7 @@ export type OfflineMutation =
 export interface SyncConflict {
   id: string
   mutationId: string
-  kind: OfflineMutation['kind'] | 'configuration' | 'visual'
+  kind: OfflineMutation['kind'] | 'configuration' | 'visual' | 'scene'
   state?: 'conflict' | 'failed'
   itemId: string
   at: string

@@ -346,7 +346,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // The coordinator is the only authority for post-hydration remote reads:
         // it overlays every queued/sending edit, including edits made during
         // this fetch. Do not replace it with the raw fetch result.
-        await coordinatorRef.current?.refresh()
+        // attachCoordinator() assigned the ref; TS cannot track effects inside that helper.
+        await (coordinatorRef.current as SyncCoordinator | null)?.refresh()
         if (epoch === activationRef.current) setError(null)
         startupMark('cloud-read-end')
       } else {
