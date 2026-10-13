@@ -3,4 +3,4 @@
  * Increment only when an authored primitive/effect change would intentionally
  * change previously rendered visual identities.
  */
-export const HOUSE_CARE_VISUAL_VERSION = 1 as const
+export const HOUSE_CARE_VISUAL_VERSION = 2 as const

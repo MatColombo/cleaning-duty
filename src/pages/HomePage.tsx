@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { HomeStatusHeader } from '../components/home/HomeStatusHeader'
 import { HomeInspector } from '../components/home/HomeInspector'
+import { SceneDecorationsSheet } from '../components/home/SceneDecorationsSheet'
+import { sceneRow } from '../lib/sceneDecorations'
 import { RoomModeController } from '../components/home/RoomModeController'
 import { resolveHomeItemSelection } from '../components/home/homeSelection'
 import { EmptyState } from '../components/EmptyState'
@@ -37,10 +39,12 @@ export function HomePage() {
     completeTask,
     skipTask,
     undoTaskAction,
+    commitSceneDecorations,
   } = useData()
   const { t, locale } = useI18n()
   const location = useLocation()
   const [editMode, setEditMode] = useState(false)
+  const [illustrated, setIllustrated] = useState(true)
   const [activeSceneId, setActiveSceneId] = useState('')
   const [selectedElementId, setSelectedElementId] = useState('')
   const [selectedEntityId, setSelectedEntityId] = useState('')
@@ -49,6 +53,7 @@ export function HomePage() {
   const [fitRequest, setFitRequest] = useState(0)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [sceneEditOpen, setSceneEditOpen] = useState(false)
+  const [decorationsOpen, setDecorationsOpen] = useState(false)
   const [placementRole, setPlacementRole] = useState<LayoutRole | null>(null)
   const [placeExistingOpen, setPlaceExistingOpen] = useState(false)
   const [connectionOpen, setConnectionOpen] = useState(false)
@@ -187,12 +192,15 @@ export function HomePage() {
             <button type="button" className="zoom-readout" title={t('fitLayout')} onClick={() => { setLayoutZoom(1); setFitRequest((value) => value + 1) }}>{Math.round(layoutZoom * 100)}%</button>
             <button type="button" className="icon-button" aria-label={t('zoomIn')} title={t('zoomIn')} disabled={layoutZoom >= 2.5} onClick={() => setLayoutZoom((value) => Math.min(2.5, Math.round((value + 0.25) * 100) / 100))}>+</button>
           </div>
+          {!editMode && illustrated && <button type="button" className="button secondary small v2-home-decorate-button" onClick={() => setDecorationsOpen(true)}>{locale === 'it' ? 'Decora la scena' : 'Decorate scene'}</button>}
+          {!editMode && <label className="v2-home-illustrated-toggle"><input type="checkbox" checked={illustrated} onChange={(event) => setIllustrated(event.target.checked)} />{locale === 'it' ? 'Modalità illustrata' : 'Illustrated Mode'}</label>}
           <small className="layout-pan-hint">{t('panLayoutHint')}</small>
           {activeScene && <HomeLayoutCanvas
             data={data}
             sceneId={activeScene.id}
             overlay="objects"
             editMode={editMode}
+            illustrated={illustrated}
             snapToGrid={snapToGrid}
             selectedElementId={selectedElementId}
             onSelectElement={selectElement}
@@ -202,6 +210,7 @@ export function HomePage() {
             zoom={layoutZoom}
             fitRequest={fitRequest}
             roomStatuses={editMode ? new Map() : roomStatuses}
+            roomStatusLabels={{ due: t('dueTodayShort'), overdue: t('overdue') }}
           />}
           {!placedOnScene.length && <div className="layout-empty-overlay">{editMode ? t('addFirstArea') : t('layoutEmpty')}</div>}
         </section>
@@ -218,6 +227,10 @@ export function HomePage() {
 
     {sceneOpen && <SceneSheet onClose={() => setSceneOpen(false)} />}
     {sceneEditOpen && activeScene && <SceneSettingsSheet onClose={() => setSceneEditOpen(false)} />}
+    {decorationsOpen && activeScene && <SceneDecorationsSheet key={activeScene.id} data={data} sceneId={activeScene.id}
+      initial={sceneRow(data, activeScene.id)?.items ?? []} expectedRevision={sceneRow(data,activeScene.id)?.revision ?? 0}
+      available={data.sceneDecorationsAvailable === true} onSave={(items, revision) => commitSceneDecorations(activeScene.id, items, revision)}
+      onClose={() => setDecorationsOpen(false)}/>}
     {placementRole && <AddPlacementSheet role={placementRole} onClose={() => setPlacementRole(null)} />}
     {placeExistingOpen && <PlaceExistingSheet onClose={() => setPlaceExistingOpen(false)} />}
     {connectionOpen && <ConnectionSheet onClose={() => setConnectionOpen(false)} />}

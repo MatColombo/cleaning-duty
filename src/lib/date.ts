@@ -88,38 +88,38 @@ export function localTimeInZone(timeZone: string, now = new Date()): string {
   return `${values.hour}:${values.minute}`
 }
 
+/** Resolve an IANA civil time deterministically across DST transitions.
+ * An ambiguous fold chooses the later (standard-time) instant. A nonexistent
+ * spring-forward civil minute shifts forward by the gap, matching PostgreSQL
+ * `timestamp AT TIME ZONE` for the 16C compare-and-set successor RPC. */
 export function zonedLocalToUtc(date: string, time: string, timeZone: string): string {
   const [year, month, day] = date.split('-').map(Number)
   const [hour, minute] = time.split(':').map(Number)
   const desired = Date.UTC(year, month - 1, day, hour, minute)
-  let guess = desired
-
-  for (let i = 0; i < 4; i += 1) {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(guess))
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-    const rendered = Date.UTC(
-      Number(values.year),
-      Number(values.month) - 1,
-      Number(values.day),
-      Number(values.hour),
-      Number(values.minute),
-      Number(values.second),
-    )
-    const delta = desired - rendered
-    guess += delta
-    if (Math.abs(delta) < 1_000) break
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  })
+  const rendered = (instant: number): number => {
+    const values = Object.fromEntries(formatter.formatToParts(new Date(instant))
+      .map(part => [part.type, part.value]))
+    return Date.UTC(Number(values.year), Number(values.month) - 1,
+      Number(values.day), Number(values.hour), Number(values.minute),
+      Number(values.second))
   }
-
-  return new Date(guess).toISOString()
+  const offsets = new Set<number>()
+  for (const hours of [-48, -24, -12, 0, 12, 24, 48]) {
+    const probe = desired + hours * 3_600_000
+    offsets.add(rendered(probe) - probe)
+  }
+  const candidates = [...offsets].map(offset => ({ instant: desired - offset,
+    civil: rendered(desired - offset) }))
+  const exact = candidates.filter(candidate => candidate.civil === desired)
+  if (exact.length) return new Date(Math.max(...exact.map(candidate => candidate.instant))).toISOString()
+  const forward = candidates.filter(candidate => candidate.civil > desired)
+    .sort((a, b) => a.civil - b.civil || a.instant - b.instant)
+  if (forward.length) return new Date(forward[0].instant).toISOString()
+  return new Date(candidates.sort((a, b) => b.civil - a.civil)[0].instant).toISOString()
 }
 
 export function localDateTimeInZone(timeZone: string, instant: string | Date): string {

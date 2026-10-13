@@ -6,7 +6,7 @@ import { useI18n } from '../contexts/I18nContext'
 /** Extracted without changing update, offline, conflict or error actions. */
 export function RuntimeBanners() {
   const { t } = useI18n()
-  const { error, clearError, online, syncConflicts, dismissSyncConflicts } = useData()
+  const { error, clearError, online, syncConflicts, retrySyncIssue, discardSyncIssue } = useData()
   const navigate = useNavigate()
   const [updateReady, setUpdateReady] = useState(false)
 
@@ -26,7 +26,14 @@ export function RuntimeBanners() {
 
   return <>
     {!online && <div className="runtime-banner offline-banner">{t('offlineMode')}</div>}
-    {syncConflicts.length > 0 && <div className="runtime-banner conflict-banner"><span>{t('syncConflict')} · {syncConflicts.length}</span><button onClick={dismissSyncConflicts}>{t('dismiss')}</button></div>}
+    {syncConflicts.length > 0 && <div className="runtime-banner conflict-banner" role="alert">
+      <span>{t('syncConflict')} · {syncConflicts.length}: {syncConflicts[0].message}</span>
+      <div className="runtime-actions">
+        {(syncConflicts[0].kind === 'configuration' || syncConflicts[0].state === 'failed') &&
+          <button onClick={() => { void retrySyncIssue(syncConflicts[0].id).catch((reason) => window.alert(String(reason))) }}>{t('syncRetry')}</button>}
+        <button onClick={() => { if (window.confirm(t('syncDiscardConfirm'))) void discardSyncIssue(syncConflicts[0].id).catch((reason) => window.alert(String(reason))) }}>{t('syncUseCloud')}</button>
+      </div>
+    </div>}
     {updateReady && <div className="runtime-banner update-banner"><span>{t('updateReady')}</span><button onClick={applyUpdate}>{t('updateNow')}</button></div>}
     {error && <div className="error-banner app-error-banner" role="alert"><span>{error}</span><div className="runtime-actions"><button onClick={() => navigate('/settings?errors=1')}>{t('details')}</button><button onClick={clearError}>{t('dismiss')}</button></div></div>}
   </>

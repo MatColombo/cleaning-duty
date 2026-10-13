@@ -116,3 +116,49 @@ body[data-v2-no-art="true"] .v2-room-complete-art { display: none !important; }
 .v2-home-page.is-editing .v2-home-summary .v2-clean-panel:not(.deep) { border-left: 3px solid var(--color-primary); }
 .v2-home-page.is-editing .v2-home-summary .v2-clean-mascot { display: none; }
 .v2-home-page.is-editing .v2-home-summary .v2-clean-panel-copy { width: 100%; }
+
+/* Phase 19A: decorative, semantic, pointer-transparent print. Geometry/selection stays authoritative. */
+.v2-home-illustrated-toggle { display:inline-flex; gap:8px; align-items:center; padding:3px 12px; min-height:40px; font-size:.78rem; color:var(--color-ink); }
+.v2-home-illustrated-toggle input { width:17px; height:17px; margin:0; accent-color:var(--color-primary); }
+.home-layout-canvas .v2-home-illustration { pointer-events:none; fill:none; stroke:var(--hc-art-ink); stroke-width:2.3; stroke-linecap:round; stroke-linejoin:round; opacity:.38; }
+.home-layout-canvas .v2-object-print { stroke-width:3.8; opacity:.66; }
+.home-layout-canvas .v2-room-engraving { opacity:.28; }
+.home-layout-canvas:not(.illustrated) .v2-home-illustration,
+.home-layout-canvas.editing .v2-home-illustration,
+body[data-v2-no-art="true"] .v2-home-illustration { display:none !important; }
+@media(prefers-reduced-motion:reduce){.home-layout-canvas .v2-home-illustration { animation:none!important; transition:none!important; }}
+
+/* Phase 19B scene props: symbolic SVG, no pointer targets and no image/media. */
+.home-layout-canvas .v2-scene-decorations-under, .home-layout-canvas .v2-scene-decoration { pointer-events:none; }
+.home-layout-canvas .v2-scene-decoration { opacity:.7; }
+.home-layout-canvas .v2-scene-ink-teal { color:var(--hc-art-primary); }
+.home-layout-canvas .v2-scene-ink-coral { color:var(--hc-art-coral); }
+.home-layout-canvas .v2-scene-ink-mustard { color:var(--hc-art-mustard); }
+.home-layout-canvas .v2-scene-ink-ink { color:var(--hc-art-ink); }
+.home-layout-canvas.editing .v2-scene-decoration,
+body[data-v2-no-art="true"] .v2-scene-decoration,
+body[data-v2-no-art="true"] .v2-scene-decorations-under { display:none!important; }
+@media(prefers-reduced-motion:reduce){.home-layout-canvas .v2-scene-decoration { animation:none!important;transition:none!important; }}
+
+.v2-home-decorate-button { align-self:flex-start; margin-inline:12px; }
+.v2-scene-studio { gap:11px; }
+.v2-scene-studio-preview { width:100%; max-height:260px; aspect-ratio:10/7; border-radius:12px; touch-action:none; background:var(--color-surface-soft); }
+.v2-scene-studio-preview g[role="button"] { cursor:grab; }
+.v2-scene-studio-preview g[role="button"]:focus-visible circle { stroke:var(--color-primary); }
+.v2-scene-studio-toolbar, .v2-scene-studio-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.v2-scene-studio-toolbar span { margin-right:auto; font-size:.8rem; color:var(--color-ink-muted); }
+.v2-scene-studio-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.v2-scene-studio-fields label, .v2-scene-studio label { min-width:0; display:grid; gap:4px; font-weight:750; font-size:.77rem; }
+.v2-scene-studio-fields input[type="range"] { padding:0; width:100%; }
+.v2-scene-studio-fields select { min-width:0; }
+.v2-scene-studio-actions { justify-content:flex-end; padding-bottom:8px; }
+@media(max-width:420px){ .v2-scene-studio-fields { grid-template-columns:minmax(0,1fr); } }
+@media(prefers-reduced-motion:reduce){.v2-scene-studio *, .v2-scene-studio-preview *{animation:none!important;transition:none!important;}}
+
+.v2-home-room-status-text { fill:var(--color-ink); font-family:var(--hc-font-ui); font-weight:800; font-size:14px; paint-order:stroke; stroke:var(--color-surface); stroke-width:3px; }
+
+/* Retain a real icon fallback when the accessibility no-art mode hides procedural silhouettes. */
+.home-layout-canvas.illustrated .object-icon-bg,
+.home-layout-canvas.illustrated .object-icon { display:none; }
+body[data-v2-no-art="true"] .home-layout-canvas.illustrated .object-icon-bg,
+body[data-v2-no-art="true"] .home-layout-canvas.illustrated .object-icon { display:block; }

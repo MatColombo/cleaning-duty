@@ -9,11 +9,12 @@ interface Props {
   routine: Routine
   data: WorkspaceData
   onEdit: (routine: Routine) => void
+  onArtwork: (routine: Routine) => void
   onStatusChange: (id: string, status: 'active' | 'paused' | 'ended') => void
   onArchive: (id: string) => void
 }
 
-export function RoutineLibraryCard({ routine, data, onEdit, onStatusChange, onArchive }: Props) {
+export function RoutineLibraryCard({ routine, data, onEdit, onArtwork, onStatusChange, onArchive }: Props) {
   const { t, locale } = useI18n()
   const action = data.actions.find((item) => item.id === routine.actionId && !item.archivedAt)
   const targetNames = routine.targetEntityIds.map((id) => {
@@ -85,6 +86,7 @@ export function RoutineLibraryCard({ routine, data, onEdit, onStatusChange, onAr
     </section>}
     <div className="v2-routine-actions" aria-label={locale === 'it' ? `Gestisci ${routine.name}` : `Manage ${routine.name}`}>
       <button type="button" className="button primary small" onClick={() => onEdit(routine)}>{t('edit')}</button>
+      <button type="button" className="button secondary small" onClick={() => onArtwork(routine)}>{locale === 'it' ? 'Studio Personaggio' : 'Character Studio'}</button>
       {routine.status === 'active' && <button type="button" className="button secondary small" onClick={() => onStatusChange(routine.id, 'paused')}>{t('pause')}</button>}
       {routine.status === 'paused' && <button type="button" className="button secondary small" onClick={() => onStatusChange(routine.id, 'active')}>{t('resume')}</button>}
       {routine.status !== 'ended' && <button type="button" className="button secondary small" onClick={() => {

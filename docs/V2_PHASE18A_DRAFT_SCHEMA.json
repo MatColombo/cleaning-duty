@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "House Care Character Studio draft overrides (18A)",
+  "description": "Pure local preview configuration. Phase 18A never persists these values.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "subjectId": {
+      "type": "string",
+      "enum": [
+        "bathtub",
+        "bed",
+        "bookcase",
+        "broom",
+        "bucket",
+        "cabinet",
+        "chair",
+        "cleaner-bottle",
+        "cloth",
+        "coffee-machine",
+        "countertop",
+        "detergent-bottle",
+        "dishwasher",
+        "dryer",
+        "duster",
+        "generic-appliance",
+        "generic-supply",
+        "generic-surface",
+        "generic-tool",
+        "house",
+        "kettle",
+        "microfiber-stack",
+        "mop",
+        "oven",
+        "paper-roll",
+        "refrigerator",
+        "scrub-brush",
+        "shower-head",
+        "sink",
+        "sofa",
+        "sponge",
+        "spray-bottle",
+        "squeegee",
+        "stovetop",
+        "table",
+        "tablet-pack",
+        "toilet",
+        "vacuum",
+        "washer"
+      ]
+    },
+    "expression": {
+      "type": "string",
+      "enum": [
+        "joyful",
+        "smile",
+        "proud",
+        "neutral",
+        "focused",
+        "worried",
+        "tired",
+        "sweaty",
+        "angry",
+        "sleepy",
+        "relieved",
+        "surprised"
+      ]
+    },
+    "eyes": {
+      "type": "string",
+      "enum": [
+        "joyful",
+        "smile",
+        "proud",
+        "neutral",
+        "focused",
+        "worried",
+        "tired",
+        "sweaty",
+        "angry",
+        "sleepy",
+        "relieved",
+        "surprised"
+      ]
+    },
+    "mouth": {
+      "type": "string",
+      "enum": [
+        "joyful",
+        "smile",
+        "proud",
+        "neutral",
+        "focused",
+        "worried",
+        "tired",
+        "sweaty",
+        "angry",
+        "sleepy",
+        "relieved",
+        "surprised"
+      ]
+    },
+    "brows": {
+      "type": "string",
+      "enum": [
+        "joyful",
+        "smile",
+        "proud",
+        "neutral",
+        "focused",
+        "worried",
+        "tired",
+        "sweaty",
+        "angry",
+        "sleepy",
+        "relieved",
+        "surprised"
+      ]
+    },
+    "pose": {
+      "type": "string",
+      "enum": [
+        "arms-down",
+        "thumbs-up",
+        "wave",
+        "point",
+        "fist-pump",
+        "hands-on-hips",
+        "hold-sponge",
+        "hold-cloth",
+        "scrub",
+        "shrug",
+        "celebrate",
+        "present"
+      ]
+    },
+    "handGesture": {
+      "type": "string",
+      "enum": [
+        "thumb",
+        "open",
+        "fist",
+        "point",
+        "hold"
+      ]
+    },
+    "scale": {
+      "type": "number",
+      "minimum": 0.75,
+      "maximum": 1.25,
+      "multipleOf": 0.05
+    },
+    "proportion": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "compact",
+        "tall"
+      ]
+    },
+    "prop": {
+      "type": "string",
+      "enum": [
+        "none",
+        "sparkle-4",
+        "sparkle-6",
+        "action-rays",
+        "steam",
+        "droplets",
+        "shine"
+      ]
+    },
+    "scene": {
+      "type": "string",
+      "enum": [
+        "kitchen",
+        "bathroom",
+        "living",
+        "bedroom",
+        "dining",
+        "hallway",
+        "utility",
+        "outdoor",
+        "generic-interior"
+      ]
+    },
+    "paletteVariant": {
+      "type": "string",
+      "enum": [
+        "teal",
+        "coral",
+        "mustard",
+        "turquoise"
+      ]
+    },
+    "animation": {
+      "type": "string",
+      "enum": [
+        "none",
+        "tilt",
+        "blink",
+        "gesture"
+      ]
+    }
+  },
+  "$comment": "Subject and fields are whitelisted. Only keys with non-Auto values are meaningful. Unknown fields rejected; no file, URL, markup, script, or external media."
+}

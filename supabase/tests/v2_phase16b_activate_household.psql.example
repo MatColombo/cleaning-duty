@@ -1,0 +1,16 @@
+-- AFTER approval and staging verification ONLY, and only after draining sync
+-- outboxes and taking validated V1 + V2 backups. V1 clients must NOT open/edit
+-- the activated test household. Activation is owner-only and irreversible without
+-- explicit manual reconciliation if any V2 actions have occurred.
+-- psql "$APPROVED_STAGING_URL" -X -v ON_ERROR_STOP=1 \
+--  -v owner_id=<AUTH_UUID> -v workspace_id=<HOUSEHOLD_UUID> -f ...
+\set ON_ERROR_STOP on
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',:'owner_id',true);
+select public.v2_activate_extra_care_household(:'workspace_id'::uuid) as activation_receipt;
+-- For staging, inspect the conversion before explicitly committing.
+select origin_occurrence_id,extra_routine_id,target_ordinal
+  from public.v2_extra_care_legacy_carries where workspace_id=:'workspace_id'::uuid;
+rollback;
+-- Replace ROLLBACK with COMMIT only in a separate approved deployment run.

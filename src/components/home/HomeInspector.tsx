@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { CharacterStudioSheet, type StudioTarget } from '../studio/CharacterStudioSheet'
 import { ProductStockList, TaskProducts } from '../TaskProducts'
 import { useI18n } from '../../contexts/I18nContext'
 import { activitySubtitle, activityTitle, additionalActivityAppendix, groupLinkedTaskOccurrences } from '../../lib/presentation'
@@ -6,6 +8,7 @@ import type { RoomWorkflow } from '../../lib/room'
 import type { Entity, EntityType, TaskOccurrence, WorkspaceData } from '../../types/domain'
 import { SvgCharacter } from '../../visual/SvgCharacter'
 import { homeEntityArtId, homeMoodExpression, homeRoomStatusLabel } from './homeArtwork'
+import { readableVisualOverride } from '../../lib/visualOverrides'
 import { homeTaskWhen } from './homeTaskTime'
 
 type StockAlert = WorkspaceData['supplies'][number]
@@ -88,7 +91,7 @@ function HomeTaskRows({ tasks, data, now, upcoming = false, compact = false, lim
           {appendix.map((entry) => <div className="home-linked-activity configured" key={entry.routine.id}>
             <div><strong>{entry.routine.name}</strong>
               <small>{[entry.targetNames.join(', '), entry.actionName].filter(Boolean).join(' - ')}</small>
-              <small>{entry.occurrence ? homeTaskWhen(entry.occurrence, locale, data.workspace.timezone, now, upcoming) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small>
+              <small>{entry.status === 'completed' ? t('completed') : entry.status === 'due' ? t('extraDue') : entry.occurrence ? homeTaskWhen(entry.occurrence, locale, data.workspace.timezone, now, upcoming) : t('everyParentTriggers').replace('N', String(entry.routine.triggerEvery ?? 1))}</small>
               <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data} /></div>
             </div>
             {entry.occurrence && !compact && <small>{entry.occurrence.state === 'completed' ? t('completed') : entry.occurrence.state === 'skipped' ? t('skipped') : t('toDo')}</small>}
@@ -111,16 +114,17 @@ function HomeStockAlerts({ supplies }: { supplies: StockAlert[] }) {
   </section>
 }
 
-function HomeInspectorHeading({ entity, typeName, care, isRoom, status, onClose }: {
+function HomeInspectorHeading({ entity, typeName, care, isRoom, status, onClose, data }: {
   entity: Entity; typeName?: string; care: CareEstimate; isRoom: boolean
-  status: RoomWorkflow['status'] | null; onClose: () => void
+  status: RoomWorkflow['status'] | null; onClose: () => void; data: WorkspaceData
 }) {
   const { t } = useI18n()
   const statusText = status ? homeRoomStatusLabel(status, t('dueTodayShort'), t('overdue')) : null
   const artId = homeEntityArtId(entity, typeName ? { name: typeName } : undefined, isRoom)
+  const studio = readableVisualOverride(data,'entity',entity.id)
   return <header className="v2-home-inspector-heading">
     <div className="v2-home-inspector-art" aria-hidden="true">
-      <SvgCharacter id={artId} decorative expression={homeMoodExpression(care.score)} pose="thumbs-up" misregistration={false} />
+      <SvgCharacter id={studio?.subjectId ?? artId} decorative expression={homeMoodExpression(care.score)} pose="thumbs-up" studio={studio} misregistration={false} />
     </div>
     <div className="v2-home-inspector-heading-copy">
       <span className="v2-print-eyebrow">{isRoom ? t('roomDetails') : typeName || t('item')}</span>
@@ -135,14 +139,23 @@ function HomeInspectorHeading({ entity, typeName, care, isRoom, status, onClose 
 
 /** Stateless inspector. HomePage owns all data selection, clock and actual mutations. */
 export function HomeInspector({ data, selectedEntity, selectedType, selectedCare, selectedTasks, selectedSupplies, isRoom, roomWorkflow, now, onClose, onStartRoom }: HomeInspectorProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const [studio, setStudio] = useState<StudioTarget | null>(null)
   if (!selectedEntity || !selectedCare) return <div className="inspector-empty v2-home-inspector-empty">
     <div className="v2-home-empty-art" aria-hidden="true"><SvgCharacter id="house" decorative expression="smile" pose="wave" misregistration={false} /></div>
     <p>{t('tapLayout')}</p>
   </div>
 
   return <div className={`stack inspector-content v2-home-inspector-content ${isRoom && roomWorkflow ? 'room-detail-panel' : ''}`}>
-    <HomeInspectorHeading entity={selectedEntity} typeName={selectedType?.name} care={selectedCare} isRoom={isRoom} status={roomWorkflow?.status ?? null} onClose={onClose} />
+    <HomeInspectorHeading entity={selectedEntity} typeName={selectedType?.name} care={selectedCare} isRoom={isRoom} status={roomWorkflow?.status ?? null} onClose={onClose} data={data} />
+    <button type="button" className="button secondary small" onClick={() => setStudio({
+      kind: 'entity', id: selectedEntity.id, name: selectedEntity.name,
+      input: { routineId: `studio-entity-${selectedEntity.id}`, primaryTargetId: selectedEntity.id,
+        occurrenceId: `studio-entity-preview-${selectedEntity.id}`,
+        subjectName: selectedEntity.name, subjectTypeName: selectedType?.name,
+        environmentName: isRoom ? selectedEntity.name : selectedType?.name },
+    })}>{locale === 'it' ? 'Studio Personaggio · Anteprima' : 'Character Studio · Preview'}</button>
+    {studio && <CharacterStudioSheet key={`${studio.kind}-${studio.id}`} target={studio} onClose={() => setStudio(null)} />}
     <HomeCareDetails care={selectedCare} />
     {isRoom && roomWorkflow ? <>
       <section className="inspector-section room-work-section overdue-room-work">

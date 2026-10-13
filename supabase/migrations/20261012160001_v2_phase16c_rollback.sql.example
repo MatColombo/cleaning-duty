@@ -1,0 +1,16 @@
+-- Manual-only rollback proposal. DO NOT RUN without staging review/backups.
+-- In particular, do not strip successor_of_event_id or delete audit rows.
+begin;
+do $$ begin
+  if exists(select 1 from public.v2_recurrence_households) then
+    raise exception 'Rollback refused: households activated. Resolve them first and preserve all successor provenance.';
+  end if;
+end $$;
+drop function if exists public.v2_apply_after_completion(jsonb);
+drop function if exists public.v2_commit_generated_occurrences(uuid,uuid,jsonb);
+drop function if exists public.v2_activate_recurrence_household(uuid);
+drop trigger if exists v2_guard_recurrence_legacy_task on public.task_occurrences;
+drop function if exists public.v2_guard_recurrence_legacy_task();
+drop table if exists public.v2_recurrence_households;
+-- Keep successor_of_event_id column + index: historical data remains readable.
+commit;

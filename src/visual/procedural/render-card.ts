@@ -6,6 +6,7 @@ import { renderManualCharacterSvg } from '../compose'
 import { renderDecorationMarkup } from '../decorations'
 import type { VectorPalette, VectorPatternKey } from '../types'
 import type { CardVisualRecipe } from './recipe'
+import { sanitizeStudioOverrides, type StudioOverrides } from '../studio/draft'
 
 export interface RenderCardVisualOptions {
   /** Unique within a rendered document; identity / registration come from the recipe instead. */
@@ -13,6 +14,8 @@ export interface RenderCardVisualOptions {
   readonly palette?: VectorPalette
   readonly title?: string
   readonly decorative?: boolean
+  /** Preview-only; no mutation to the automatic recipe or persistence. */
+  readonly studio?: StudioOverrides
 }
 function escapeXml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]!))
@@ -28,8 +31,14 @@ export function cardPaletteForVariant(base: VectorPalette, recipe: Pick<CardVisu
   // This is appearance-only; the existing recipe seed and renderer identity stay unchanged.
   const attention = recipe.paletteVariant === 'coral' ? base.mustard : base.coral
   return Object.freeze({
-    ...base, paper: base.surface, inkMuted: base.ink,
-    primary, turquoise: primary, mustard: attention, coral: attention, danger: attention,
+    ...base,
+    paper: base.surface,
+    inkMuted: base.ink,
+    primary,
+    turquoise: primary,
+    mustard: attention,
+    coral: attention,
+    danger: attention,
   })
 }
 
@@ -38,17 +47,35 @@ function artPlacement(svg: string, x: number, y: number, width: number, height: 
 }
 
 function sceneGeometry(environment: CardVisualRecipe['semantics']['environment'], p: VectorPalette): string {
-  const floor = `<path d="M0 337 L640 335 V420 H0 Z" fill="${p.primarySoft}" opacity=".5"/>`
+  const floor = `<path d="M0 336 L640 334 V420 H0 Z" fill="${p.primarySoft}" opacity=".48"/>`
+  const sunburst = `<circle cx="96" cy="89" r="68" fill="${p.mustard}" opacity=".10"/><path d="M96 20 V158 M27 89 H165 M45 39 L147 141 M45 141 L147 39" stroke="${p.mustard}" stroke-width="4" stroke-linecap="round" opacity=".14"/>`
   switch (environment) {
-    case 'kitchen': case 'bathroom': case 'utility':
-      return `<g stroke="${p.ink}" stroke-width="2" opacity=".11">${Array.from({length:7},(_,i)=>`<path d="M${i*110} 0 V420"/>`).join('')}${Array.from({length:5},(_,i)=>`<path d="M0 ${i*104} H640"/>`).join('')}</g>${floor}`
-    case 'living': case 'bedroom': case 'dining':
-      return `<path d="M0 250 Q200 198 360 264 T640 248 V420 H0 Z" fill="${p.primarySoft}" opacity=".48"/><circle cx="510" cy="65" r="52" fill="${p.mustard}" opacity=".12"/>`
+    case 'kitchen':
+      return `<g data-hc-card-scene="kitchen"><rect x="32" y="62" width="576" height="184" rx="22" fill="${p.surface}" opacity=".35"/><g stroke="${p.ink}" stroke-width="2" opacity=".10">${Array.from({ length: 7 }, (_, i) => `<path d="M${i * 92 + 24} 62 V246"/>`).join('')}${Array.from({ length: 4 }, (_, i) => `<path d="M32 ${i * 46 + 62} H608"/>`).join('')}</g><path d="M56 262 H584" stroke="${p.ink}" stroke-width="7" opacity=".13"/>${floor}</g>`
+    case 'bathroom':
+      return `<g data-hc-card-scene="bathroom"><rect x="38" y="58" width="566" height="196" rx="28" fill="${p.surface}" opacity=".30"/><g stroke="${p.ink}" stroke-width="2" opacity=".09">${Array.from({ length: 6 }, (_, i) => `<path d="M${i * 100 + 62} 58 V254"/>`).join('')}${Array.from({ length: 5 }, (_, i) => `<path d="M38 ${i * 39 + 58} H604"/>`).join('')}</g><path d="M487 71 Q515 35 544 71" fill="none" stroke="${p.primary}" stroke-width="6" opacity=".18"/>${floor}</g>`
+    case 'living':
+    case 'bedroom':
+    case 'dining':
+      return `<g data-hc-card-scene="domestic">${sunburst}<path d="M0 258 Q210 183 356 253 T640 245 V420 H0 Z" fill="${p.primarySoft}" opacity=".52"/><rect x="419" y="72" width="146" height="95" rx="14" fill="${p.surface}" opacity=".18" stroke="${p.ink}" stroke-width="4" stroke-opacity=".12"/><path d="M444 92 H540 M444 118 H517 M444 144 H531" stroke="${p.ink}" stroke-width="4" stroke-linecap="round" opacity=".12"/></g>`
     case 'outdoor':
-      return `<path d="M0 300 Q140 230 280 290 T640 285 V420 H0 Z" fill="${p.turquoise}" opacity=".22"/>${[75,190,550].map(x=>`<path d="M${x} 280 L${x+15} 230 L${x+30} 280" fill="${p.primary}" opacity=".14"/>`).join('')}`
+      return `<g data-hc-card-scene="outdoor"><path d="M0 293 Q144 226 278 287 T640 281 V420 H0 Z" fill="${p.primarySoft}" opacity=".50"/><circle cx="529" cy="84" r="44" fill="${p.mustard}" opacity=".13"/>${[85, 192, 544].map((x) => `<path d="M${x} 286 L${x + 14} 234 L${x + 28} 286" fill="${p.primary}" opacity=".16"/>`).join('')}</g>`
     default:
-      return `${floor}<path d="M0 90 L260 0 H640" fill="none" stroke="${p.primary}" stroke-width="7" opacity=".16"/>`
+      return `<g data-hc-card-scene="generic">${sunburst}${floor}<path d="M0 96 L240 0 H640" fill="none" stroke="${p.primary}" stroke-width="7" opacity=".16"/><rect x="406" y="89" width="152" height="83" rx="16" fill="${p.surface}" opacity=".14" stroke="${p.ink}" stroke-width="4" stroke-opacity=".10"/></g>`
   }
+}
+
+function posterProps(environment: CardVisualRecipe['semantics']['environment'], p: VectorPalette): string {
+  if (environment === 'kitchen') {
+    return `<g data-hc-card-props="kitchen" opacity=".95"><rect x="78" y="252" width="119" height="15" rx="7" fill="${p.ink}" opacity=".13"/><rect x="85" y="233" width="38" height="25" rx="5" fill="${p.mustard}" opacity=".72" stroke="${p.ink}" stroke-width="3"/><rect x="133" y="210" width="17" height="48" rx="8" fill="${p.primary}" opacity=".32" stroke="${p.ink}" stroke-width="3"/></g>`
+  }
+  if (environment === 'bathroom') {
+    return `<g data-hc-card-props="bathroom"><rect x="84" y="236" width="48" height="48" rx="10" fill="${p.surface}" opacity=".60" stroke="${p.ink}" stroke-width="3"/><path d="M144 218 h66 v14 h-66 z" fill="${p.turquoise}" opacity=".25"/><path d="M214 225 q24 -24 49 0" fill="none" stroke="${p.ink}" stroke-width="4" opacity=".14"/></g>`
+  }
+  if (environment === 'living' || environment === 'bedroom' || environment === 'dining') {
+    return `<g data-hc-card-props="interior"><rect x="84" y="242" width="94" height="19" rx="10" fill="${p.ink}" opacity=".13"/><rect x="104" y="208" width="56" height="38" rx="10" fill="${p.primary}" opacity=".28" stroke="${p.ink}" stroke-width="3"/><circle cx="206" cy="240" r="17" fill="${p.mustard}" opacity=".44"/></g>`
+  }
+  return `<g data-hc-card-props="generic"><rect x="86" y="228" width="40" height="54" rx="12" fill="${p.primary}" opacity=".23" stroke="${p.ink}" stroke-width="3"/><circle cx="170" cy="250" r="19" fill="${p.mustard}" opacity=".32"/></g>`
 }
 
 function printBorder(border: CardVisualRecipe['border'], p: VectorPalette): string {
@@ -74,14 +101,14 @@ function editionMark(stamp: CardVisualRecipe['edition']['stamp'], p: VectorPalet
   return `<g aria-hidden="true" transform="translate(${x} ${y})" fill="${p.surface}" stroke="${p.ink}" stroke-width="3.5" stroke-linejoin="round">${shape}</g>`
 }
 
-function componentPositions(template: CardVisualRecipe['template']): { main: [number,number,number]; tool: [number,number,number] } {
+function componentPositions(template: CardVisualRecipe['template']): { main: [number, number, number]; tool: [number, number, number] } {
   switch (template) {
-    case 'subject-left': return {main:[70,74,290],tool:[430,220,140]}
-    case 'subject-right': return {main:[300,66,300],tool:[73,220,140]}
-    case 'center-stage': return {main:[188,45,315],tool:[68,235,138]}
-    case 'medallion': return {main:[205,60,280],tool:[60,195,150]}
-    case 'diagonal': return {main:[277,65,287],tool:[92,180,155]}
-    case 'split-panel': return {main:[304,82,268],tool:[108,97,195]}
+    case 'subject-left': return { main: [44, 56, 330], tool: [418, 208, 152] }
+    case 'subject-right': return { main: [284, 52, 326], tool: [61, 214, 154] }
+    case 'center-stage': return { main: [172, 28, 342], tool: [56, 230, 140] }
+    case 'medallion': return { main: [190, 38, 310], tool: [60, 193, 156] }
+    case 'diagonal': return { main: [270, 48, 304], tool: [82, 170, 163] }
+    case 'split-panel': return { main: [296, 72, 290], tool: [92, 85, 205] }
   }
 }
 
@@ -98,28 +125,49 @@ export function renderCardVisualSvg(recipe: CardVisualRecipe, options: RenderCar
   } as const)[recipe.halftone]
   const defs = renderVectorDefs(ids, palette, [...new Set([bgKey, halftoneKey])])
   const area = VECTOR_ARTBOARDS.cardArt
-  const accentFill = `<path d="M38 52 Q270 6 597 55 L574 267 Q253 351 55 261 Z" fill="${palette.primary}" opacity=".14"/>`
-  const pattern = `<rect x="34" y="36" width="572" height="348" rx="18" fill="${ids.url(bgKey)}" opacity=".13"/><path d="M33 316 H611 V390 H33 Z" fill="${ids.url(halftoneKey)}" opacity=".14"/>`
+  const accentFill = `<path d="M44 58 Q272 6 596 53 L578 265 Q275 341 56 270 Z" fill="${palette.primary}" opacity=".16"/>`
+  const posterHalo = `<circle cx="458" cy="139" r="118" fill="${palette.mustard}" opacity=".08"/><path d="M372 204 Q447 149 530 199" fill="none" stroke="${palette.coral}" stroke-width="8" stroke-linecap="round" opacity=".10"/>`
+  const pattern = `<rect x="34" y="36" width="572" height="348" rx="18" fill="${ids.url(bgKey)}" opacity=".12"/><path d="M34 308 H609 V390 H34 Z" fill="${ids.url(halftoneKey)}" opacity=".13"/>`
   const positions = componentPositions(recipe.template)
+  const studio = sanitizeStudioOverrides(options.studio)
+  const scale = studio.scale ?? 1
+  const proportion = studio.proportion === 'compact' ? .85 : studio.proportion === 'tall' ? 1.13 : 1
+  const mainSize = positions.main[2] * scale
+  const mainX = positions.main[0] + (positions.main[2] - mainSize) / 2
+  const mainHeight = mainSize * proportion
+  const mainY = positions.main[1] + (positions.main[2] - mainHeight) / 2
   const main = renderManualCharacterSvg(recipe.semantics.subjectId, {
     instanceKey: `${options.instanceKey}|${recipe.occurrenceSeed}|subject`,
-    palette, decorative: true, expression: recipe.expression, pose: recipe.pose,
+    palette,
+    decorative: true,
+    expression: recipe.expression,
+    pose: recipe.pose,
+    faceParts: studio.eyes || studio.brows || studio.mouth ? { eyes: studio.eyes, brows: studio.brows, mouth: studio.mouth } : undefined,
+    rightHand: studio.handGesture,
     registrationOffset: recipe.inkOffset,
-  })
-  const subject = artPlacement(main, positions.main[0], positions.main[1], positions.main[2], positions.main[2])
+  }).replace('<svg ', '<svg data-hc-card-role="subject" ')
+  const subject = artPlacement(
+    studio.proportion && studio.proportion !== 'standard' ? main.replace('<svg ', '<svg preserveAspectRatio="none" ') : main,
+    mainX, mainY, mainSize, mainHeight,
+  )
   const tool = recipe.semantics.toolId
     ? artPlacement(renderManualCharacterSvg(recipe.semantics.toolId, {
-        instanceKey: `${options.instanceKey}|${recipe.occurrenceSeed}|tool`,
-        palette, decorative: true, misregistration: false,
-      }), positions.tool[0], positions.tool[1], positions.tool[2], positions.tool[2])
+      instanceKey: `${options.instanceKey}|${recipe.occurrenceSeed}|tool`,
+      palette,
+      decorative: true,
+      misregistration: false,
+    }).replace('<svg ', '<svg data-hc-card-role="tool" '), positions.tool[0], positions.tool[1], positions.tool[2], positions.tool[2])
     : ''
-  const decorations = recipe.decorations.map(({id,x,y,scale}) =>
-    `<g aria-hidden="true" transform="translate(${x} ${y}) scale(${scale})">${renderDecorationMarkup(id,palette)}</g>`).join('')
+  const studioProp = studio.prop && studio.prop !== 'none' ? `<g data-hc-studio-prop="${studio.prop}" aria-hidden="true" transform="translate(530 297) scale(.48)">${renderDecorationMarkup(studio.prop, palette)}</g>` : ''
+  const decorations = recipe.decorations.map(({ id, x, y, scale }) =>
+    `<g aria-hidden="true" transform="translate(${x} ${y}) scale(${Math.max(.2, Math.min(.45, scale + .03))})">${renderDecorationMarkup(id, palette)}</g>`).join('')
   // A few small deterministic ink specks, no expensive filters or runtime randomness.
-  const wear = Array.from({length:5},(_,index)=>{
-    const hash = Number.parseInt(stableVisualHash(`${recipe.occurrenceSeed}|wear|${index}`),36)
-    const x = 32 + (hash % 575), y = 37 + (Math.floor(hash/577) % 337)
-    return `<circle cx="${x}" cy="${y}" r="${1+(hash%3)}" fill="${palette.ink}" opacity="${(recipe.distress*.2).toFixed(3)}"/>`
+  const wear = Array.from({ length: 8 }, (_, index) => {
+    const hash = Number.parseInt(stableVisualHash(`${recipe.occurrenceSeed}|wear|${index}`), 36)
+    const x = 30 + (hash % 579)
+    const y = 35 + (Math.floor(hash / 577) % 341)
+    const opacity = (recipe.distress * .26 + ((hash % 5) * .006)).toFixed(3)
+    return `<circle cx="${x}" cy="${y}" r="${1 + (hash % 3)}" fill="${palette.ink}" opacity="${opacity}"/>`
   }).join('')
   const titleId = ids.id('title')
   const decorative = options.decorative !== false
@@ -128,6 +176,11 @@ export function renderCardVisualSvg(recipe: CardVisualRecipe, options: RenderCar
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${area.viewBox}" ${a11y} data-hc-card-version="${recipe.version}" data-hc-card-subject="${recipe.semantics.subjectId}" data-hc-card-template="${recipe.template}">
   ${title}${defs}
   <rect width="640" height="420" rx="30" fill="${palette.surface}"/>
-  ${sceneGeometry(recipe.semantics.environment,palette)}${accentFill}${pattern}${tool}${subject}${decorations}${wear}${editionMark(recipe.edition.stamp,palette)}${printBorder(recipe.border,palette)}
+  <g data-hc-card-layer="scene">${sceneGeometry(recipe.semantics.environment, palette)}</g>
+  <g data-hc-card-layer="print-base">${accentFill}${posterHalo}${pattern}${posterProps(recipe.semantics.environment, palette)}</g>
+  <g data-hc-card-layer="props">${tool}${decorations}${studioProp}</g>
+  <g data-hc-card-layer="hero">${subject}</g>
+  <g data-hc-card-layer="texture">${wear}</g>
+  ${editionMark(recipe.edition.stamp, palette)}${printBorder(recipe.border, palette)}
   </svg>`
 }

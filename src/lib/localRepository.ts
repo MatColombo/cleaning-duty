@@ -10,7 +10,7 @@ export const localUser: SessionUser = { id: USER_ID, displayName: 'Local user' }
 export function loadLocalData(): WorkspaceData | null {
   const raw = localStorage.getItem(DATA_KEY)
   if (!raw) return null
-  try { return normalizeWorkspaceData(JSON.parse(raw) as WorkspaceData) } catch { return null }
+  try { return normalizeWorkspaceData({ ...JSON.parse(raw) as WorkspaceData, extraCareMode: 'integrated', sceneDecorationsAvailable: true }) } catch { return null }
 }
 
 export function saveLocalData(data: WorkspaceData): void {
@@ -26,6 +26,7 @@ export function createLocalWorkspace(name: string, ownerName: string, timezone: 
   const memberId = newId()
   const createdAt = nowIso()
   return {
+    extraCareMode: 'integrated', extraCareEvents: [], extraCareLegacyCarries: [], sceneDecorations: [], sceneDecorationsAvailable: true,
     workspace: { id: workspaceId, name, timezone, careSensitivity: 'balanced', ownerUserId: USER_ID, createdAt },
     members: [{ id: memberId, workspaceId, userId: USER_ID, displayName: ownerName, role: 'owner', status: 'active', labels: [], createdAt }],
     fieldDefinitions: [], entityTypes: [], entities: [], layoutScenes: [], layoutElements: [], entityRelations: [], actions: [], routines: [], tasks: [], taskEvents: [], healthTrajectories: [], completionSnapshots: [], supplies: [], supplyEvents: [],

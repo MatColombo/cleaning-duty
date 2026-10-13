@@ -10,7 +10,7 @@ function check(ok, message) { if (!ok) fail.push(message); else note.push(`PASS 
 check(pkg.version.startsWith('2.0.0-rc.'),'Release identity remains a V2 candidate until full browser/build gates pass')
 check(read('README.md').startsWith(`# House Care PWA — v${pkg.version}`),'README identifies the current candidate')
 check(sw.includes(`const VERSION = 'v${pkg.version}'`),'SW version matches package')
-check(sw.includes('retro-assets-v2-rc1'),'SW cache asset revision bumped')
+check(sw.includes('retro-assets-v2-rc2'),'SW cache asset revision bumped')
 check(manifest.icons.every(icon => icon.src.endsWith(`?v=${pkg.version}`)),'Installed icons are versioned')
 check(manifest.icons.every(icon => existsSync(join(root,'public',icon.src.slice(1).split('?')[0]))),'Installed icon assets exist')
 check(sw.includes('SKIP_WAITING') && sw.includes('notificationclick'),'SW retains update and notification handling')

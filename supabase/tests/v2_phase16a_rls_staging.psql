@@ -1,0 +1,72 @@
+-- PHASE 16A STAGING ONLY: no production connection, no commits.
+-- Invocation: psql "$STAGING_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+--   -v test_workspace_id=<UUID> -v test_entity_id=<EXISTING_ENTITY_UUID> \
+--   -v owner_id=<OWNER_AUTH_USER_UUID> -v member_id=<MEMBER_AUTH_USER_UUID> \
+--   -v outsider_id=<NONMEMBER_AUTH_USER_UUID> \
+--   -f supabase/tests/v2_phase16a_rls_staging.psql
+-- Run only after applying the additive RPC to an isolated clone and after
+-- checking all five IDs refer to those intended identities. No transaction
+-- is committed, including the idempotency receipt and temporary rename.
+\set ON_ERROR_STOP on
+\echo 'Phase 16A staging CAS/RLS tests; transaction is rolled back.'
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'owner_id', true);
+SELECT set_config('phase16a.workspace_id', :'test_workspace_id', true);
+SELECT set_config('phase16a.entity_id', :'test_entity_id', true);
+SELECT set_config('phase16a.old_name', name, true) FROM public.entities
+ WHERE workspace_id = :'test_workspace_id'::uuid AND id = :'test_entity_id'::uuid;
+SELECT gen_random_uuid() AS mutation_id \gset
+SELECT name AS old_name FROM public.entities
+ WHERE workspace_id = :'test_workspace_id'::uuid AND id = :'test_entity_id'::uuid \gset
+
+-- Verify owner can commit and deduplicate a targeted rename.
+SELECT public.v2_apply_entity_changes(
+  :'test_workspace_id'::uuid, :'mutation_id'::uuid,
+  jsonb_build_array(jsonb_build_object('table','entities',
+    'key',jsonb_build_object('id',:'test_entity_id'::uuid),
+    'before',jsonb_build_object('name',:'old_name'),
+    'after',jsonb_build_object('name',:'old_name' || ' __phase16a_check')))
+) AS first_apply;
+SELECT public.v2_apply_entity_changes(
+  :'test_workspace_id'::uuid, :'mutation_id'::uuid,
+  jsonb_build_array(jsonb_build_object('table','entities',
+    'key',jsonb_build_object('id',:'test_entity_id'::uuid),
+    'before',jsonb_build_object('name',:'old_name'),
+    'after',jsonb_build_object('name',:'old_name' || ' __phase16a_check')))
+) AS idempotent_replay;
+
+-- Same-field stale edit from a second authorized household member MUST conflict.
+SELECT set_config('request.jwt.claim.sub', :'member_id', true);
+DO $$
+DECLARE outcome jsonb;
+BEGIN
+ outcome := public.v2_apply_entity_changes(
+   current_setting('phase16a.workspace_id')::uuid, gen_random_uuid(),
+   jsonb_build_array(jsonb_build_object('table','entities',
+    'key', jsonb_build_object('id',current_setting('phase16a.entity_id')::uuid),
+    'before',jsonb_build_object('name',current_setting('phase16a.old_name')),
+    'after',jsonb_build_object('name','A stale change'))));
+ IF outcome->>'conflict' IS DISTINCT FROM 'true' THEN
+   RAISE EXCEPTION 'Expected stale-field conflict, received %',outcome;
+ END IF;
+END $$;
+
+-- A nonmember MUST NOT be able to call a SECURITY DEFINER RPC or read rows.
+SELECT set_config('request.jwt.claim.sub', :'outsider_id', true);
+DO $$
+BEGIN
+ PERFORM public.v2_apply_entity_changes(
+   current_setting('phase16a.workspace_id')::uuid, gen_random_uuid(), '[]'::jsonb);
+ RAISE EXCEPTION 'SECURITY BUG: nonmember can call V2 RPC';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+DO $$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.entities
+            WHERE workspace_id = current_setting('phase16a.workspace_id')::uuid) THEN
+   RAISE EXCEPTION 'SECURITY BUG: nonmember can read household entities';
+ END IF;
+END $$;
+ROLLBACK;
+\echo 'Rolled back. Compare first_apply, idempotent_replay and stale conflict output.'

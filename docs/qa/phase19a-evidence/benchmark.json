@@ -1,0 +1,17 @@
+{
+  "context": "Isolated Node pure recipe + JSX shape benchmark. No React DOM, browser, device GPU, memory, cloud or touch.",
+  "node": "v22.16.0",
+  "recipeIterations": 10000,
+  "recipeMs": 1007.667,
+  "recipeAvgUs": 100.767,
+  "renderIterations": 1000,
+  "renderMs": 17.324,
+  "renderAvgUs": 17.324,
+  "illustrationMarkupAvgBytes": 438,
+  "illustrationMarkupMaxBytes": 789,
+  "maxPathElementsPerIllustration": 6,
+  "renderedChecksum": 438065,
+  "appDomNodeCount": "NOT MEASURED",
+  "browserFps": "NOT MEASURED",
+  "pwaDevice": "NOT RUN"
+}

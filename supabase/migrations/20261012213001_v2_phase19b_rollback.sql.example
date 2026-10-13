@@ -1,0 +1,11 @@
+-- Phase 19B rollback example — NOT EXECUTED. Export scene rows before data loss.
+-- Verify no active clients have queued 19B operations; pause editing first.
+BEGIN;
+DROP TRIGGER IF EXISTS v2_orphan_scene_on_delete ON public.layout_scenes;
+DROP FUNCTION IF EXISTS public.v2_orphan_scene_decorations();
+DROP FUNCTION IF EXISTS public.v2_commit_scene_decorations(uuid,uuid,integer,integer,jsonb,uuid);
+DROP TABLE IF EXISTS public.v2_scene_applied_ops;
+DROP TABLE IF EXISTS public.scene_decorations;
+DROP FUNCTION IF EXISTS public.v2_scene_json_valid(jsonb);
+COMMIT;
+-- No V1 RPC/table is dropped or modified. Re-applying forward SQL does not recreate data.

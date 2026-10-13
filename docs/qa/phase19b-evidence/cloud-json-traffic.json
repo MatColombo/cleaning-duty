@@ -1,0 +1,40 @@
+{
+  "context": "Locally serialized JSON UTF-8 RPC argument envelopes only; excludes HTTP headers, TLS, auth, PostgREST meta, Supabase network framing, indexes, TOAST and DB page overhead.",
+  "runtime": "v22.16.0",
+  "maximumPropertiesPerScene": 16,
+  "maximumItemsJsonBytes": 6144,
+  "sceneRowSuggestedStorage": "One row per household/scene containing explicit customized props; reset stores [] revision tombstone, defaults have no row.",
+  "sampleRequests": [
+    {
+      "label": "reset-to-auto-existing-row",
+      "propCount": 0,
+      "serializedRpcEnvelopeBytes": 225,
+      "serializedJsonbItemsBytes": 2
+    },
+    {
+      "label": "one-prop-confirmation",
+      "propCount": 1,
+      "serializedRpcEnvelopeBytes": 322,
+      "serializedJsonbItemsBytes": 99
+    },
+    {
+      "label": "four-curated-props",
+      "propCount": 4,
+      "serializedRpcEnvelopeBytes": 632,
+      "serializedJsonbItemsBytes": 409
+    },
+    {
+      "label": "sixteen-curated-props",
+      "propCount": 16,
+      "serializedRpcEnvelopeBytes": 1873,
+      "serializedJsonbItemsBytes": 1650
+    }
+  ],
+  "exampleSliderChangesBeforeConfirmation": 180,
+  "simulatedRequestsDuringDrag": 0,
+  "simulatedRequestsOnSingleConfirm": 1,
+  "simulatedRequestReductionVersusPerSliderWritesPercent": 99.44,
+  "hypothetical100ScenesMaxItemsJsonBytes": 614400,
+  "pgPhysicalRowSize": "NOT MEASURED — must use pg_total_relation_size / pg_column_size on staging",
+  "liveCloudRequests": "NOT MEASURED"
+}

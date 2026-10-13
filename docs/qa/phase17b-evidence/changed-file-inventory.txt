@@ -1,0 +1,29 @@
+# Phase 17B changed-file inventory vs Phase 17A ZIP
+
+* README.md
+* docs/V2_PHASE17B_GESTURE_STATE_MACHINE.md
+* docs/V2_PHASE17B_REPORT.md
+* docs/qa/V2_PHASE17B_BROWSER_ACCEPTANCE.md
+* docs/qa/phase17b-evidence/browser-blocked.log
+* docs/qa/phase17b-evidence/build-blocked.log
+* docs/qa/phase17b-evidence/cpu-motion-benchmark.json
+* docs/qa/phase17b-evidence/cpu-motion-benchmark.stdout.log
+* docs/qa/phase17b-evidence/npm-test.log
+* docs/qa/phase17b-evidence/static-audit.log
+* docs/qa/phase17b-evidence/syntax-audit.log
+* docs/qa/phase17b-evidence/typecheck-blocked.log
+* index.html
+* package.json
+* public/manifest.webmanifest
+* public/sw.js
+* src/components/overview/ActiveDeck.tsx
+* src/lib/deckGestures.ts
+* src/lib/overviewDeck.ts
+* src/lib/translations.ts
+* src/styles/overview-v2.css
+* tests/v2_phase15_release_hardening.test.ts
+* tests/v2_phase17b_deck_gestures.test.ts
+* tools/phase17b-browser-acceptance.mjs
+* tools/phase17b-motion-benchmark.cjs
+
+Removed paths: none

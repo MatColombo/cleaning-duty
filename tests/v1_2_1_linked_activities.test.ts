@@ -109,10 +109,10 @@ let invalid = false
 try { saveAdditionalActivities(base, parent, [{ ...extra, every: 0 }]) } catch { invalid = true }
 assert(invalid, 'Zero trigger interval must be rejected')
 const backup = parseHouseholdBackup(JSON.stringify(createHouseholdBackup(data)))
-assert(backup.schema_version === 9 && backup.data.routines.find((routine) => routine.id === childId)?.parentRoutineId === parent.id, 'Backup must retain linked routines and upgrade schema')
+assert(backup.schema_version === 11 && backup.data.routines.find((routine) => routine.id === childId)?.parentRoutineId === parent.id, 'Backup must retain linked routines and upgrade schema')
 same(backup.data.tasks.find((task) => task.id === children[0].id)?.supplies, children[0].supplies, 'Backup must retain attached stock snapshots')
 const legacyBackup = { ...createHouseholdBackup(base), schema_version: 8 }
-assert(parseHouseholdBackup(JSON.stringify(legacyBackup)).schema_version === 9, 'v1.2.0 backups must remain importable')
+assert(parseHouseholdBackup(JSON.stringify(legacyBackup)).schema_version === 11, 'v1.2.0 backups must remain importable')
 same(Object.keys(translations.en).sort(), Object.keys(translations.it).sort(), 'All new strings require EN/IT parity')
 same([100, 89, 69, 39, 19, 9].map((score) => cleanlinessMood(score)?.label), ['moodExcellent', 'moodGood', 'moodFair', 'moodAttention', 'moodUrgent', 'moodCritical'], 'Mood bands must be distinct and ordered')
 assert(cleanlinessMood(null) === null, 'Untracked must not show an angry face')

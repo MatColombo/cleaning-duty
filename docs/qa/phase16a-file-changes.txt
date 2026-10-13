@@ -1,0 +1,38 @@
+PHASE16A FILE INVENTORY: compared byte-for-byte to the supplied cleaning-duty(1).zip
+(Ignoring .git/.gitignore differences and excluding developer-only node_modules/tsbuildinfo.)
+
+MODIFIED (7):
+  README.md
+  src/components/RuntimeBanners.tsx
+  src/contexts/DataContext.tsx
+  src/lib/cloudRepository.ts
+  src/lib/mutations.ts
+  src/lib/offline.ts
+  src/lib/translations.ts
+
+ADDED (13):
+  docs/V2_PHASE16A_DATA_INTEGRITY.md
+  docs/qa/phase16a-build.log
+  docs/qa/phase16a-npm-test.log
+  docs/qa/phase16a-static.log
+  docs/qa/phase16a-syntax.log
+  docs/qa/phase16a-traffic-benchmark.json
+  docs/qa/phase16a-typecheck.log
+  src/lib/configChanges.ts
+  src/lib/syncCoordinator.ts
+  supabase/migrations/20261012000000_v2_phase16a_cas_patch.sql
+  supabase/migrations/20261012000001_v2_phase16a_rollback.sql.example
+  supabase/tests/v2_phase16a_rls_staging.psql
+  tests/v2_phase16a_sync.test.ts
+
+REMOVED (10):
+  public/illustrations/all-done.svg
+  public/illustrations/empty-overview.svg
+  public/illustrations/empty-room.svg
+  public/illustrations/home-mark.svg
+  public/illustrations/offline.svg
+  public/illustrations/onboarding-home.svg
+  public/illustrations/paused-routine.svg
+  src/components/Illustration.tsx
+  src/lib/illustrations.ts
+  src/pages/TodayPage.tsx

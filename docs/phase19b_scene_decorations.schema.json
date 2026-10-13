@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:house-care:v2:phase19b:scene-decoration-items",
+  "title": "Phase 19B Scene Decoration Instructions",
+  "description": "Bounded explicit scene decoration instructions only; default art is generated client-side. Storage JSONB must also pass server v2_scene_json_valid and the <= 6144-byte limit.",
+  "type": "array",
+  "maxItems": 16,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "kind", "ink", "layer", "x", "y", "scale", "rotation"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$" },
+      "kind": { "enum": ["plant", "rug", "lamp", "shelf", "starburst", "tiles", "sofa", "counter", "picture"] },
+      "ink": { "enum": ["teal", "coral", "mustard", "ink"] },
+      "layer": { "enum": ["behind", "above"] },
+      "x": { "type": "integer", "minimum": 0, "maximum": 1000 },
+      "y": { "type": "integer", "minimum": 0, "maximum": 700 },
+      "scale": { "type": "number", "minimum": 0.5, "maximum": 2.0, "multipleOf": 0.1 },
+      "rotation": { "type": "integer", "minimum": -180, "maximum": 180, "multipleOf": 15 },
+      "elementId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,80}$" }
+    }
+  }
+}

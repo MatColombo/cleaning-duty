@@ -20,7 +20,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 function unique<T>(items: readonly T[]): boolean { return new Set(items).size === items.length }
 
-assert(HOUSE_CARE_VISUAL_VERSION === 1, 'Phase 4 must not change visual-generation version')
+assert(HOUSE_CARE_VISUAL_VERSION === 2, 'Phase 4 must not change visual-generation version')
 assert(AUTHORED_OBJECT_IDS.length === 20, 'Exactly the initial twenty approved semantic objects are authored')
 assert(EXPRESSION_IDS.length === 12, 'All 12 expressions must be authored')
 assert(POSE_IDS.length === 12, 'All 12 poses must be authored')

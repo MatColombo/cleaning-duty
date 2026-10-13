@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { careEstimateForEntity, scheduledTasksForEntity, supplyAlertsForEntity } from '../lib/home'
 import type { LayoutElement, WorkspaceData } from '../types/domain'
 import type { RoomStatus } from '../lib/room'
+import { illustratedElementRecipe } from '../lib/homeIllustration'
+import { IllustratedElement } from './home/IllustratedElement'
+import { SceneDecorationMark } from './home/SceneDecorationMark'
+import { readableSceneDecorations, type SceneDecoration } from '../lib/sceneDecorations'
 
 export type HomeOverlay = 'care' | 'tasks' | 'supplies' | 'objects'
 
@@ -23,6 +27,10 @@ interface Props {
   fitRequest?: number
   /** Operational room status keyed by room entity id. */
   roomStatuses?: Map<string, RoomStatus>
+  roomStatusLabels?: { due: string; overdue: string }
+  /** 19A: additional paint only, not spatial hit targets or persisted geometry. */
+  illustrated?: boolean
+  sceneDecorationPreview?: SceneDecoration[]
 }
 
 type Interaction = {
@@ -142,8 +150,12 @@ export function HomeLayoutCanvas({
   zoom = 1,
   fitRequest = 0,
   roomStatuses = new Map(),
+  roomStatusLabels,
+  illustrated = false,
+  sceneDecorationPreview,
 }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const printIdScope = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const [interaction, setInteraction] = useState<Interaction | null>(null)
   const [panInteraction, setPanInteraction] = useState<PanInteraction | null>(null)
   const panMovedRef = useRef(false)
@@ -196,6 +208,7 @@ export function HomeLayoutCanvas({
   const byEntity = new Map(displayed.map((item) => [item.entityId, item]))
   const relations = data.entityRelations.filter((item) => !item.archivedAt && byEntity.has(item.fromEntityId))
   const scene = data.layoutScenes.find((item) => item.id === sceneId && !item.archivedAt)
+  const sceneProps = illustrated && !editMode && !compact ? (sceneDecorationPreview ?? readableSceneDecorations(data, sceneId)) : []
   const sceneBackground = scene?.backgroundColor ?? '#f8f9f6'
   const centeredCamera = zoomedViewBox(baseCamera, zoom)
   const camera = {
@@ -330,7 +343,7 @@ export function HomeLayoutCanvas({
     <div className="layout-scroll-frame" style={{ background: sceneBackground }}>
       <svg
         ref={svgRef}
-        className={`home-layout-canvas${compact ? ' compact-canvas' : ' pannable'} ${editMode ? 'editing' : ''}${interaction ? ' interacting' : ''}${panInteraction ? ' panning' : ''}`}
+        className={`home-layout-canvas${compact ? ' compact-canvas' : ' pannable'} ${editMode ? 'editing' : ''}${illustrated && !editMode && !compact ? ' illustrated' : ''}${interaction ? ' interacting' : ''}${panInteraction ? ' panning' : ''}`}
         viewBox={`${camera.x} ${camera.y} ${camera.width} ${camera.height}`}
         preserveAspectRatio="xMidYMid meet"
         role="group"
@@ -343,6 +356,10 @@ export function HomeLayoutCanvas({
         {editMode && <defs><pattern id={`grid-${sceneId}`} width={GRID} height={GRID} patternUnits="userSpaceOnUse"><path d={`M ${GRID} 0 L 0 0 0 ${GRID}`} className="layout-grid-line" fill="none" /></pattern></defs>}
         <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={sceneBackground} data-layout-background="true" onClick={() => { if (consumeSuppressedPanClick()) return; onSelectElement?.(''); onSelectEntity?.('') }} />
         {editMode && <rect x="0" y="0" width={VIEW_W} height={VIEW_H} fill={`url(#grid-${sceneId})`} pointerEvents="none" />}
+
+        {sceneProps.length > 0 && <g className="v2-scene-decorations-under" pointerEvents="none">
+          {sceneProps.filter(item => !item.elementId && item.layer === 'behind').map(item => <SceneDecorationMark key={item.id} item={item} />)}
+        </g>}
 
         <g className="layout-relations">
           {relations.map((relation) => {
@@ -364,6 +381,7 @@ export function HomeLayoutCanvas({
           })}
         </g>
 
+        {sceneProps.filter(item => !item.elementId && item.layer === 'above').map(item => <SceneDecorationMark key={item.id} item={item} />)}
         {displayed.map((element) => {
           const entity = entities.get(element.entityId)
           if (!entity) return null
@@ -373,6 +391,9 @@ export function HomeLayoutCanvas({
           const supplyAlerts = overlay === 'supplies' ? supplyAlertsForEntity(data, entity.id).length : 0
           const selected = selectedElementId === element.id || selectedEntityIds.has(entity.id)
           const roomStatus = element.role === 'area' ? (roomStatuses.get(entity.id) ?? 'none') : 'none'
+          const statusText = roomStatus === 'both' ? `${roomStatusLabels?.overdue ?? 'Overdue'} · ${roomStatusLabels?.due ?? 'Due'}`
+            : roomStatus === 'overdue' ? (roomStatusLabels?.overdue ?? 'Overdue')
+            : roomStatus === 'due_today' ? (roomStatusLabels?.due ?? 'Due') : ''
           const centerX = element.x + element.width / 2
           const centerY = element.y + element.height / 2
           const transform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined
@@ -393,16 +414,26 @@ export function HomeLayoutCanvas({
             textShadow: element.textBackgroundColor ? 'none' : '0 0 2px white, 0 0 2px white',
           }
           const fill = elementFill(element)
+          const printRecipe = illustrated && !editMode && !compact && scene ? illustratedElementRecipe(scene, element, entity, type) : null
           const stroke = selected ? 'var(--primary)' : darkenHex(fill)
           const resizeOffsetX = element.x + element.width <= VIEW_W - 38 ? 28 : -28
           const resizeOffsetY = element.y + element.height <= VIEW_H - 38 ? 28 : -28
           const resizeX = element.x + element.width + resizeOffsetX
           const resizeY = element.y + element.height + resizeOffsetY
 
-          return <g key={element.id} className={`layout-element role-${element.role} ${selected ? 'selected' : ''} room-status-${roomStatus}`} transform={transform} onClick={(event) => { event.stopPropagation(); if (consumeSuppressedPanClick()) return; selectElement(element) }} onPointerDown={(event) => beginInteraction(event, element, 'move')} role="button" tabIndex={0} aria-pressed={selected} aria-label={entity.name} onKeyDown={(event) => selectElementFromKeyboard(event, element)}>
+          return <g key={element.id} className={`layout-element role-${element.role} ${selected ? 'selected' : ''} room-status-${roomStatus}`} transform={transform} onClick={(event) => { event.stopPropagation(); if (consumeSuppressedPanClick()) return; selectElement(element) }} onPointerDown={(event) => beginInteraction(event, element, 'move')} role="button" tabIndex={0} aria-pressed={selected} aria-label={statusText ? `${entity.name}: ${statusText}` : entity.name} onKeyDown={(event) => selectElementFromKeyboard(event, element)}>
+            {sceneProps.filter(item => item.elementId === element.id && item.layer === 'behind').map(item => <SceneDecorationMark key={item.id} item={item} anchor={element} />)}
             {element.shape === 'polygon'
               ? <polygon points={polygonPoints(element)} className="layout-shape" style={{ fill, stroke }} />
               : <rect x={element.x} y={element.y} width={element.width} height={element.height} rx={element.role === 'area' ? 8 : 16} className="layout-shape" style={{ fill, stroke }} />}
+
+            {printRecipe && element.shape === 'polygon' && <defs><clipPath id={`hc-room-art-${printIdScope}-${element.id}`}>
+              <polygon points={polygonPoints(element)} />
+            </clipPath></defs>}
+            {printRecipe && <g pointerEvents="none" clipPath={element.shape === 'polygon' ? `url(#hc-room-art-${printIdScope}-${element.id})` : undefined}>
+              <IllustratedElement element={element} recipe={printRecipe} zoom={zoom} />
+            </g>}
+            {sceneProps.filter(item => item.elementId === element.id && item.layer === 'above').map(item => <SceneDecorationMark key={item.id} item={item} anchor={element} />)}
 
             {element.role === 'area' && (roomStatus === 'overdue' || roomStatus === 'both') && (element.shape === 'polygon'
               ? <polygon points={polygonPoints(element)} className="room-status-outline overdue-outline polygon-status" />
@@ -415,6 +446,7 @@ export function HomeLayoutCanvas({
               ? <polygon points={polygonPoints(element)} className="room-selection-outline" />
               : <rect x={element.x} y={element.y} width={element.width} height={element.height} rx="8" className="room-selection-outline" />)}
 
+            {element.role === 'area' && element.width >= 140 && statusText && <text className="v2-home-room-status-text" x={centerX} y={element.y + element.height - 35} textAnchor="middle" pointerEvents="none">{statusText}</text>}
             {element.role === 'object' && <circle cx={centerX} cy={centerY - 14} r="18" className="object-icon-bg" />}
             {element.role === 'object' && <text x={centerX} y={centerY - 8} textAnchor="middle" className="object-icon">{type?.icon || '·'}</text>}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { LegacyRouteRedirect } from './components/LegacyRouteRedirect'
@@ -6,18 +6,19 @@ import { BootScreen } from './components/BootScreen'
 import { useAuth } from './contexts/AuthContext'
 import { useData } from './contexts/DataContext'
 import { useI18n } from './contexts/I18nContext'
-import { ActionsPage } from './pages/ActionsPage'
+const ActionsPage = lazy(() => import('./pages/ActionsPage').then(m => ({ default: m.ActionsPage })))
 import { AuthPage } from './pages/AuthPage'
-import { HomePage } from './pages/HomePage'
-import { InsightsPage } from './pages/InsightsPage'
-import { RoutinesPage } from './pages/RoutinesPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { SuppliesPage } from './pages/SuppliesPage'
+const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })))
+const InsightsPage = lazy(() => import('./pages/InsightsPage').then(m => ({ default: m.InsightsPage })))
+const RoutinesPage = lazy(() => import('./pages/RoutinesPage').then(m => ({ default: m.RoutinesPage })))
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const SuppliesPage = lazy(() => import('./pages/SuppliesPage').then(m => ({ default: m.SuppliesPage })))
 import { SetupPage } from './pages/SetupPage'
 import { OverviewPage } from './pages/OverviewPage'
-import { TimelinePage } from './pages/TimelinePage'
-import { TaskRouteResolver } from './pages/TaskRouteResolver'
+const TimelinePage = lazy(() => import('./pages/TimelinePage').then(m => ({ default: m.TimelinePage })))
+const TaskRouteResolver = lazy(() => import('./pages/TaskRouteResolver').then(m => ({ default: m.TaskRouteResolver })))
 import { applyTheme } from './lib/theme'
+import { startupMark } from './lib/startupTelemetry'
 
 export default function App() {
   const { user, loading: authLoading, appearancePalette } = useAuth()
@@ -26,23 +27,24 @@ export default function App() {
   const busy = authLoading || Boolean(user && dataLoading)
   const [bootVisible, setBootVisible] = useState(true)
   const [bootExiting, setBootExiting] = useState(false)
-  const bootStartedAt = useRef(Date.now())
 
   useEffect(() => { applyTheme(appearancePalette) }, [appearancePalette])
 
   useEffect(() => {
     if (busy) {
-      if (!bootVisible || bootExiting) bootStartedAt.current = Date.now()
       setBootVisible(true)
       setBootExiting(false)
       return
     }
     if (!bootVisible) return
-    const delay = Math.max(0, 520 - (Date.now() - bootStartedAt.current))
+    // No fixed hold after the first useful state is ready. Keep only a short
+    // exit animation, suppressed when motion is reduced.
+    const delay = 0
     let hideTimer: number | undefined
     const exitTimer = window.setTimeout(() => {
       setBootExiting(true)
-      hideTimer = window.setTimeout(() => setBootVisible(false), 360)
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      hideTimer = window.setTimeout(() => { setBootVisible(false); startupMark('boot-exit') }, reduced ? 0 : 120)
     }, delay)
     return () => {
       window.clearTimeout(exitTimer)
@@ -55,13 +57,13 @@ export default function App() {
     if (!user) content = <AuthPage />
     else {
       const activeHomes = workspaces.filter((workspace) => !workspace.archivedAt)
-      if (!data && activeHomes.length > 0) {
+      if (!data && (activeHomes.length > 0 || error)) {
         content = <main className="center-page"><section className="card auth-card stack" role={error ? 'alert' : undefined}>
           <div><div className="eyebrow">House Care</div><h1>{error ? 'Home unavailable' : 'Opening your home…'}</h1><p className="muted">{error ?? 'Loading the last home used by this account.'}</p></div>
           {error && <button className="button primary" onClick={() => location.reload()}>Reload</button>}
         </section></main>
       } else if (!data) content = <SetupPage />
-      else content = <Routes>
+      else content = <Suspense fallback={<main className="center-page" role="status" aria-live="polite">{t('loadingApp')}</main>}><Routes>
         <Route element={<AppShell />}>
           <Route index element={<OverviewPage />} />
           <Route path="today" element={<LegacyRouteRedirect />} />
@@ -76,7 +78,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
-      </Routes>
+      </Routes></Suspense>
     }
   }
 

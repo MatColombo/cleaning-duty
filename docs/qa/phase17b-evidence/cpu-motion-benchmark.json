@@ -1,0 +1,15 @@
+{
+  "context": "Node pure geometry microbenchmark; no DOM, animation, GPU, network or device FPS sampling",
+  "runtime": "v22.16.0",
+  "iterations": 250000,
+  "durationMs": 834.989,
+  "averageUs": 3.34,
+  "memoryBeforeBytes": 25436560,
+  "memoryAfterBytes": 26127248,
+  "heapDeltaBytes": 690688,
+  "checksum": 497138.01,
+  "deviceFrameTiming": "NOT MEASURED",
+  "browserJsHeap": "NOT MEASURED",
+  "actualGestureFps": "NOT MEASURED",
+  "backendRequestsDuringDrag": "No transport calls in presentation code (static contract); network proof NOT MEASURED"
+}

@@ -1,0 +1,27 @@
+gate,status,evidence_or_blocker
+Phase 15 preserved V1 git baseline,PASS,Supplied Git snapshot main v1.3.4 and v2-testing rc.1; not a live remote audit
+Version and source assets,PASS,tools/check-version.cjs inside qa:static; package rc.9
+Static/source audit,PASS,qa-static.log: 30 checks
+TS/TSX parse audit,PASS,qa-syntax.log: 157 source files
+Full V1/V2 pure domain suite,PASS,"npm-test.log exit 0; simulated, no live database"
+16A queue conflict/offline and sync,PASS,Included in pure npm-test.log only; live two-user still blocked
+16B Extra Care #4 -> #5; implicit completion,PASS,Included in pure npm-test.log only; live atomic RPC still blocked
+16C Sep 1 -> Sep 3 -> Sep 8 and 18-month buffer,PASS,Included in pure npm-test.log only; cloud concurrency still blocked
+16C/18B/19B SQL contract static,PASS,sql-contract-source-tests.log; never executed SQL
+Dependency-backed typecheck,BLOCKED,typecheck.log: missing React/Vite and types (no npm lock / EAI_AGAIN)
+Vite production build,BLOCKED,build.log: fails at missing dependencies
+Combined qa:release gate,BLOCKED,qa-release.log: fails at typecheck after pure tests
+Browser real-app E2E and screenshot index,BLOCKED,No successfully built app; 0 genuine screenshots captured
+"EN/IT, keyboard/touch, screen reader, reduced motion",BLOCKED,"Source checks PASS, real browser/PWA not run"
+Installed iOS and Android PWA update/deep links/push,BLOCKED,No real devices tested
+"Live startup, frame, heap, viewport measurements",BLOCKED,"Only isolated prior Node benchmarks, not browser/device"
+Supabase staging migrations and RLS two members,BLOCKED,"No staging credentials/approval; scripts supplied, not run"
+V1 binary client against additive schema,BLOCKED,No staging schema installed; V1 compatibility source-based
+V2 activated household V1 mixed-client boundary,BLOCKED,Design documents intentional V2-only writes; not live tested
+Production or staging DB migrations,BLOCKED,Not applied; explicit approval required
+Cloud full restore with V2 ledgers/decorations,BLOCKED,Source deliberately refuses before delete; full transactional restore absent
+Backup v2-11/local roundtrip,PASS,"Pure test coverage, not live cloud restore"
+Cloudflare Worker Preview actual run,BLOCKED,No dependency-backed build or Cloudflare auth
+Supabase request/egress/storage quotas,BLOCKED,Prior JSON payload proxy only; no provider measurements
+Rollback drill / old-worker install update,BLOCKED,No live staging worker or DB recovery drill
+Final application version and promotion,BLOCKED,Source remains 2.0.0-rc.9; final 2.0.0 NOT assigned

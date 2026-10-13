@@ -1,0 +1,48 @@
+{
+  "fixture": "tests/fixtures/pre-v2-household-backup.json",
+  "protocol": "uncompressed JSON payload, excluding HTTP headers/TLS and PostgREST metadata",
+  "trials": [
+    {
+      "operation": "layout x: 40 -> 420",
+      "baseline": {
+        "requests": 17,
+        "bytes": 22214
+      },
+      "phase16a": {
+        "requests": 1,
+        "bytes": 117
+      },
+      "requestReductionPct": 94.12,
+      "byteReductionPct": 99.47,
+      "tableRowChanges": 1
+    },
+    {
+      "operation": "entity name: Kitchen -> Kitchen A",
+      "baseline": {
+        "requests": 17,
+        "bytes": 22214
+      },
+      "phase16a": {
+        "requests": 1,
+        "bytes": 131
+      },
+      "requestReductionPct": 94.12,
+      "byteReductionPct": 99.41,
+      "tableRowChanges": 1
+    },
+    {
+      "operation": "entity labels: [] -> [urgent]",
+      "baseline": {
+        "requests": 17,
+        "bytes": 22214
+      },
+      "phase16a": {
+        "requests": 1,
+        "bytes": 138
+      },
+      "requestReductionPct": 94.12,
+      "byteReductionPct": 99.38,
+      "tableRowChanges": 1
+    }
+  ]
+}

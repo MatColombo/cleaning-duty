@@ -1,0 +1,18 @@
+-- STAGING PREVIEW ONLY. Do not execute or change ROLLBACK without explicit
+-- authorization, drained household outboxes and verified prior 16A/16B SQL.
+-- NEVER activate a household still edited by V1 clients.
+-- psql "$ISOLATED_STAGING_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+--   -v owner_id=<AUTH_UUID> -v workspace_id=<HOUSEHOLD_UUID> -f ...
+\set ON_ERROR_STOP on
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',:'owner_id',true);
+select public.v2_activate_recurrence_household(:'workspace_id'::uuid);
+select r.id,r.name,r.revision,count(t.id) filter(where t.state='scheduled') as scheduled,
+       count(t.id) filter(where t.state='completed') as completed,
+       count(t.id) filter(where t.state='scheduled' and t.successor_of_event_id is null) as unknown_provenance
+  from public.routines r left join public.task_occurrences t on t.routine_id=r.id
+  where r.workspace_id=:'workspace_id'::uuid and r.schedule_mode='after_completion'
+  group by r.id,r.name,r.revision;
+rollback;
+-- The above output is an operator review gate, not an automated conversion.

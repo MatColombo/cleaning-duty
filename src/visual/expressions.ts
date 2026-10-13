@@ -13,29 +13,72 @@ export function isExpressionId(id: string): id is ExpressionId {
 
 export function renderExpressionMark(id: ExpressionId, p: VectorPalette): string {
   const ink = p.ink
-  const eye = (x: number, y = 26) => `<ellipse cx="${x}" cy="${y}" rx="3.8" ry="5.6" fill="${ink}"/>`
-  const eyes = `${eye(22)}${eye(42)}`
-  const path = (d: string, color = ink, width = 3.7) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`
-  const brow = (left: string, right: string) => path(left, ink, 3.6) + path(right, ink, 3.6)
-  const happy = `${path('M18 40 Q32 55 46 40',ink,4.5)}`
-  const shut = path('M16 27 Q22 32 28 27') + path('M36 27 Q42 32 48 27')
-  const cheek = `<circle cx="13" cy="37" r="4.6" fill="${p.coral}" opacity=".58"/><circle cx="51" cy="37" r="4.6" fill="${p.coral}" opacity=".58"/>`
+  const stroke = (d: string, width = 4, color = ink, extra = '') => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`
+  const fillPath = (d: string, color = ink, extra = '') => `<path d="${d}" fill="${color}" ${extra}/>`
+  const eye = (x: number, y = 27, rx = 4.8, ry = 6.6) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${ink}"/>`
+  const openEyes = `<g data-hc-face-part="eyes">${eye(20)}${eye(44)}</g>`
+  const closedEyes = `<g data-hc-face-part="eyes">${stroke('M13 28 Q20 33 27 28', 3.8)}${stroke('M37 28 Q44 33 51 28', 3.8)}</g>`
+  const wideEyes = `<g data-hc-face-part="eyes"><circle cx="20" cy="27" r="6.4" fill="${p.surface}" stroke="${ink}" stroke-width="3.4"/><circle cx="44" cy="27" r="6.4" fill="${p.surface}" stroke="${ink}" stroke-width="3.4"/><circle cx="20" cy="28.2" r="2.2" fill="${ink}"/><circle cx="44" cy="28.2" r="2.2" fill="${ink}"/></g>`
+  const brows = (left: string, right: string, width = 4.1) => `<g data-hc-face-part="brows">${stroke(left, width)}${stroke(right, width)}</g>`
+  const blush = `<g data-hc-face-part="cheeks"><ellipse cx="9.5" cy="40" rx="5.7" ry="4.2" fill="${p.coral}" opacity=".48"/><ellipse cx="54.5" cy="40" rx="5.7" ry="4.2" fill="${p.coral}" opacity=".48"/></g>`
+  const smile = `<g data-hc-face-part="mouth">${stroke('M17 43 Q32 55 47 43', 4.6)}</g>`
+  const confidentSmile = `<g data-hc-face-part="mouth">${stroke('M18 42 Q31 51 45 40', 4.4)}</g>`
+  const frown = `<g data-hc-face-part="mouth">${stroke('M20 49 Q32 38 44 49', 4.4)}</g>`
+  const flat = `<g data-hc-face-part="mouth">${stroke('M22 45 H42', 4.2)}</g>`
+  const openLaugh = `<g data-hc-face-part="mouth">${fillPath('M17 39 Q32 60 47 39 Q32 51 17 39 Z')}${stroke('M23 46 Q32 42 41 46', 3.5, p.coral)}</g>`
+  const openO = `<g data-hc-face-part="mouth"><ellipse cx="32" cy="47" rx="7.4" ry="9.6" fill="${ink}"/></g>`
+  const tiredMouth = `<g data-hc-face-part="mouth"><ellipse cx="32" cy="47" rx="6.8" ry="4.4" fill="${ink}" opacity=".76"/></g>`
+  const sweat = `<g data-hc-face-part="accent">${fillPath('M51 8 Q58 -3 62 10 Q63 18 58 20 Q49 20 51 8', p.turquoise)}</g>`
+  const sleepyAccent = `<g data-hc-face-part="accent">${stroke('M48 10 H61 L50 21 H61', 3.4, p.turquoise)}</g>`
+
   switch (id) {
-    case 'joyful': return `${shut}${cheek}<path d="M20 38 Q32 59 44 38 Z" fill="${ink}"/><path d="M27 46 Q32 42 37 46" ${`stroke="${p.coral}" stroke-width="4"`} fill="none"/>`
-    case 'smile': return `${eyes}${cheek}${happy}`
-    case 'proud': return `${eye(23)}${path('M35 26 Q43 32 49 25')}${brow('M16 16 L26 14','M38 15 L46 18')}${path('M19 40 Q32 52 45 39')}${cheek}`
-    case 'neutral': return `${eyes}${path('M23 44 H41')}`
-    case 'focused': return `${eyes}${brow('M15 20 L28 16','M36 16 L49 20')}${path('M26 45 H40')}`
-    case 'worried': return `${eyes}${brow('M16 19 Q23 12 29 21','M35 21 Q41 12 48 19')}${path('M22 48 Q32 35 43 48')}`
-    case 'tired': return `${path('M17 27 L29 30')}${path('M35 30 L47 27')}${brow('M16 16 H28','M36 16 H48')}<ellipse cx="32" cy="46" rx="6" ry="4" fill="${ink}" opacity=".7"/>`
-    case 'sweaty': return `${eyes}${brow('M16 19 L29 15','M35 15 L49 19')}${path('M23 48 Q32 38 42 48')}<path d="M49 10 Q54 1 58 11 Q60 19 54 19 Q47 19 49 10 Z" fill="${p.turquoise}"/>`
-    case 'angry': return `${eyes}${brow('M14 13 L29 22','M35 22 L50 13')}${path('M20 48 Q32 35 44 48')}`
-    case 'sleepy': return `${shut}${path('M26 42 Q32 36 38 42')}<path d="M47 11 H59 L48 21 H59" fill="none" stroke="${p.turquoise}" stroke-width="3" stroke-linejoin="round"/>`
-    case 'relieved': return `${shut}${happy}${cheek}${path('M17 16 Q22 13 27 16')}${path('M37 16 Q42 13 47 16')}`
-    case 'surprised': return `<circle cx="22" cy="27" r="6" fill="${p.surface}" stroke="${ink}" stroke-width="3"/><circle cx="42" cy="27" r="6" fill="${p.surface}" stroke="${ink}" stroke-width="3"/><ellipse cx="32" cy="46" rx="7" ry="9" fill="${ink}"/>`
+    case 'joyful':
+      return `${closedEyes}${brows('M12 18 Q18 15 24 18', 'M40 18 Q46 15 52 18', 3.2)}${blush}${openLaugh}`
+    case 'smile':
+      return `${openEyes}${brows('M12 18 Q18 16 24 18', 'M40 18 Q46 16 52 18', 3.2)}${blush}${smile}`
+    case 'proud':
+      return `<g data-hc-face-part="eyes">${eye(21, 27, 4.4, 6.2)}${stroke('M37 27 Q44 34 50 26', 3.8)}</g>${brows('M13 17 L25 14', 'M39 15 L49 18')}${blush}${confidentSmile}`
+    case 'neutral':
+      return `${openEyes}${brows('M13 18 H25', 'M39 18 H51', 3.2)}${flat}`
+    case 'focused':
+      return `${openEyes}${brows('M12 20 L25 15', 'M39 15 L52 20')}${flat}`
+    case 'worried':
+      return `${openEyes}${brows('M13 20 Q20 12 28 21', 'M36 21 Q44 12 51 20')}${frown}`
+    case 'tired':
+      return `<g data-hc-face-part="eyes">${stroke('M13 28 L27 31', 3.7)}${stroke('M37 31 L51 28', 3.7)}</g>${brows('M13 17 H26', 'M38 17 H51', 3.2)}${tiredMouth}`
+    case 'sweaty':
+      return `${openEyes}${brows('M13 20 L27 15', 'M37 15 L51 20')}${frown}${sweat}`
+    case 'angry':
+      return `${openEyes}${brows('M11 15 L27 23', 'M37 23 L53 15')}${frown}`
+    case 'sleepy':
+      return `${closedEyes}${flat}${sleepyAccent}`
+    case 'relieved':
+      return `${closedEyes}${brows('M14 18 Q19 15 24 18', 'M40 18 Q45 15 50 18', 3.2)}${blush}${smile}`
+    case 'surprised':
+      return `${wideEyes}${brows('M12 17 Q18 11 24 17', 'M40 17 Q46 11 52 17', 3.2)}${openO}`
   }
 }
 
 export function renderExpressionPreviewSvg(id: ExpressionId, p: VectorPalette): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="${id} expression"><circle cx="40" cy="40" r="32" fill="${p.mustard}" opacity=".28"/><circle cx="40" cy="40" r="32" fill="none" stroke="${p.ink}" stroke-width="2"/><g transform="translate(8 8)">${renderExpressionMark(id, p)}</g></svg>`
+}
+
+/** Reuses authored face ink; selects only known parts, never accepts SVG markup. */
+export function renderStudioExpression(
+  base: ExpressionId,
+  parts: { eyes?: ExpressionId; mouth?: ExpressionId; brows?: ExpressionId },
+  palette: VectorPalette,
+): string {
+  let markup = renderExpressionMark(base, palette)
+  for (const part of ['eyes', 'brows', 'mouth'] as const) {
+    const expression = parts[part]
+    if (!expression) continue
+    const group = new RegExp(`<g data-hc-face-part="${part}">[^]*?</g>`, 'g')
+    const replacement = renderExpressionMark(expression, palette).match(group)?.[0]
+      ?? renderExpressionMark('neutral', palette).match(group)?.[0]
+    if (!replacement) continue
+    if (group.test(markup)) markup = markup.replace(group, () => replacement)
+    else markup += replacement
+  }
+  return markup
 }

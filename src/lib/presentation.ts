@@ -1,5 +1,6 @@
 import type { Routine, TaskOccurrence, TaskSupplySnapshot, WorkspaceData } from '../types/domain'
 import type { TranslationKey } from './translations'
+import { completedExtraCare, dueExtraCare, integratedExtraCare } from './extraCare'
 
 /** The routine's explicit title is the activity title; the Action is secondary. */
 export function activityTitle(task: TaskOccurrence): string {
@@ -14,8 +15,11 @@ export function activitySubtitle(task: TaskOccurrence): string {
 
 
 export interface AdditionalActivityAppendixEntry {
+  /** Legacy uses occurrence ID; integrated work uses the routine ID. */
+  id: string
   routine: Routine
   occurrence?: TaskOccurrence
+  status?: 'due' | 'completed' | 'postponed'
   supplies: TaskSupplySnapshot[]
   targetNames: string[]
   actionName: string
@@ -36,6 +40,19 @@ function configuredSupplySnapshots(data: WorkspaceData, routine: Routine): TaskS
  * remains visible in the Routine editor/details instead of leaking into daily work. */
 export function additionalActivityAppendix(data: WorkspaceData, parentTask: TaskOccurrence): AdditionalActivityAppendixEntry[] {
   if (parentTask.parentOccurrenceId) return []
+  if (integratedExtraCare(data)) {
+    const due = dueExtraCare(data, parentTask)
+    const completed = completedExtraCare(data, parentTask)
+    const matching = parentTask.state === 'completed' ? completed : due
+    return matching.map(routine => {
+      const action = data.actions.find(item => item.id === routine.actionId)
+      return { id: routine.id, routine, status: parentTask.state === 'completed' ? 'completed' as const : 'due' as const,
+        supplies: configuredSupplySnapshots(data, routine),
+        targetNames: routine.targetEntityIds.map(id => data.entities.find(e => e.id === id)?.name).filter((name): name is string => Boolean(name)),
+        actionName: action?.name ?? '',
+      }
+    })
+  }
   const children = data.routines.filter((routine) => !routine.archivedAt && routine.status === 'active' && routine.parentRoutineId === parentTask.routineId)
   return children.flatMap((routine) => {
     const occurrence = data.tasks
@@ -44,7 +61,7 @@ export function additionalActivityAppendix(data: WorkspaceData, parentTask: Task
     if (!occurrence) return []
     const action = data.actions.find((item) => item.id === routine.actionId)
     return [{
-      routine, occurrence,
+      id: occurrence.id, routine, occurrence,
       supplies: occurrence.supplies.length ? occurrence.supplies : configuredSupplySnapshots(data, routine),
       targetNames: routine.targetEntityIds.map((id) => data.entities.find((entity) => entity.id === id)?.name).filter((name): name is string => Boolean(name)),
       actionName: action?.name ?? occurrence.actionNameSnapshot ?? '',

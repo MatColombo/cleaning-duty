@@ -32,7 +32,7 @@ function equal<T>(actual: T, expected: T, label: string): void {
   assert(actual === expected, `${label}: got ${String(actual)}, expected ${String(expected)}`)
 }
 
-assert(HOUSE_CARE_VISUAL_VERSION === 1, 'Visual recipe generator must be version 1')
+assert(HOUSE_CARE_VISUAL_VERSION === 2, 'Visual recipe generator must be version 2')
 equal(SUBJECT_FAMILIES.length, 11, 'All subject families')
 equal(ACTION_FAMILIES.length, 17, 'All action families')
 equal(ENVIRONMENT_FAMILIES.length, 9, 'All environments')
@@ -82,7 +82,7 @@ equal(generic.environment, 'generic-interior', 'Generic environment fallback')
 const recipe = generateCardVisualRecipe(base)
 assert(Object.isFrozen(recipe), 'Recipe must be frozen')
 assert(Object.isFrozen(recipe.decorations), 'Decoration placements must be frozen')
-assert(recipe.version === 1 && recipe.decorations.length >= 1 && recipe.decorations.length <= 3, 'Version/bounded placements')
+assert(recipe.version === 2 && recipe.decorations.length >= 1 && recipe.decorations.length <= 3, 'Version/bounded placements')
 equal(JSON.stringify(recipe), JSON.stringify(generateCardVisualRecipe(structuredClone(base))), 'Determinism after clone/reload')
 assert(!/<svg|<image|data:image|#[0-9a-fA-F]{6}/.test(JSON.stringify(recipe)), 'Recipes must contain no SVG/raster payloads or fixed colors')
 assert(JSON.stringify(recipe).length < 1450, 'Recipes should remain compact')
@@ -148,7 +148,7 @@ for (const task of historicalData.tasks) {
   const input = cardVisualInputFromDomain(task, historicalData)
   const artRecipe = generateCardVisualRecipe(input)
   assert(hasPrimitiveDefinition(artRecipe.semantics.subjectId), `No art for historical task ${task.id}`)
-  assert(artRecipe.version === 1, 'Historical task must use generator v1')
+  assert(artRecipe.version === 2, 'Historical task must use generator v2')
   assert(artRecipe.edition.stamp === 'extra-care' || !task.parentOccurrenceId, 'Linked task must be recognized')
 }
 equal(JSON.stringify(historicalData), before, 'Visual adapter may not modify domain input')
@@ -162,19 +162,19 @@ const historicalVisual = generateCardVisualRecipe(cardVisualInputFromDomain(orig
 assert(historicalVisual.semantics.subjectId === 'oven', 'Historical oven must get the correct silhouette')
 assert(originalTask.state === oldState && originalTask.effectiveDueAt === oldDue, 'Visual generation cannot modify workflow state')
 
-// Immutable visual v1 golden fixtures protect old collectible editions across refactors.
-const golden = JSON.parse(readFileSync(join(process.cwd(), 'tests/fixtures/v2-visual-v1-golden.json'), 'utf8'))
-assert(golden.visualGeneratorVersion === HOUSE_CARE_VISUAL_VERSION, 'Golden fixture is bound to visual v1')
+// Immutable visual v2 golden fixtures protect collectible editions across refactors.
+const golden = JSON.parse(readFileSync(join(process.cwd(), 'tests/fixtures/v2-visual-v2-golden.json'), 'utf8'))
+assert(golden.visualGeneratorVersion === HOUSE_CARE_VISUAL_VERSION, 'Golden fixture is bound to visual v2')
 assert(golden.cases.length >= 5, 'Golden fixtures cover EN, IT, unknown and linked input')
 for (const sample of golden.cases) {
   const actual = generateCardVisualRecipe(sample.input)
-  equal(JSON.stringify(actual), JSON.stringify(sample.recipe), `Visual v1 golden ${sample.input.occurrenceId}`)
+  equal(JSON.stringify(actual), JSON.stringify(sample.recipe), `Visual v2 golden ${sample.input.occurrenceId}`)
 }
 
 // Development previews are generated from the same recipe + authored vector source.
 const proofSvg = readFileSync(join(process.cwd(), 'design/v2/page-reference/v2-procedural-cards-proof.svg'),'utf8')
 const proofHtml = readFileSync(join(process.cwd(), 'design/v2/page-reference/v2-procedural-cards.html'),'utf8')
-assert(proofSvg.split('data-hc-card-version="1"').length - 1 === 6, 'SVG contact sheet should contain six v1 examples')
+assert(proofSvg.split('data-hc-card-version="2"').length - 1 === 6, 'SVG contact sheet should contain six v2 examples')
 assert(proofHtml.includes('Unknown / generic fallback') && proofHtml.includes('Linked coffee / Italian'), 'Development proof covers unknown and linked cases')
 assert(!proofHtml.includes('Math.random(') && !proofHtml.includes('data:image/'), 'Development proof must use deterministic vectors')
 const proofValidation = validateSvgSource(proofSvg,{allowFixedColors:true,maxBytes:210000,maxPaths:1500})

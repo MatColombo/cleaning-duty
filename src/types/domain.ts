@@ -1,3 +1,5 @@
+import type { VisualOverrideRow } from '../lib/visualOverrides'
+import type { SceneDecorationRow } from '../lib/sceneDecorations'
 export type Locale = 'en' | 'it'
 export type CareSensitivity = 'relaxed' | 'balanced' | 'strict'
 export type CareLevel = 'routine' | 'deep'
@@ -321,6 +323,8 @@ export interface TaskOccurrence {
   triggerOrdinal?: number
   /** Exact parent occurrence when this is attached work. */
   parentOccurrenceId?: string
+  /** 16C canonical predecessor event; only this linked successor can be cancelled on Undo. */
+  successorOfEventId?: string
   routineNameSnapshot: string
   actionNameSnapshot: string
   /** Canonical v1.2 channel snapshot. */
@@ -432,7 +436,42 @@ export interface SupplyEvent {
   metadata: Record<string, unknown>
 }
 
+/** V2-only execution ledger. V1 child task occurrences remain historical records. */
+export interface ExtraCareEvent {
+  id: string
+  workspaceId: string
+  parentOccurrenceId: string
+  routineId: string
+  type: 'POSTPONED' | 'COMPLETED' | 'REOPENED'
+  at: string
+  actorMemberId?: string
+  sourceEventId?: string
+  parentEventId?: string
+}
+
+/** Pending legacy child occurrence captured before deactivating its V1 task row. */
+export interface ExtraCareLegacyCarry {
+  id: string
+  workspaceId: string
+  routineId: string
+  originOccurrenceId: string
+  targetOrdinal: number
+}
+
 export interface WorkspaceData {
+  /** 19B: explicit scene artwork only; procedural defaults are never persisted. */
+  sceneDecorations?: SceneDecorationRow[]
+  sceneDecorationsAvailable?: boolean
+  /** V2-only, additive recipe instructions. Never stores SVG/media. */
+  visualOverrides?: VisualOverrideRow[]
+  /** False until additive table is available; cloud save must fail closed. */
+  visualOverridesAvailable?: boolean
+  /** Enabled only in local mode or a cloud household explicitly activated for 16B. */
+  extraCareMode?: 'legacy' | 'integrated'
+  /** Cloud: enabled only after explicit 16C enrollment. Local mode omits this field. */
+  recurrenceMode?: 'legacy' | 'atomic'
+  extraCareEvents?: ExtraCareEvent[]
+  extraCareLegacyCarries?: ExtraCareLegacyCarry[]
   workspace: Workspace
   members: WorkspaceMember[]
   fieldDefinitions: MetadataFieldDefinition[]

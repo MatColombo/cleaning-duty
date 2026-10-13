@@ -1,0 +1,23 @@
+-- Phase 16B rollback, STAGING-FIRST AND MANUAL ONLY.
+-- Fails closed if any workspace is activated. Before rollback, drain all V2
+-- outboxes, export a verified backup and disable V2 clients. Activated houses
+-- require a deliberate, audited conversion back to V1 child occurrences.
+begin;
+do $$ begin
+  if exists(select 1 from public.v2_extra_care_households) then
+    raise exception 'Cannot rollback: activated V2 Extra Care households exist; recover them manually first.';
+  end if;
+end $$;
+drop trigger if exists v2_guard_integrated_legacy_tasks on public.task_occurrences;
+drop function if exists public.v2_guard_integrated_legacy_tasks();
+drop function if exists public.v2_apply_integrated_care(uuid,integer,text,uuid,timestamptz,uuid,uuid,timestamptz,uuid,text,boolean,jsonb,jsonb);
+drop function if exists public.v2_apply_extra_cleanliness(public.task_occurrences,uuid,timestamptz,uuid,jsonb);
+drop function if exists public.v2_due_extra_care_ids(uuid);
+drop function if exists public.v2_activate_extra_care_household(uuid);
+drop table if exists public.v2_extra_care_effect_audit;
+drop table if exists public.v2_extra_care_before;
+drop table if exists public.v2_extra_care_legacy_carries;
+drop table if exists public.v2_extra_care_events;
+drop table if exists public.v2_extra_care_households;
+notify pgrst,'reload schema';
+commit;

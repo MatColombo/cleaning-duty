@@ -2,6 +2,7 @@ import type { CleanlinessChannel, TaskEvent, TaskOccurrence, WorkspaceData } fro
 import { itemChannelCleanliness } from './cleanliness'
 import { addDays, localDateInZone } from './date'
 import { isRoutineActive } from './scheduler'
+import { isLegacyLinkedTask } from './extraCare'
 
 export type OverviewScope = 'mine' | 'household'
 
@@ -143,6 +144,7 @@ export function buildOverviewGroups(
   const routineById = new Map(data.routines.map((routine) => [routine.id, routine]))
   const tasks = dedupeOccurrences(data)
     .filter((task) => task.state !== 'cancelled')
+    .filter((task) => !isLegacyLinkedTask(data, task) || task.state !== 'scheduled')
     .filter((task) => {
       const routine = routineById.get(task.routineId)
       return task.state !== 'scheduled' || (routine ? isRoutineActive(routine) : true)

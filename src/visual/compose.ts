@@ -1,6 +1,6 @@
 import { renderPrimitiveSvg, type RenderPrimitiveOptions } from './render'
 import { getPrimitiveDefinition } from './registry'
-import { renderExpressionMark, type ExpressionId } from './expressions'
+import { renderExpressionMark, renderStudioExpression, type ExpressionId } from './expressions'
 import { renderPoseLayers, type PoseId } from './poses'
 import { renderDecorationMarkup, type DecorationId } from './decorations'
 import { CSS_VECTOR_PALETTE } from './palette'
@@ -19,20 +19,22 @@ export interface ManualCharacterOptions extends RenderPrimitiveOptions {
   readonly expression?: ExpressionId
   readonly pose?: PoseId
   readonly decorations?: readonly ManualDecoration[]
+  readonly faceParts?: { readonly eyes?: ExpressionId; readonly brows?: ExpressionId; readonly mouth?: ExpressionId }
+  readonly rightHand?: 'thumb' | 'open' | 'fist' | 'point' | 'hold'
 }
 export function renderManualCharacterSvg(primitiveId: string, options: ManualCharacterOptions): string {
   const definition = getPrimitiveDefinition(primitiveId)
   const palette = options.palette ?? CSS_VECTOR_PALETTE
   let svg = renderPrimitiveSvg(primitiveId, options)
-  const pose = options.pose ? renderPoseLayers(options.pose, palette, definition.metadata.limbAnchors) : undefined
+  const pose = options.pose ? renderPoseLayers(options.pose, palette, definition.metadata.limbAnchors, options.rightHand) : undefined
   if (pose) {
     svg = svg.replace('<g data-hc-layer="body">', `${pose.behind}<g data-hc-layer="body">`)
   }
   const anchor = definition.metadata.faceAnchor
   const face = options.expression && anchor
-    ? `<g aria-hidden="true" data-hc-expression="${options.expression}" transform="translate(${(anchor.x-24).toFixed(1)} ${(anchor.y-24).toFixed(1)}) scale(.75)">${renderExpressionMark(options.expression,palette)}</g>`
+    ? `<g aria-hidden="true" data-hc-expression="${options.expression}" data-hc-face-role="hero" transform="translate(${(anchor.x - 31).toFixed(1)} ${(anchor.y - 31).toFixed(1)}) scale(.92)">${options.faceParts ? renderStudioExpression(options.expression, options.faceParts, palette) : renderExpressionMark(options.expression, palette)}</g>`
     : ''
-  const ornament = (options.decorations ?? []).map(({id,x,y,scale=0.35}) => `<g aria-hidden="true" data-hc-decoration="${id}" transform="translate(${x} ${y}) scale(${Math.max(0.1, Math.min(.75,scale))})">${renderDecorationMarkup(id,palette)}</g>`).join('')
+  const ornament = (options.decorations ?? []).map(({ id, x, y, scale = 0.35 }) => `<g aria-hidden="true" data-hc-decoration="${id}" transform="translate(${x} ${y}) scale(${Math.max(0.1, Math.min(.75, scale))})">${renderDecorationMarkup(id, palette)}</g>`).join('')
   const overlay = `<g data-hc-layer="manual-overlay">${face}${pose?.foreground ?? ''}${ornament}</g>`
   return svg.replace('</svg>', `${overlay}</svg>`)
 }

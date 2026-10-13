@@ -1,0 +1,132 @@
+[
+  {
+    "gate": "Phase 15 preserved V1 git baseline",
+    "status": "PASS",
+    "evidence_or_blocker": "Supplied Git snapshot main v1.3.4 and v2-testing rc.1; not a live remote audit"
+  },
+  {
+    "gate": "Version and source assets",
+    "status": "PASS",
+    "evidence_or_blocker": "tools/check-version.cjs inside qa:static; package rc.9"
+  },
+  {
+    "gate": "Static/source audit",
+    "status": "PASS",
+    "evidence_or_blocker": "qa-static.log: 30 checks"
+  },
+  {
+    "gate": "TS/TSX parse audit",
+    "status": "PASS",
+    "evidence_or_blocker": "qa-syntax.log: 157 source files"
+  },
+  {
+    "gate": "Full V1/V2 pure domain suite",
+    "status": "PASS",
+    "evidence_or_blocker": "npm-test.log exit 0; simulated, no live database"
+  },
+  {
+    "gate": "16A queue conflict/offline and sync",
+    "status": "PASS",
+    "evidence_or_blocker": "Included in pure npm-test.log only; live two-user still blocked"
+  },
+  {
+    "gate": "16B Extra Care #4 -> #5; implicit completion",
+    "status": "PASS",
+    "evidence_or_blocker": "Included in pure npm-test.log only; live atomic RPC still blocked"
+  },
+  {
+    "gate": "16C Sep 1 -> Sep 3 -> Sep 8 and 18-month buffer",
+    "status": "PASS",
+    "evidence_or_blocker": "Included in pure npm-test.log only; cloud concurrency still blocked"
+  },
+  {
+    "gate": "16C/18B/19B SQL contract static",
+    "status": "PASS",
+    "evidence_or_blocker": "sql-contract-source-tests.log; never executed SQL"
+  },
+  {
+    "gate": "Dependency-backed typecheck",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "typecheck.log: missing React/Vite and types (no npm lock / EAI_AGAIN)"
+  },
+  {
+    "gate": "Vite production build",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "build.log: fails at missing dependencies"
+  },
+  {
+    "gate": "Combined qa:release gate",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "qa-release.log: fails at typecheck after pure tests"
+  },
+  {
+    "gate": "Browser real-app E2E and screenshot index",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No successfully built app; 0 genuine screenshots captured"
+  },
+  {
+    "gate": "EN/IT, keyboard/touch, screen reader, reduced motion",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Source checks PASS, real browser/PWA not run"
+  },
+  {
+    "gate": "Installed iOS and Android PWA update/deep links/push",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No real devices tested"
+  },
+  {
+    "gate": "Live startup, frame, heap, viewport measurements",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Only isolated prior Node benchmarks, not browser/device"
+  },
+  {
+    "gate": "Supabase staging migrations and RLS two members",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No staging credentials/approval; scripts supplied, not run"
+  },
+  {
+    "gate": "V1 binary client against additive schema",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No staging schema installed; V1 compatibility source-based"
+  },
+  {
+    "gate": "V2 activated household V1 mixed-client boundary",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Design documents intentional V2-only writes; not live tested"
+  },
+  {
+    "gate": "Production or staging DB migrations",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Not applied; explicit approval required"
+  },
+  {
+    "gate": "Cloud full restore with V2 ledgers/decorations",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Source deliberately refuses before delete; full transactional restore absent"
+  },
+  {
+    "gate": "Backup v2-11/local roundtrip",
+    "status": "PASS",
+    "evidence_or_blocker": "Pure test coverage, not live cloud restore"
+  },
+  {
+    "gate": "Cloudflare Worker Preview actual run",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No dependency-backed build or Cloudflare auth"
+  },
+  {
+    "gate": "Supabase request/egress/storage quotas",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Prior JSON payload proxy only; no provider measurements"
+  },
+  {
+    "gate": "Rollback drill / old-worker install update",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "No live staging worker or DB recovery drill"
+  },
+  {
+    "gate": "Final application version and promotion",
+    "status": "BLOCKED",
+    "evidence_or_blocker": "Source remains 2.0.0-rc.9; final 2.0.0 NOT assigned"
+  }
+]

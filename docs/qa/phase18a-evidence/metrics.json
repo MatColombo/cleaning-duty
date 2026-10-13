@@ -1,0 +1,28 @@
+{
+  "context": "Isolated Node.js pure SVG rendering; not a React app, UI frame rate, mobile GPU, or cloud traffic measurement",
+  "runtime": "v22.16.0",
+  "cases": 6,
+  "renderIterations": 1200,
+  "durationMs": 102.76,
+  "meanMs": 0.0856,
+  "svgBytes": {
+    "min": 10061,
+    "max": 10911,
+    "mean": 10514
+  },
+  "svgPathCount": {
+    "min": 41,
+    "max": 46,
+    "mean": 43
+  },
+  "svgGroupCount": {
+    "min": 25,
+    "max": 26,
+    "mean": 25
+  },
+  "heapBeforeBytes": 5105520,
+  "heapAfterBytes": 6869888,
+  "realDeviceFPS": "NOT MEASURED",
+  "browserCPUAndMemory": "NOT MEASURED",
+  "cloudRequests": "No added transport in Studio sources (static audit); browser network trace NOT RUN"
+}

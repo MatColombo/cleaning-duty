@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { RoutineBuilderSheet } from '../components/routines/RoutineBuilderSheet'
+import { CharacterStudioSheet, type StudioTarget } from '../components/studio/CharacterStudioSheet'
 import { RoutineLibraryCard } from '../components/routines/RoutineLibraryCard'
 import { filterRoutinesForLibrary, parentRoutines, routineLibraryCounts, type RoutineCareFilter, type RoutineStatusFilter } from '../components/routines/routinePresentation'
 import { SvgCharacter } from '../visual/SvgCharacter'
@@ -15,6 +16,7 @@ export function RoutinesPage() {
   const { t, locale } = useI18n()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Routine | null>(null)
+  const [studio, setStudio] = useState<StudioTarget | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<RoutineStatusFilter>('all')
   const [careFilter, setCareFilter] = useState<RoutineCareFilter>('all')
@@ -34,6 +36,17 @@ export function RoutinesPage() {
 
   function openEditor(routine: Routine | null) { setEditing(routine); setOpen(true) }
   function closeEditor() { setOpen(false); setEditing(null) }
+  function openStudio(routine: Routine) {
+    const action = data!.actions.find((item) => item.id === routine.actionId)
+    const entity = data!.entities.find((item) => item.id === routine.targetEntityIds[0])
+    const type = data!.entityTypes.find((item) => item.id === entity?.typeId)
+    setStudio({ kind: 'routine', id: routine.id, name: routine.name, input: {
+      routineId: routine.id, actionId: routine.actionId, primaryTargetId: entity?.id,
+      occurrenceId: `studio-routine-${routine.id}`, triggerOrdinal: 1,
+      subjectName: entity?.name, subjectTypeName: type?.name, actionName: action?.name,
+      environmentName: entity?.name, activityTitle: routine.name,
+    } })
+  }
   function resetFilters() { setSearch(''); setStatusFilter('all'); setCareFilter('all') }
 
   return <div className="stack page-stack v2-routines-page">
@@ -71,9 +84,10 @@ export function RoutinesPage() {
       : <section className="v2-routines-library" aria-label={t('routines')}>
           <div className="v2-routines-library-heading"><h2 className="hc-display">{t('routines')}</h2><span>{labels.results}: {displayed.length}</span></div>
           <div className="v2-routines-list">{displayed.map((routine) => <RoutineLibraryCard key={routine.id} routine={routine} data={data}
-            onEdit={(value) => openEditor(value)} onStatusChange={(id, status) => { void setRoutineStatus(id, status) }}
+            onEdit={(value) => openEditor(value)} onArtwork={openStudio} onStatusChange={(id, status) => { void setRoutineStatus(id, status) }}
             onArchive={(id) => { void archiveRoutine(id) }} />)}</div>
         </section>}
+    {studio && <CharacterStudioSheet key={`${studio.kind}-${studio.id}`} target={studio} onClose={() => setStudio(null)} />}
     {open && <RoutineBuilderSheet key={editing?.id ?? 'new'} routine={editing} data={data} onClose={closeEditor} />}
   </div>
 }

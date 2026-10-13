@@ -1,0 +1,65 @@
+-- Phase 16B staging-only transactional smoke/RLS contract.
+-- Supply an ISOLATED CLONE seeded with an active parent linked to Extra Care,
+-- a scheduled primary at a due ordinal (#4 etc), and 3 real auth.users:
+-- psql "$STAGING_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+--  -v owner_id=<UUID> -v member_id=<UUID> -v outsider_id=<UUID> \
+--  -v workspace_id=<UUID> -v parent_task_id=<UUID> -v extra_routine_id=<UUID> \
+--  -f supabase/tests/v2_phase16b_rls_staging.psql
+-- Do not run in shared production. This script does not test an actual V1 client.
+\set ON_ERROR_STOP on
+\echo 'Phase 16B staging contract — all changes rolled back at end.'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',:'owner_id',true);
+select set_config('v2test.workspace',:'workspace_id',true);
+select set_config('v2test.task',:'parent_task_id',true);
+select set_config('v2test.extra',:'extra_routine_id',true);
+select public.v2_activate_extra_care_household(:'workspace_id'::uuid) as activation;
+do $$ begin
+  if not exists(select 1 from public.v2_extra_care_households where workspace_id=current_setting('v2test.workspace')::uuid) then
+    raise exception 'Capability activation did not persist within transaction'; end if;
+end $$;
+select version as starting_version from public.task_occurrences where id=:'parent_task_id'::uuid \gset
+select gen_random_uuid() as postpone_event \gset
+select set_config('request.jwt.claim.sub',:'member_id',true);
+-- Check a due extra is executable on this primary (choose a due fixture).
+do $$ begin
+  if not current_setting('v2test.extra')::uuid=any(public.v2_due_extra_care_ids(current_setting('v2test.task')::uuid)) then
+    raise exception 'Fixture must choose an actually due Extra Care'; end if;
+end $$;
+select public.v2_apply_integrated_care(
+  p_task_id:=:'parent_task_id'::uuid,p_expected_version:=:'starting_version'::integer,
+  p_kind:='extra_postpone',p_event_id:=:'postpone_event'::uuid,p_event_at:=now(),
+  p_extra_routine_id:=:'extra_routine_id'::uuid) as first_postpone;
+select public.v2_apply_integrated_care(
+  p_task_id:=:'parent_task_id'::uuid,p_expected_version:=:'starting_version'::integer,
+  p_kind:='extra_postpone',p_event_id:=:'postpone_event'::uuid,p_event_at:=now(),
+  p_extra_routine_id:=:'extra_routine_id'::uuid) as replay;
+select public.v2_apply_integrated_care(
+  p_task_id:=:'parent_task_id'::uuid,p_expected_version:=:'starting_version'::integer,
+  p_kind:='extra_postpone',p_event_id:=gen_random_uuid(),p_event_at:=now(),
+  p_extra_routine_id:=:'extra_routine_id'::uuid) as stale_conflict;
+-- RPC-local bypass must not contaminate the staged legacy-call check.
+select set_config('house_care.v2_extra_care_workspace','',true);
+-- Old V1 mutation must FAIL CLOSED on activated parent; catch expected 42501.
+do $$ begin
+  perform public.apply_task_mutation(current_setting('v2test.task')::uuid,
+    (select version from public.task_occurrences where id=current_setting('v2test.task')::uuid),
+    'skip',gen_random_uuid(),now());
+  raise exception 'Unsafe: V1 RPC mutated activated V2 parent';
+exception when insufficient_privilege then null;
+end $$;
+-- A member from an unrelated household has no RLS access or execute path.
+select set_config('request.jwt.claim.sub',:'outsider_id',true);
+do $$ begin
+  if exists(select 1 from public.v2_extra_care_events where workspace_id=current_setting('v2test.workspace')::uuid)
+     or exists(select 1 from public.v2_extra_care_households where workspace_id=current_setting('v2test.workspace')::uuid) then
+    raise exception 'RLS leak to outsider'; end if;
+  begin
+    perform public.v2_apply_integrated_care(current_setting('v2test.task')::uuid,0,'skip',gen_random_uuid(),now());
+    raise exception 'Unauthorized outsider RPC succeeded';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+rollback;
+\echo 'Phase 16B staging test rolled back. Examine first_postpone, replay and stale_conflict.'

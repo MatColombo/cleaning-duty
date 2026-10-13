@@ -25,6 +25,7 @@ import './styles/supplies-v2.css'
 import './styles/analysis-v2.css'
 import './styles/secondary-v2.css'
 import './styles/appearance-v2.css'
+import './styles/character-studio-v2.css'
 import './styles/boot-v2.css'
 
 registerInstallPromptCapture()

@@ -1,0 +1,17 @@
+-- REVIEW ONLY. DESTRUCTIVE ROLLBACK. NEVER RUN ON SHARED SUPABASE WITHOUT APPROVAL.
+-- Export/backup public.visual_overrides and public.v2_visual_applied_ops first.
+-- This drops saved artwork choices and idempotency receipts, but leaves V1 intact.
+BEGIN;
+DROP TRIGGER IF EXISTS v2_visual_routine_delete ON public.routines;
+DROP TRIGGER IF EXISTS v2_visual_action_delete ON public.action_definitions;
+DROP TRIGGER IF EXISTS v2_visual_entity_delete ON public.entities;
+DROP FUNCTION IF EXISTS public.v2_cleanup_visual_on_subject_delete();
+REVOKE ALL ON FUNCTION public.v2_commit_visual_override(uuid,text,uuid,integer,integer,jsonb,uuid) FROM authenticated;
+DROP FUNCTION IF EXISTS public.v2_commit_visual_override(uuid,text,uuid,integer,integer,jsonb,uuid);
+DROP POLICY IF EXISTS v2_visual_read ON public.visual_overrides;
+DROP TABLE IF EXISTS public.v2_visual_applied_ops;
+DROP TABLE IF EXISTS public.visual_overrides;
+DROP FUNCTION IF EXISTS public.v2_visual_json_valid(jsonb);
+COMMIT;
+-- Roll back client together with SQL; pending v2 visual outbox entries must be
+-- exported/reconciled first. Keep backups before altering capability.

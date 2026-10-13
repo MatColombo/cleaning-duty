@@ -1,3 +1,4 @@
+import { isLegacyLinkedTask } from './extraCare'
 /** Route-only projections. Never create, mutate, or reclassify domain occurrences here. */
 import type { WorkspaceData } from '../types/domain'
 import { addDays, localDateInZone } from './date'
@@ -15,7 +16,16 @@ export function taskDeepLinkDestination(data: WorkspaceData, taskId: string, now
   // A superseded duplicate slot is not a canonical actionable occurrence.
   // Never reopen an obsolete physical row just because an old link holds its ID.
   const task = dedupeOccurrences(data).find((row) => row.id === taskId)
-  if (!task || task.state === 'cancelled') return null
+  if (!task) return null
+  if (isLegacyLinkedTask(data, task) && task.state === 'scheduled' && task.parentOccurrenceId) {
+    return taskDeepLinkDestination(data, task.parentOccurrenceId, now)
+  }
+  if (task.state === 'cancelled') {
+    // An activated V2 household retains cancelled legacy children in History;
+    // route old notifications to their parent instead of to an inert row.
+    if (isLegacyLinkedTask(data, task) && task.parentOccurrenceId) return taskDeepLinkDestination(data, task.parentOccurrenceId, now)
+    return null
+  }
 
   const today = localDateInZone(data.workspace.timezone, now)
   const dueDay = localDateInZone(data.workspace.timezone, new Date(task.effectiveDueAt ?? task.dueAt))

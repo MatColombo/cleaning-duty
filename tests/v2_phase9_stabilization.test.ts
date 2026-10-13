@@ -16,7 +16,7 @@ const { join } = require('node:path')
 const { validateSvgSource } = require(join(process.cwd(), 'tools/svg-validation.cjs'))
 declare const process: { cwd(): string }
 
-assert.equal(HOUSE_CARE_VISUAL_VERSION, 1, 'Do not silently bump generator version')
+assert.equal(HOUSE_CARE_VISUAL_VERSION, 2, 'Phase 17C deliberately upgraded the generator; Phase 18A must not bump it')
 assert.equal(AUTHORED_OBJECT_IDS.length, 20, 'Preserve original Phase 4 IDs')
 assert.equal(EXPANDED_OBJECT_IDS.length, 28, 'Phase 9 adds 28 reusable objects')
 const all = listPrimitiveDefinitions().filter((entry) => !entry.metadata.demoOnly)
@@ -108,14 +108,14 @@ const deck=readFileSync('src/components/overview/ActiveDeck.tsx','utf8') as stri
 const meta=readFileSync('src/components/overview/CareCardMeta.tsx','utf8') as string
 const css=readFileSync('src/styles/overview-v2.css','utf8') as string
 assert.ok(care.includes('<h3') && care.includes('activitySubtitle(task)') && care.includes('<CareCardMeta') && care.includes('onComplete(task.id)'))
-assert.ok(meta.includes('context.cleanlinessScore') && meta.includes('context.supplyAlerts'))
+assert.ok(meta.includes('context.cleanlinessScore') && care.includes('context.supplies'))
 assert.ok(artwork.includes('aria-hidden="true"') && !artwork.includes('onClick'))
 assert.ok(deck.includes('<CareCard') && deck.includes('nextDeckIndex('))
 assert.ok(house.includes('<CleanlinessPanel') && house.includes('<CriticalEntityCard'))
 assert.ok(css.includes('data-v2-no-art="true"') && css.includes('grid-template-columns: minmax(0,1fr)'))
 assert.ok(css.includes('overflow-wrap: anywhere') && css.includes('max-width: 350px'))
 assert.ok(css.includes('prefers-reduced-motion: reduce') && css.includes('animation: none !important'))
-assert.ok(css.includes('.v2-care-card {') && css.includes('overflow-y: auto'), 'Card must be scrollable rather than clipped')
+assert.ok(css.includes('.v2-care-scroll-content') && css.includes('overflow-y:auto') && css.includes('.v2-care-actions'), 'Card details scroll but actions stay reachable')
 assert.ok(!artwork.includes('Math.random(') && !care.includes('Math.random('))
 
 const broken = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M1 2" stroke="red" stroke="blue"/></svg>'

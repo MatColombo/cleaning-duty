@@ -1,0 +1,66 @@
+-- Phase 16C staging clone only. DO NOT RUN against production.
+-- Requires installed additive 16A,16B,16C migrations on a test DB,
+-- a real scheduled After Completion task, and three auth.users.
+-- Invocation, only after approval:
+-- psql "$ISOLATED_STAGING_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+--   -v owner_id=<uuid> -v member_id=<uuid> -v outsider_id=<uuid> \
+--   -v workspace_id=<uuid> -v task_id=<after_completion_scheduled_uuid> \
+--   -f supabase/tests/v2_phase16c_rls_staging.psql
+\set ON_ERROR_STOP on
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',:'owner_id',true);
+select set_config('phase16c.workspace',:'workspace_id',true);
+select set_config('phase16c.task',:'task_id',true);
+select public.v2_activate_recurrence_household(:'workspace_id'::uuid) as enrolled;
+do $$ begin
+  if not exists(select 1 from public.v2_recurrence_households
+       where workspace_id=current_setting('phase16c.workspace')::uuid) then
+    raise exception 'Owner activation failed'; end if;
+  if not exists(select 1 from public.task_occurrences t join public.routines r on r.id=t.routine_id
+       where t.id=current_setting('phase16c.task')::uuid
+         and t.workspace_id=current_setting('phase16c.workspace')::uuid
+         and t.state='scheduled' and r.schedule_mode='after_completion') then
+    raise exception 'Fixture needs a scheduled After Completion primary'; end if;
+end $$;
+select set_config('request.jwt.claim.sub',:'member_id',true);
+-- Authenticated member must read only their enrolled household.
+do $$ begin
+  if not exists(select 1 from public.v2_recurrence_households
+       where workspace_id=current_setting('phase16c.workspace')::uuid) then
+    raise exception 'Member cannot read capability'; end if;
+end $$;
+select version as current_task_version from public.task_occurrences
+  where id=:'task_id'::uuid \gset
+-- A stale simultaneous completion must return a conflict before inserting
+-- any task event or a successor.
+select public.v2_apply_after_completion(jsonb_build_object(
+  'taskId',:'task_id'::uuid,'kind','complete',
+  'eventId',gen_random_uuid(),'eventAt',now(),
+  'expectedVersion',:'current_task_version'::integer-1,
+  'integrated',false)) as expected_stale_conflict;
+-- A legacy V1 task mutation must be rejected, without terminal changes.
+select set_config('house_care.v2_recurrence_workspace','',true);
+do $$ begin
+  perform public.apply_task_mutation(current_setting('phase16c.task')::uuid,
+    (select version from public.task_occurrences where id=current_setting('phase16c.task')::uuid),
+    'skip',gen_random_uuid(),now());
+  raise exception 'UNSAFE: V1 task RPC changed an activated After Completion task';
+exception when insufficient_privilege then null;
+end $$;
+select set_config('request.jwt.claim.sub',:'outsider_id',true);
+do $$ begin
+  if exists(select 1 from public.v2_recurrence_households
+      where workspace_id=current_setting('phase16c.workspace')::uuid) then
+    raise exception 'Cross-household recurrence capability disclosure'; end if;
+  begin
+    perform public.v2_apply_after_completion(jsonb_build_object(
+      'taskId',current_setting('phase16c.task')::uuid,
+      'kind','skip','eventId',gen_random_uuid(),
+      'eventAt',now(),'expectedVersion',1));
+    raise exception 'UNSAFE: outsider could mutate After Completion';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+rollback;
+\echo 'Phase 16C RLS smoke rolled back; this does not substitute for full live E2E.'

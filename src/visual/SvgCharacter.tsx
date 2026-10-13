@@ -3,6 +3,7 @@ import { renderManualCharacterSvg, type ManualCharacterOptions, type ManualDecor
 import type { ExpressionId } from './expressions'
 import type { PoseId } from './poses'
 import type { VectorPalette } from './types'
+import type { StudioOverrides } from './studio/draft'
 
 export interface SvgCharacterProps {
   id: string
@@ -15,6 +16,7 @@ export interface SvgCharacterProps {
   palette?: VectorPalette
   misregistration?: boolean
   className?: string
+  studio?: StudioOverrides
 }
 
 /**
@@ -23,18 +25,22 @@ export interface SvgCharacterProps {
  */
 export function SvgCharacter({
   id, instanceKey, label, decorative = false, expression, pose,
-  decorations, palette, misregistration = true, className = '',
+  decorations, palette, misregistration = true, className = '', studio,
 }: SvgCharacterProps) {
   const reactId = useId()
   const source = useMemo(() => renderManualCharacterSvg(id, {
     instanceKey: instanceKey ?? reactId,
     title: label,
     decorative,
-    expression,
-    pose,
+    expression: studio?.expression ?? expression,
+    pose: studio?.pose ?? pose,
+    faceParts: studio?.eyes || studio?.mouth || studio?.brows ? { eyes:studio.eyes, brows:studio.brows, mouth:studio.mouth } : undefined,
+    rightHand: studio?.handGesture,
     decorations,
     palette,
     misregistration,
-  } satisfies ManualCharacterOptions), [id, instanceKey, reactId, label, decorative, expression, pose, decorations, palette, misregistration])
-  return <span className={`hc-v2-svg-primitive ${className}`.trim()} dangerouslySetInnerHTML={{__html: source}} />
+  } satisfies ManualCharacterOptions), [id, instanceKey, reactId, label, decorative, expression, pose, decorations, palette, misregistration, studio])
+  return <span className={`hc-v2-svg-primitive ${className}`.trim()}
+    style={studio?.scale && studio.scale !== 1 ? {transform:`scale(${studio.scale})`} : undefined}
+    dangerouslySetInnerHTML={{__html: source}} />
 }

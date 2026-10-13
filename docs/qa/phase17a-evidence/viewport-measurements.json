@@ -1,0 +1,128 @@
+{
+  "kind": "real-app browser/PWA measurements",
+  "status": "NOT RUN",
+  "reason": "Missing React/Vite/npm dependencies; local Chromium headless timed out on about:blank",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 360,
+      "height": 740,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "locale": "en",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 360,
+      "height": 740,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "locale": "it",
+      "overviewFits": null,
+      "horizontalOverflow": null,
+      "appScreenshot": null,
+      "actionsVisible": null,
+      "houseMenuOverlap": null
+    }
+  ],
+  "followup": "Run tools/phase17a-browser-acceptance.mjs on a connected development machine with Playwright and installed devices"
+}

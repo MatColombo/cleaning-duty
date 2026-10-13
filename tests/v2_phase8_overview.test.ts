@@ -116,7 +116,7 @@ assert.ok(readFileSync('src/components/overview/CardArtwork.tsx','utf8').include
 assert.ok(card.includes('CardArtwork') && card.includes('CareCardMeta') && card.includes('LinkedActivityAppendix') && card.includes('onMore(task.id)'))
 assert.ok(activeComponent.includes('nextDeckIndex(') && !activeComponent.includes('groupLinkedTaskOccurrences('))
 assert.ok(readFileSync('src/components/overview/CriticalEntityCard.tsx','utf8').includes('item.roomName'), 'Critical cards preserve room context')
-assert.ok(css.includes('prefers-reduced-motion: reduce') && css.includes('max-height: 760px') && css.includes('overflow: visible'))
+assert.ok(css.includes('prefers-reduced-motion: reduce') && css.includes('max-height: 710px') && css.includes('overflow:visible'))
 assert.ok(readFileSync('src/components/AppShell.tsx','utf8').includes('house-v2-cockpit-shell') && css.includes('.house-v2-cockpit-shell { padding-bottom: 0; }'), 'Only Overview removes the shell bottom spacer')
 assert.ok(!activeComponent.includes('Math.random(') && !card.includes('Math.random('))
 console.log('V2 Phase 8 deck ordering, mutation/undo, scope, linked child, fallback, localized presentation and responsive wiring tests passed')

@@ -1,9 +1,13 @@
 import type { User } from '@supabase/supabase-js'
+import { startupMark } from './startupTelemetry'
 import type { WorkspaceData, WorkspaceSummary } from '../types/domain'
 import { normalizeWorkspaceData } from './dataMigrations'
 import { supabase } from './supabase'
 import { newId, nowIso } from './id'
 import type { OfflineMutation } from './offline'
+import { isGeneratedOccurrenceBatch, type EntityChange } from './configChanges'
+import { validatedVisualOverrides, type VisualOverrideMutation, type VisualOverrideRow } from './visualOverrides'
+import { validatedSceneDecorations, type SceneDecorationMutation, type SceneDecorationRow } from './sceneDecorations'
 
 function client() {
   if (!supabase) throw new Error('Supabase is not configured')
@@ -76,20 +80,29 @@ export async function listCloudWorkspaces(user: User): Promise<WorkspaceSummary[
   }))
 }
 
-export async function loadCloudData(user: User, requestedWorkspaceId?: string): Promise<WorkspaceData | null> {
+export async function loadCloudData(user: User, requestedWorkspaceId?: string,
+  options?: { membershipConfirmedByCatalog?: boolean }): Promise<WorkspaceData | null> {
   const db = client()
-  await db.rpc('claim_workspace_invites')
-  let membershipQuery = db
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-  if (requestedWorkspaceId) membershipQuery = membershipQuery.eq('workspace_id', requestedWorkspaceId)
-  const { data: membership, error: membershipError } = await membershipQuery.limit(1).maybeSingle()
-  if (membershipError) throw membershipError
-  if (!membership) return null
-  const workspaceId = membership.workspace_id as string
+  // A fresh, RLS-protected workspace catalog has already checked membership.
+  // Never skip this check for arbitrary callers or an unselected workspace.
+  if (!requestedWorkspaceId || !options?.membershipConfirmedByCatalog) await db.rpc('claim_workspace_invites')
+  let workspaceId: string
+  if (requestedWorkspaceId && options?.membershipConfirmedByCatalog) {
+    workspaceId = requestedWorkspaceId
+  } else {
+    let membershipQuery = db
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+    if (requestedWorkspaceId) membershipQuery = membershipQuery.eq('workspace_id', requestedWorkspaceId)
+    const { data: membership, error: membershipError } = await membershipQuery.limit(1).maybeSingle()
+    if (membershipError) throw membershipError
+    if (!membership) return null
+    workspaceId = membership.workspace_id as string
+  }
 
+  startupMark('tables-start')
   const results = await Promise.all([
     db.from('workspaces').select('*').eq('id', workspaceId).single(),
     db.from('workspace_members').select('*').eq('workspace_id', workspaceId).order('created_at'),
@@ -110,9 +123,36 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
     db.from('health_trajectories').select('*').eq('workspace_id', workspaceId),
     db.from('completion_snapshots').select('*').eq('workspace_id', workspaceId).order('completed_at'),
   ])
+  startupMark('tables-end')
   for (const result of results) if (result.error) throw result.error
 
   const [workspaceResult, membersResult, fieldsResult, typesResult, entitiesResult, scenesResult, layoutElementsResult, relationsResult, suppliesResult, supplyEventsResult, actionsResult, routinesResult, routineTargetsResult, tasksResult, taskTargetsResult, eventsResult, healthResult, completionSnapshotsResult] = results
+  // Capability read is optional for pre-migration V1/V2 households. A missing
+  // table means legacy behavior, never silently opt an account into 16B.
+  let extraCareMode: 'legacy' | 'integrated' = 'legacy'
+  let extraCareEvents: WorkspaceData['extraCareEvents'] = []
+  let extraCareLegacyCarries: WorkspaceData['extraCareLegacyCarries'] = []
+  const capability = await db.from('v2_extra_care_households').select('workspace_id').eq('workspace_id', workspaceId).maybeSingle()
+  if (capability.error && !['42P01', 'PGRST205', 'PGRST116'].includes(capability.error.code ?? '')) throw capability.error
+  if (capability.data) {
+    extraCareMode = 'integrated'
+    const [extraResult, legacyResult] = await Promise.all([
+      db.from('v2_extra_care_events').select('*').eq('workspace_id', workspaceId).order('event_at'),
+      db.from('v2_extra_care_legacy_carries').select('*').eq('workspace_id', workspaceId),
+    ])
+    if (extraResult.error) throw extraResult.error
+    if (legacyResult.error) throw legacyResult.error
+    extraCareEvents = (extraResult.data ?? []).map(row => ({
+      id: row.id, workspaceId: row.workspace_id, parentOccurrenceId: row.parent_occurrence_id,
+      routineId: row.extra_routine_id, type: row.event_type, at: row.event_at,
+      actorMemberId: row.actor_member_id ?? undefined, sourceEventId: row.source_event_id ?? undefined,
+      parentEventId: row.parent_event_id ?? undefined,
+    }))
+    extraCareLegacyCarries = (legacyResult.data ?? []).map(row => ({
+      id: row.id, workspaceId: row.workspace_id, routineId: row.extra_routine_id,
+      originOccurrenceId: row.origin_occurrence_id, targetOrdinal: row.target_ordinal,
+    }))
+  }
   const workspaceRow = workspaceResult.data
   const members = membersResult.data ?? []
   const fields = fieldsResult.data ?? []
@@ -132,7 +172,37 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
   const healthTrajectories = healthResult.data ?? []
   const completionSnapshots = completionSnapshotsResult.data ?? []
 
+  // Optional additive capability; absence means the V2 client must fail closed
+  // for completion-relative lifecycle writes in this cloud household.
+  const recurrenceCapability = await db.from('v2_recurrence_households').select('workspace_id').eq('workspace_id', workspaceId).maybeSingle()
+  if (recurrenceCapability.error && !['42P01', 'PGRST205', 'PGRST116'].includes(recurrenceCapability.error.code ?? '')) throw recurrenceCapability.error
+  const recurrenceMode = recurrenceCapability.data ? 'atomic' as const : 'legacy' as const
+  // One small additive read per normal household reload; optional until SQL is installed.
+  const visualResult = await db.from('visual_overrides').select('workspace_id,subject_type,subject_id,generator_version,schema_version,overrides_json,revision,last_mutation_id,updated_at')
+    .eq('workspace_id', workspaceId)
+  const visualMissing = Boolean(visualResult.error && ['42P01', 'PGRST205'].includes(visualResult.error.code ?? ''))
+  if (visualResult.error && !visualMissing) throw visualResult.error
+  const visualOverridesAvailable = !visualMissing
+  const visualOverrides: VisualOverrideRow[] = visualMissing ? [] : (visualResult.data ?? []).map((row) => ({
+    workspaceId: row.workspace_id, subjectType: row.subject_type,
+    subjectId: row.subject_id, generatorVersion: row.generator_version,
+    schemaVersion: row.schema_version, overrides: row.overrides_json,
+    revision: row.revision, lastMutationId: row.last_mutation_id, updatedAt: row.updated_at,
+  }))
+  // 19B capability read: one bounded query per normal household load, never polling.
+  const sceneResult = await db.from('scene_decorations').select('workspace_id,scene_id,generator_version,schema_version,items_json,revision,last_mutation_id,updated_at,orphaned_at')
+    .eq('workspace_id', workspaceId).is('orphaned_at', null)
+  const scenesMissing = Boolean(sceneResult.error && ['42P01','PGRST205'].includes(sceneResult.error.code ?? ''))
+  if (sceneResult.error && !scenesMissing) throw sceneResult.error
+  const sceneDecorationsAvailable = !scenesMissing
+  const sceneDecorations: SceneDecorationRow[] = scenesMissing ? [] : (sceneResult.data ?? []).map(row => ({
+    workspaceId: row.workspace_id, sceneId: row.scene_id, generatorVersion: row.generator_version,
+    schemaVersion: row.schema_version, items: row.items_json, revision: row.revision,
+    lastMutationId: row.last_mutation_id, updatedAt: row.updated_at,
+    orphanedAt: row.orphaned_at ?? undefined,
+  }))
   const normalized = normalizeWorkspaceData({
+    extraCareMode, extraCareEvents, extraCareLegacyCarries, recurrenceMode, visualOverrides, visualOverridesAvailable, sceneDecorations, sceneDecorationsAvailable,
     workspace: {
       id: workspaceRow.id,
       name: workspaceRow.name,
@@ -204,7 +274,7 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
     })),
     tasks: tasks.map((row) => ({
       id: row.id, workspaceId: row.workspace_id, routineId: row.routine_id, routineRevision: row.routine_revision,
-      triggerOrdinal: row.trigger_ordinal ?? undefined, parentOccurrenceId: row.parent_occurrence_id ?? undefined,
+      triggerOrdinal: row.trigger_ordinal ?? undefined, parentOccurrenceId: row.parent_occurrence_id ?? undefined, successorOfEventId: row.successor_of_event_id ?? undefined,
       routineNameSnapshot: row.routine_name_snapshot, actionNameSnapshot: row.action_name_snapshot,
       cleanlinessChannel: row.cleanliness_channel ?? (row.care_level === 'deep' ? 'deep' : 'regular'), careLevel: row.care_level ?? (row.cleanliness_channel === 'deep' ? 'deep' : 'routine'),
       scheduledSlotAt: row.scheduled_slot_at ?? row.original_due_at, effectiveDueAt: row.effective_due_at ?? row.due_at,
@@ -232,20 +302,8 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
       scheduledSlotAt: row.scheduled_slot_at, actorMemberId: row.actor_member_id ?? undefined,
     })),
   })
-  const rawHealthByKey = new Map(healthTrajectories.map((row) => [`${row.routine_id}:${row.item_id}:${row.cleanliness_channel}`, row]))
-  const healthStateChanged = normalized.healthTrajectories.length !== healthTrajectories.length || normalized.healthTrajectories.some((row) => {
-    const raw = rawHealthByKey.get(`${row.routineId}:${row.itemId}:${row.cleanlinessChannel}`) as Record<string, any> | undefined
-    return !raw
-      || raw.health_anchor_at !== row.healthAnchorAt
-      || Number(raw.health_anchor_pct) !== row.healthAnchorPct
-      || raw.health_due_at !== row.healthDueAt
-      || raw.health_overdue_end_at !== row.healthOverdueEndAt
-      || (raw.last_refresh_completion_id ?? undefined) !== row.lastRefreshCompletionId
-  })
-  const rawSnapshotIds = new Set(completionSnapshots.map((row) => row.id))
-  const completionStateChanged = normalized.completionSnapshots.length !== completionSnapshots.length
-    || normalized.completionSnapshots.some((row) => !rawSnapshotIds.has(row.id))
-  if (healthStateChanged || completionStateChanged) await persistCleanlinessState(db, normalized)
+  // A READ must never perform a hidden whole-state write. Derived repairs are
+  // now queued as targeted changes by DataContext after safe hydration.
   return normalized
 }
 
@@ -376,6 +434,7 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
     const { error } = await db.from('task_occurrences').upsert(dedupeBy(data.tasks, (row) => row.id).map((row) => ({
       id: row.id, workspace_id: workspaceId, routine_id: row.routineId, routine_revision: row.routineRevision,
       trigger_ordinal: row.triggerOrdinal ?? null, parent_occurrence_id: row.parentOccurrenceId ?? null,
+      ...(data.recurrenceMode === 'atomic' ? { successor_of_event_id: row.successorOfEventId ?? null } : {}),
       routine_name_snapshot: row.routineNameSnapshot, action_name_snapshot: row.actionNameSnapshot,
       cleanliness_channel: row.cleanlinessChannel ?? (row.careLevel === 'deep' ? 'deep' : 'regular'), care_level: row.careLevel ?? (row.cleanlinessChannel === 'deep' ? 'deep' : 'routine'),
       scheduled_slot_at: row.scheduledSlotAt ?? row.originalDueAt, effective_due_at: row.effectiveDueAt ?? row.dueAt,
@@ -418,7 +477,36 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
 
 export async function replaceCloudData(data: WorkspaceData, actorUserId?: string): Promise<void> {
   if (!actorUserId || data.workspace.ownerUserId !== actorUserId) throw new Error('Only the household owner can import a backup.')
+  // The legacy reset RPC is unaware of the versioned ledger and its guard.
+  // Fail before any destructive operation; local import remains supported.
+  if (data.recurrenceMode === 'atomic') throw new Error('Cloud backup restore for the atomic recurrence ledger requires a versioned transactional restore. No data was deleted.')
+  if (data.extraCareMode === 'integrated' || (data.extraCareEvents?.length ?? 0) > 0 || (data.extraCareLegacyCarries?.length ?? 0) > 0) throw new Error(
+    'Cloud backup import is blocked when an integrated Extra Care ledger exists or is being imported. A versioned atomic restore is required; nothing was deleted.'
+  )
   const db = client()
+  // Current V1 reset and subsequent bulk reinsertion are not a single
+  // transaction. Fail before any deletion if override restoration would be
+  // lossy. Local backup v10 import remains available; cloud requires a future
+  // audited atomic restore capability (not authorized in 18B).
+  if ((data.visualOverrides?.length ?? 0) > 0) throw new Error('Cloud restore of visual overrides requires an atomic V2 backup restore. Nothing was deleted.')
+  const existingVisuals = await db.from('visual_overrides').select('subject_id').eq('workspace_id', data.workspace.id).limit(1)
+  if (existingVisuals.error && !['42P01','PGRST205'].includes(existingVisuals.error.code ?? '')) throw existingVisuals.error
+  if (existingVisuals.data?.length) throw new Error('Cloud restore is blocked while saved Character Studio artwork exists. Nothing was deleted.')
+  // Import input may be an OLD backup with no 16B/16C capability marker,
+  // even while the destination household is already enrolled. Check the
+  // destination server ledger before any destructive reset; fail closed on
+  // authorization/network/schema errors other than an absent legacy table.
+  for (const capabilityTable of ['v2_extra_care_households', 'v2_recurrence_households'] as const) {
+    const { data: enrolled, error: capabilityError } = await db.from(capabilityTable)
+      .select('workspace_id').eq('workspace_id', data.workspace.id).maybeSingle()
+    if (capabilityError && !['42P01', 'PGRST205', 'PGRST116'].includes(capabilityError.code ?? '')) throw capabilityError
+    if (enrolled) throw new Error(`Cloud restore is blocked: destination ${capabilityTable} ledger is activated. No data was deleted.`)
+  }
+  // V1 reset cannot transactionally restore 19B rows. Fail before deletion.
+  if ((data.sceneDecorations?.length ?? 0) > 0) throw new Error('Cloud restore with saved scene decorations requires an atomic V2 restore; nothing was deleted.')
+  const savedScenes = await db.from('scene_decorations').select('scene_id').eq('workspace_id', data.workspace.id).is('orphaned_at', null).limit(1)
+  if (savedScenes.error && !['42P01','PGRST205'].includes(savedScenes.error.code ?? '')) throw savedScenes.error
+  if (savedScenes.data?.length) throw new Error('Cloud restore is blocked while saved scene decorations exist; nothing was deleted.')
   const { error } = await db.rpc('reset_workspace_content', { target_workspace_id: data.workspace.id })
   if (error) throw error
   await saveCloudData(data, actorUserId)
@@ -447,8 +535,53 @@ export interface CloudMutationResult {
   actualVersion?: number
 }
 
-export async function applyCloudMutation(mutation: OfflineMutation): Promise<CloudMutationResult> {
+/** Requires the unapplied additive Phase 16A migration. Never falls back to
+ * the V1 whole-household writer: that would silently corrupt concurrent edits. */
+export async function applyCloudConfig(workspaceId: string, mutationId: string, changes: EntityChange[], signal?: AbortSignal, atomicRecurrence = false): Promise<CloudMutationResult> {
+  const recurrenceGeneration = atomicRecurrence && isGeneratedOccurrenceBatch(changes)
+  const { data, error } = await client().rpc(recurrenceGeneration ? 'v2_commit_generated_occurrences' : 'v2_apply_entity_changes', {
+    p_workspace_id: workspaceId, p_mutation_id: mutationId, p_changes: changes,
+  }).abortSignal(signal ?? new AbortController().signal)
+  if (error) {
+    if (error.code === 'PZ409' || error.code === '23505' || error.code === '23503')
+      return { applied: false, conflict: true }
+    if (error.code === 'PGRST202' || error.code === '42883')
+      throw new Error('V2 safe-sync RPC is not installed. Local edits are retained; an approved additive migration is required.')
+    throw error
+  }
+  return data as CloudMutationResult
+}
+
+export async function applyCloudMutation(mutation: OfflineMutation, signal?: AbortSignal): Promise<CloudMutationResult> {
   const db = client()
+  if (mutation.kind !== 'supply_status' && mutation.afterCompletion === true) {
+    const { data, error } = await db.rpc('v2_apply_after_completion', { p_payload: {
+      ...mutation, // Immutable original eventAt and successor survive offline/retry.
+      afterCompletionSuccessor: mutation.afterCompletionSuccessor ?? null,
+    } }).abortSignal(signal ?? new AbortController().signal)
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') throw new Error('Phase 16C atomic recurrence RPC is not installed. Local edit retained.')
+      throw error
+    }
+    return data as CloudMutationResult
+  }
+  if (mutation.kind !== 'supply_status'  && (mutation.integrated || mutation.kind === 'extra_postpone')) {
+    const { data, error } = await db.rpc('v2_apply_integrated_care', {
+      p_task_id: mutation.taskId, p_expected_version: mutation.expectedVersion, p_kind: mutation.kind,
+      p_event_id: mutation.eventId, p_event_at: mutation.eventAt,
+      p_extra_routine_id: mutation.extraRoutineId ?? null, p_source_event_id: mutation.sourceEventId ?? null,
+      p_due_at: mutation.kind === 'postpone' ? mutation.effectiveDueAt ?? mutation.dueAt ?? null : null,
+      p_assignee_id: mutation.assigneeMemberId ?? null,
+      p_assignment_scope: mutation.assignmentScope ?? null,
+      p_clear_assignee: mutation.clearAssignee ?? false,
+      p_completion_effects: mutation.completionEffects ?? [], p_extra_completions: mutation.extraCompletions ?? [],
+    }).abortSignal(signal ?? new AbortController().signal)
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') throw new Error('Phase 16B versioned RPC not installed. The outbox has retained the edit.')
+      throw error
+    }
+    return data as CloudMutationResult
+  }
   if (mutation.kind === 'supply_status') {
     const { data, error } = await db.rpc('apply_supply_status_mutation', {
       target_supply_id: mutation.supplyId,
@@ -457,7 +590,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
       event_id: mutation.eventId,
       event_at: mutation.eventAt,
       source_task_id: mutation.sourceTaskId ?? null,
-    })
+    }).abortSignal(signal ?? new AbortController().signal)
     if (error) throw error
     return data as CloudMutationResult
   }
@@ -468,7 +601,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
       source_event_id: mutation.sourceEventId ?? null,
       event_id: mutation.eventId,
       event_at: mutation.eventAt,
-    })
+    }).abortSignal(signal ?? new AbortController().signal)
     if (error) throw error
     return data as CloudMutationResult
   }
@@ -478,7 +611,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
       source_event_id: mutation.sourceEventId ?? null,
       event_id: mutation.eventId,
       event_at: mutation.eventAt,
-    })
+    }).abortSignal(signal ?? new AbortController().signal)
     if (error) throw error
     return data as CloudMutationResult
   }
@@ -490,7 +623,7 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
       event_id: mutation.eventId,
       event_at: mutation.eventAt,
       completion_effects: mutation.completionEffects ?? [],
-    })
+    }).abortSignal(signal ?? new AbortController().signal)
     if (error) throw error
     return data as CloudMutationResult
   }
@@ -505,7 +638,38 @@ export async function applyCloudMutation(mutation: OfflineMutation): Promise<Clo
     new_assignee_member_id: mutation.kind === 'reassign' ? mutation.assigneeMemberId ?? null : null,
     clear_assignee: mutation.kind === 'reassign' ? Boolean(mutation.clearAssignee) : false,
     new_assignment_scope: mutation.kind === 'reassign' ? mutation.assignmentScope ?? null : null,
-  })
+  }).abortSignal(signal ?? new AbortController().signal)
   if (error) throw error
   return data as CloudMutationResult
+}
+
+/** Versioned, idempotent CAS. The server validates every key again. No raw table DML. */
+export async function applyCloudVisualOverride(mutation: VisualOverrideMutation, mutationId: string, signal: AbortSignal): Promise<{applied:boolean;conflict:boolean;message?:string}> {
+  if (signal.aborted) throw new Error('Visual edit cancelled')
+  const clean = validatedVisualOverrides(mutation.overrides)
+  const { data, error } = await client().rpc('v2_commit_visual_override', {
+    p_workspace_id: mutation.workspaceId, p_subject_type: mutation.subjectType,
+    p_subject_id: mutation.subjectId, p_expected_revision: mutation.expectedRevision,
+    p_generator_version: mutation.generatorVersion, p_overrides: clean, p_mutation_id: mutationId,
+  })
+  if (signal.aborted) throw new Error('Visual edit cancelled')
+  if (error) throw persistenceError('visual_overrides', error)
+  const result = data as {applied?:boolean;conflict?:boolean;message?:string} | null
+  return {applied: result?.applied === true, conflict: result?.conflict === true,
+    message: result?.message}
+}
+
+/** 19B targeted scene CAS, explicit confirms only; no direct table writes. */
+export async function applyCloudSceneDecorations(mutation: SceneDecorationMutation, mutationId: string, signal: AbortSignal): Promise<{applied:boolean;conflict:boolean;message?:string}> {
+  if (signal.aborted) throw new Error('Scene decoration operation cancelled')
+  const items = validatedSceneDecorations(mutation.items)
+  const { data, error } = await client().rpc('v2_commit_scene_decorations', {
+    p_workspace_id: mutation.workspaceId, p_scene_id: mutation.sceneId,
+    p_expected_revision: mutation.expectedRevision, p_generator_version: mutation.generatorVersion,
+    p_items: items, p_mutation_id: mutationId,
+  }).abortSignal(signal)
+  if (signal.aborted) throw new Error('Scene decoration operation cancelled')
+  if (error) throw persistenceError('scene_decorations', error)
+  const response = data as {applied?:boolean;conflict?:boolean;message?:string} | null
+  return {applied: response?.applied === true, conflict: response?.conflict === true, message: response?.message}
 }

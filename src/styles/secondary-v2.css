@@ -1,6 +1,8 @@
 /* Phase 13: V2 secondary surfaces; no new form or mutation behavior. */
-.hc-v2-sheet-backdrop { background:color-mix(in srgb,var(--color-ink) 39%,transparent); backdrop-filter:blur(2px); }
-.hc-v2-sheet { width:min(100%,690px); max-height:min(92dvh,880px); overscroll-behavior:contain; background:var(--color-surface); color:var(--color-ink); border:1px solid var(--color-line); border-bottom:0; border-radius:19px 19px 0 0; padding:10px clamp(15px,3vw,24px) calc(24px + env(safe-area-inset-bottom)); }
+@keyframes v2-sheet-backdrop-in { from { opacity:0; } to { opacity:1; } }
+@keyframes v2-sheet-rise { from { opacity:.98; transform:translateY(18px) scale(.992); } 72% { opacity:1; transform:translateY(-2px) scale(1.002); } to { opacity:1; transform:none; } }
+.hc-v2-sheet-backdrop { background:color-mix(in srgb,var(--color-ink) 39%,transparent); backdrop-filter:blur(2px); animation:v2-sheet-backdrop-in 160ms ease-out both; }
+.hc-v2-sheet { width:min(100%,690px); max-height:min(92dvh,880px); overscroll-behavior:contain; background:var(--color-surface); color:var(--color-ink); border:1px solid var(--color-line); border-bottom:0; border-radius:19px 19px 0 0; padding:10px clamp(15px,3vw,24px) calc(24px + env(safe-area-inset-bottom)); animation:v2-sheet-rise 220ms cubic-bezier(.2,.8,.22,1) both; transform-origin:50% 100%; }
 .hc-v2-sheet .sheet-handle { width:48px; height:4px; margin-block:3px 13px; background:var(--color-line-strong); }
 .hc-v2-sheet-header { position:sticky; top:-10px; z-index:3; padding:12px 0 15px; margin-bottom:12px; border-bottom:1px solid var(--color-line); background:var(--color-surface); }
 .hc-v2-sheet-header::after { content:'✦'; position:absolute; bottom:-8px; right:60px; color:var(--color-due); font-size:.7rem; background:var(--color-surface); padding-inline:6px; pointer-events:none; }

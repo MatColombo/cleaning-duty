@@ -1,4 +1,6 @@
 /* Phase 6 shell only. V1 page contents deliberately retain their existing styling. */
+/* Overview owns its viewport; avoid the shell adding an invisible second bottom gutter. */
+.house-v2-cockpit-shell { padding-bottom: 0; min-height: 0; }
 .house-v2-shell {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
@@ -126,3 +128,6 @@
   .house-menu-trigger { transition: none; }
   .house-menu-trigger:active { transform: none; }
 }
+
+/* The Overview menu sits wholly inside its intentionally reserved bottom dock. */
+.house-v2-cockpit-shell .house-menu-trigger { width:56px; height:56px; bottom:calc(10px + env(safe-area-inset-bottom)); }

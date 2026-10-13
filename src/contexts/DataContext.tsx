@@ -37,18 +37,28 @@ import type {
 } from '../types/domain'
 import { useAuth } from './AuthContext'
 import { clearLocalData, createLocalWorkspace, loadLocalData, saveLocalData } from '../lib/localRepository'
-import { applyCloudMutation, archiveCloudWorkspace, createCloudWorkspace, deleteCloudWorkspace, listCloudWorkspaces, loadCloudData, replaceCloudData, restoreCloudWorkspace, saveCloudData } from '../lib/cloudRepository'
-import { materializeRoutineSlot, materializeTasks, nextTheoreticalSlotAfter } from '../lib/scheduler'
-import { newId, nowIso } from '../lib/id'
+import { applyCloudConfig, applyCloudMutation, applyCloudVisualOverride, applyCloudSceneDecorations, archiveCloudWorkspace, createCloudWorkspace, deleteCloudWorkspace, listCloudWorkspaces, loadCloudData, replaceCloudData, restoreCloudWorkspace } from '../lib/cloudRepository'
+import { materializeTasks } from '../lib/scheduler'
+import { newId, nowIso, stableId } from '../lib/id'
 import { normalizeWorkspaceData } from '../lib/dataMigrations'
 import { prepareImportedWorkspace, type HouseholdBackup } from '../lib/backup'
 import { applyMutationLocally } from '../lib/mutations'
 import { applyStarterPack as buildStarterPack } from '../lib/templates'
-import { clearCloudCache, enqueueOfflineMutation, loadCloudCache, loadOfflineQueue, loadSyncConflicts, migrateLegacyOfflineStorage, saveCloudCache, saveOfflineQueue, saveSyncConflicts, clearSyncConflicts, type OfflineMutation, type SyncConflict } from '../lib/offline'
+import { clearCloudCache, loadCloudCache, loadOfflineQueue, migrateLegacyOfflineStorage, saveCloudCache, saveOfflineQueue, clearSyncConflicts, type OfflineMutation, type SyncConflict } from '../lib/offline'
+import { SyncCoordinator, projectOutbox, readOutbox, removeOutbox, type SyncObservation } from '../lib/syncCoordinator'
+import { VISUAL_OVERRIDE_SCHEMA, validatedVisualOverrides, validVisualSubject, overlayVisualMutation, type VisualSubjectKind } from '../lib/visualOverrides'
+import { HOUSE_CARE_VISUAL_VERSION } from '../visual/version'
+import type { StudioOverrides } from '../visual/studio/draft'
+import { overlaySceneMutation, sceneExists, sceneRow, validatedSceneDecorations, type SceneDecoration } from '../lib/sceneDecorations'
+import { HOME_ILLUSTRATION_GENERATOR } from '../lib/homeIllustration'
 import { clearSelectedWorkspaceId, loadSelectedWorkspaceId, loadWorkspaceCatalog, saveSelectedWorkspaceId, saveWorkspaceCatalog, workspaceScope } from '../lib/workspaces'
 import { logClientError, normalizeError, setDiagnosticContext } from '../lib/errorLog'
+import { readAuthorizedSnapshot } from '../lib/startupSnapshot'
+import { afterFirstFrame, startupMark, startupPath } from '../lib/startupTelemetry'
+import { isTransientStartupFailure, isDeniedStartupAccess } from '../lib/startupNetwork'
 import { routineDefinitionFingerprint } from '../lib/routines'
 import { buildCompletionHealthEffects } from '../lib/cleanliness'
+import { buildIntegratedEffects, dueExtraCare, integratedExtraCare, isIntegratedPrimary, isLegacyLinkedTask } from '../lib/extraCare'
 
 interface EntityInput { name: string; typeId: string; parentId?: string; labels: string[]; metadata: Record<string, MetadataValue> }
 interface ActionInput { name: string; icon?: string; instructions?: string; defaultSupplyIds: string[]; metadata: Record<string, MetadataValue> }
@@ -87,6 +97,8 @@ interface DataValue {
   pendingSync: number
   syncConflicts: SyncConflict[]
   dismissSyncConflicts: () => void
+  retrySyncIssue: (id: string) => Promise<void>
+  discardSyncIssue: (id: string) => Promise<void>
   currentMember?: WorkspaceMember
   switchWorkspace: (workspaceId: string) => Promise<void>
   archiveWorkspace: (workspaceId: string) => Promise<void>
@@ -126,6 +138,7 @@ interface DataValue {
   archiveRoutine: (id: string) => Promise<void>
   setRoutineStatus: (id: string, status: RoutineStatus) => Promise<void>
   completeTask: (id: string) => Promise<string | null>
+  postponeExtraCare: (id: string, routineId: string) => Promise<string | null>
   completeTaskTarget: (id: string, entityId: string) => Promise<void>
   skipTask: (id: string) => Promise<string | null>
   postponeTask: (id: string, dueAt: string) => Promise<string | null>
@@ -134,13 +147,17 @@ interface DataValue {
   restoreTaskToToday: (id: string, sourceEventId?: string) => Promise<void>
   importBackup: (backup: HouseholdBackup) => Promise<void>
   resetLocal: () => void
+  commitVisualOverride: (kind: VisualSubjectKind, id: string, overrides: StudioOverrides, expectedRevision: number) => Promise<void>
+  commitSceneDecorations: (sceneId: string, items: SceneDecoration[], expectedRevision: number) => Promise<void>
 }
 
 const DataContext = createContext<DataValue | null>(null)
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user, cloudUser, isCloud, preferredWorkspaceId, setPreferredWorkspaceId } = useAuth()
+  const { user, cloudUser, isCloud, preferredWorkspaceId, setPreferredWorkspaceId, offlineSessionValid } = useAuth()
   const [data, setData] = useState<WorkspaceData | null>(null)
+  const [visibleOwner, setVisibleOwner] = useState<string | null>(null)
+  const [catalogOwner, setCatalogOwner] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -149,7 +166,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [pendingSync, setPendingSync] = useState(0)
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([])
   const dataRef = useRef<WorkspaceData | null>(null)
-  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const coordinatorRef = useRef<SyncCoordinator | null>(null)
+  const exclusiveRef = useRef(false)
+  const activationRef = useRef(0)
+  const cloudUserRef = useRef(cloudUser)
+  cloudUserRef.current = cloudUser
+  const preferredWorkspaceRef = useRef(preferredWorkspaceId)
+  preferredWorkspaceRef.current = preferredWorkspaceId
+  const updatePreferredRef = useRef(setPreferredWorkspaceId)
+  updatePreferredRef.current = setPreferredWorkspaceId
 
   const newestActiveWorkspace = useCallback((catalog: WorkspaceSummary[]): WorkspaceSummary | undefined =>
     catalog.filter((item) => !item.archivedAt).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0], [])
@@ -164,11 +189,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return
     if (workspaceId) saveSelectedWorkspaceId(user.id, workspaceId)
     else clearSelectedWorkspaceId(user.id)
-    if (isCloud && preferredWorkspaceId !== workspaceId) {
-      try { await setPreferredWorkspaceId(workspaceId) }
-      catch (err) { logClientError(err, { area: 'save preferred home' }) }
+    if (isCloud && preferredWorkspaceRef.current !== workspaceId) {
+      // User metadata is preference only: never hold the first useful paint
+      // on a redundant auth network request.
+      void updatePreferredRef.current(workspaceId).catch((err) =>
+        logClientError(err, { area: 'save preferred home' }))
     }
-  }, [user?.id, isCloud, preferredWorkspaceId, setPreferredWorkspaceId])
+  }, [user?.id, isCloud])
 
   useEffect(() => {
     setDiagnosticContext({
@@ -178,29 +205,60 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [user?.id, data?.workspace.id, data?.workspace.name])
 
-  const persist = useCallback(async (next: WorkspaceData) => {
-    if (isCloud && typeof navigator !== 'undefined' && !navigator.onLine) {
-      throw new Error('Configuration changes require a connection. Daily task actions can still be used offline.')
+  const ensureNoRestore = () => {
+    if (exclusiveRef.current) throw new Error('Household restore is in progress. Edits are temporarily locked.')
+  }
+
+  const attachCoordinator = useCallback((userId: string, workspaceId: string, loaded: WorkspaceData): WorkspaceData => {
+    coordinatorRef.current?.stop()
+    const scope = workspaceScope(userId, workspaceId)
+    const onChange = (state: SyncObservation) => {
+      if (coordinatorRef.current?.scope !== scope) return
+      setPendingSync(state.pending)
+      setSaving(state.sending)
+      setSyncConflicts(state.entries.filter((x) => x.state === 'conflict' || x.state === 'failed').map((x) => ({
+        id: x.id, mutationId: x.id, kind: x.type === 'visual' ? 'visual' : x.type === 'scene' ? 'scene' : x.runtime?.kind ?? 'configuration',
+        itemId: x.type === 'visual' ? x.visual?.subjectId ?? workspaceId : x.type === 'scene' ? x.scene?.sceneId ?? workspaceId : x.runtime?.kind === 'supply_status' ? x.runtime.supplyId : x.runtime?.taskId ?? workspaceId,
+        state: x.state === 'failed' ? 'failed' : 'conflict', at: x.queuedAt,
+        message: x.message ?? 'Cloud conflict; your local edit is preserved.',
+      })))
     }
-    setSaving(true)
-    const save = async () => {
-      if (isCloud) {
-        await saveCloudData(next, user?.id)
-        if (user?.id) saveCloudCache(workspaceScope(user.id, next.workspace.id), next)
-      } else saveLocalData(next)
+    const coordinator = new SyncCoordinator(scope, workspaceId, {
+      configuration: (wid, id, changes, signal) => applyCloudConfig(wid, id, changes, signal, dataRef.current?.recurrenceMode === 'atomic' || loaded.recurrenceMode === 'atomic'),
+      runtime: applyCloudMutation,
+      visual: applyCloudVisualOverride,
+      scene: applyCloudSceneDecorations,
+      reload: async (id, signal) => {
+        if (signal.aborted || !cloudUserRef.current) return null
+        // The public repository read no longer causes hidden writes.
+        return loadCloudData(cloudUserRef.current, id, { membershipConfirmedByCatalog: true })
+      },
+    }, () => typeof navigator === 'undefined' || navigator.onLine, onChange, (remote, projected) => {
+      if (coordinatorRef.current !== coordinator) return
+      const next = materializeTasks(normalizeWorkspaceData(projected))
+      if (JSON.stringify(next) !== JSON.stringify(projected)) {
+        try { coordinator.enqueueConfiguration(projected, next) }
+        catch (err) { reportError(err, 'queue generated occurrences') }
+      }
+      dataRef.current = next
+      setData(next)
+      try { saveCloudCache(scope, next) }
+      catch (err) { reportError(err, 'cache household after sync') }
+    })
+    coordinatorRef.current = coordinator
+    // Preserve V1 offline task mutations on upgrade, without a second writer.
+    const legacy = loadOfflineQueue(scope)
+    if (legacy.length) {
+      for (const mutation of legacy) {
+        if (mutation.workspaceId === workspaceId && !coordinator.observe().entries.some((x) => x.id === mutation.id)) coordinator.enqueueRuntime(mutation)
+      }
+      saveOfflineQueue(scope, [])
     }
-    const queued = saveQueueRef.current.catch(() => undefined).then(save)
-    saveQueueRef.current = queued
-    try {
-      await queued
-      setError(null)
-    } catch (err) {
-      reportError(err, 'save household data')
-      throw err
-    } finally {
-      if (saveQueueRef.current === queued) setSaving(false)
-    }
-  }, [isCloud, user?.id, reportError])
+    onChange(coordinator.observe())
+    const optimistic = projectOutbox(loaded, coordinator.observe().entries)
+    coordinator.resume()
+    return optimistic
+  }, [reportError])
 
   const refreshWorkspaceCatalog = useCallback(async (): Promise<WorkspaceSummary[]> => {
     if (!user) return []
@@ -224,123 +282,260 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return next
   }, [user, isCloud, cloudUser])
 
-  const refreshFromCloud = useCallback(async (workspaceId?: string): Promise<WorkspaceData | null> => {
-    if (!isCloud || !cloudUser || !user?.id) return dataRef.current
-    const targetId = workspaceId ?? dataRef.current?.workspace.id
-    if (!targetId) return null
-    let fresh = await loadCloudData(cloudUser, targetId)
-    if (!fresh) return null
-    fresh = normalizeWorkspaceData(fresh)
-    const generated = materializeTasks(fresh)
-    if (JSON.stringify(generated) !== JSON.stringify(fresh)) await saveCloudData(generated, user.id)
-    saveCloudCache(workspaceScope(user.id, targetId), generated)
-    await rememberWorkspace(targetId)
-    dataRef.current = generated
-    setData(generated)
-    return generated
-  }, [isCloud, cloudUser, user?.id, rememberWorkspace])
-
+  /** A snapshot can be shown only after the account and active membership are
+   * checked. On the network path the catalog is fresh/RLS protected. Offline,
+   * only an unexpired session plus a scoped cached membership permits display. */
   const activateWorkspace = useCallback(async (workspaceId: string): Promise<void> => {
     if (!user) return
     if (!isCloud || !cloudUser) {
       if (dataRef.current?.workspace.id !== workspaceId) throw new Error('Local mode supports one household.')
       return
     }
+    const epoch = ++activationRef.current
+    coordinatorRef.current?.stop()
+    coordinatorRef.current = null
+    dataRef.current = null
+    setData(null)
+    setPendingSync(0)
+    setSyncConflicts([])
     setLoading(true)
+    let hydrated = false
     try {
-      await saveQueueRef.current.catch(() => undefined)
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine
+      if (offline && !offlineSessionValid) throw new Error('The offline session has expired. Sign in online before opening saved household data.')
+      startupMark('catalog-start')
+      let catalog: WorkspaceSummary[]
+      let disconnected = offline
+      try { catalog = offline ? loadWorkspaceCatalog(user.id) : await listCloudWorkspaces(cloudUser) }
+      catch (err) {
+        if (!offlineSessionValid || !isTransientStartupFailure(err)) throw err
+        catalog = loadWorkspaceCatalog(user.id)
+        disconnected = true
+        setError('Connection unavailable; displaying a locally saved home pending validation.')
+      }
+      if (epoch !== activationRef.current) return
+      startupMark('catalog-ready')
+      if (!disconnected) saveWorkspaceCatalog(user.id, catalog)
+      setCatalogOwner(user.id)
+      setWorkspaces(catalog)
+      if (!catalog.some((x) => x.id === workspaceId && !x.archivedAt)) throw new Error('This household is no longer accessible to this account.')
+      startupMark('workspace-selected')
+      migrateLegacyOfflineStorage(user.id, workspaceId)
       const scope = workspaceScope(user.id, workspaceId)
-      let loaded: WorkspaceData | null
-      if (typeof navigator !== 'undefined' && !navigator.onLine) loaded = loadCloudCache(scope)
-      else {
-        try { loaded = await loadCloudData(cloudUser, workspaceId) }
-        catch (err) {
-          loaded = loadCloudCache(scope)
-          if (!loaded) throw err
-          setError('Using cached household data until the connection recovers.')
+      const snapshot = readAuthorizedSnapshot(user.id, workspaceId, catalog, disconnected)
+      startupMark('snapshot-read')
+      if (snapshot) {
+        const optimistic = attachCoordinator(user.id, workspaceId, snapshot)
+        dataRef.current = optimistic
+        setVisibleOwner(user.id)
+        setData(optimistic)
+        setLoading(false)
+        hydrated = true
+        startupPath(disconnected ? 'offline' : 'warm')
+        startupMark('snapshot-hydrated')
+        // Cached selection is local and must not wait on auth metadata.
+        void rememberWorkspace(workspaceId)
+      }
+      if (disconnected) {
+        if (!snapshot) throw new Error('No account-scoped offline snapshot is available for this household.')
+        setError('Offline: displaying the last saved household; cloud changes are pending validation.')
+        return
+      }
+      startupMark('cloud-read-start')
+      if (hydrated) {
+        // The coordinator is the only authority for post-hydration remote reads:
+        // it overlays every queued/sending edit, including edits made during
+        // this fetch. Do not replace it with the raw fetch result.
+        await coordinatorRef.current?.refresh()
+        if (epoch === activationRef.current) setError(null)
+        startupMark('cloud-read-end')
+      } else {
+        const remote = await loadCloudData(cloudUser, workspaceId, { membershipConfirmedByCatalog: true })
+        if (epoch !== activationRef.current) return
+        if (!remote) throw new Error('The household could not be loaded.')
+        startupMark('cloud-read-end')
+        const baseline = normalizeWorkspaceData(remote)
+        const optimistic = attachCoordinator(user.id, workspaceId, baseline)
+        dataRef.current = optimistic
+        setVisibleOwner(user.id)
+        setData(optimistic)
+        // Set render-ready before expensive occurrence generation or preference
+        // updates. Those happen on a later task and never block first paint.
+        setLoading(false)
+        startupPath('cold')
+        void rememberWorkspace(workspaceId)
+        try { saveCloudCache(scope, optimistic) } catch (err) { logClientError(err, { area: 'cache household' }) }
+      }
+      afterFirstFrame(() => {
+        if (epoch !== activationRef.current || dataRef.current?.workspace.id !== workspaceId) return
+        const current = dataRef.current
+        if (!current) return
+        const generated = materializeTasks(current)
+        startupMark('materialization-end')
+        if (JSON.stringify(generated) === JSON.stringify(current)) return
+        try {
+          coordinatorRef.current?.enqueueConfiguration(current, generated)
+          dataRef.current = generated
+          setData(generated)
+          saveCloudCache(scope, generated)
+        } catch (err) { reportError(err, 'queue generated occurrences at activation') }
+      })
+      setError(null)
+    } catch (err) {
+      if (epoch === activationRef.current) {
+        reportError(err, 'activate household')
+        if (!hydrated || isDeniedStartupAccess(err)) {
+          dataRef.current = null; setData(null)
+          if (isDeniedStartupAccess(err)) try { clearCloudCache(workspaceScope(user.id, workspaceId)) } catch { /* best effort */ }
         }
       }
-      if (!loaded) throw new Error('This household is not available on this device yet.')
-      loaded = materializeTasks(normalizeWorkspaceData(loaded))
-      if (navigator.onLine) saveCloudCache(scope, loaded)
-      await rememberWorkspace(workspaceId)
-      dataRef.current = loaded
-      setData(loaded)
-      setPendingSync(loadOfflineQueue(scope).length)
-      setSyncConflicts(loadSyncConflicts(scope))
-      if (navigator.onLine) setError(null)
-    } finally { setLoading(false) }
-  }, [user, isCloud, cloudUser, rememberWorkspace])
+    } finally {
+      if (epoch === activationRef.current) setLoading(false)
+    }
+  }, [user?.id, isCloud, cloudUser?.id, offlineSessionValid, attachCoordinator, rememberWorkspace, reportError])
 
   useEffect(() => {
     let cancelled = false
+    const epoch = ++activationRef.current
+    // Each account transition invalidates in-flight reads before any await.
+    coordinatorRef.current?.stop()
+    coordinatorRef.current = null
+    dataRef.current = null
+    setData(null)
+    setVisibleOwner(null)
+    setCatalogOwner(null)
+    setPendingSync(0)
+    setSyncConflicts([])
+    if (!user) { setWorkspaces([]); setLoading(false); return () => { cancelled = true } }
+    setLoading(true)
     async function load() {
-      if (!user) { dataRef.current = null; setData(null); setWorkspaces([]); setLoading(false); return }
-      setLoading(true)
       try {
-        let loaded: WorkspaceData | null = null
         if (isCloud && cloudUser) {
+          const offline = typeof navigator !== 'undefined' && !navigator.onLine
+          if (offline && !offlineSessionValid) throw new Error('Offline sign-in has expired. Connect and sign in to unlock saved household data.')
+          startupMark('catalog-start')
           let catalog: WorkspaceSummary[]
-          if (typeof navigator !== 'undefined' && !navigator.onLine) catalog = loadWorkspaceCatalog(user.id)
-          else {
-            try { catalog = await listCloudWorkspaces(cloudUser); saveWorkspaceCatalog(user.id, catalog) }
-            catch (err) {
-              catalog = loadWorkspaceCatalog(user.id)
-              if (!catalog.length) throw err
-              setError('Using cached household list until the connection recovers.')
-            }
+          let disconnected = offline
+          try {
+            catalog = offline ? loadWorkspaceCatalog(user!.id) : await listCloudWorkspaces(cloudUser)
+            if (!offline) saveWorkspaceCatalog(user!.id, catalog)
+          } catch (err) {
+            // Only a transport failure with an unexpired local auth token can
+            // fall back to the saved membership catalog. Server denials never do.
+            if (!offlineSessionValid || !isTransientStartupFailure(err)) throw err
+            catalog = loadWorkspaceCatalog(user!.id)
+            disconnected = true
+            setError('Connection unavailable; cached household access needs revalidation.')
           }
-          if (!cancelled) setWorkspaces(catalog)
-          const active = catalog.filter((item) => !item.archivedAt)
-          const devicePreferredId = loadSelectedWorkspaceId(user.id)
-          const preferredId = preferredWorkspaceId ?? devicePreferredId
-          const selected = active.find((item) => item.id === preferredId) ?? newestActiveWorkspace(active)
-          if (selected) {
-            migrateLegacyOfflineStorage(user.id, selected.id)
-            const scope = workspaceScope(user.id, selected.id)
-            setPendingSync(loadOfflineQueue(scope).length)
-            setSyncConflicts(loadSyncConflicts(scope))
-            if (typeof navigator !== 'undefined' && !navigator.onLine) loaded = loadCloudCache(scope)
-            else {
-              try { loaded = await loadCloudData(cloudUser, selected.id) }
-              catch (err) {
-                loaded = loadCloudCache(scope)
-                if (!loaded) throw err
-                setError('Using cached household data until the connection recovers.')
-              }
-            }
-            if (loaded) await rememberWorkspace(selected.id)
+          if (cancelled || epoch !== activationRef.current) return
+          startupMark('catalog-ready')
+          setCatalogOwner(user!.id)
+          setWorkspaces(catalog)
+          const active = catalog.filter((x) => !x.archivedAt)
+          const preferred = preferredWorkspaceRef.current ?? loadSelectedWorkspaceId(user!.id)
+          const selected = active.find((x) => x.id === preferred) ?? newestActiveWorkspace(active)
+          if (!selected) { setLoading(false); return }
+          startupMark('workspace-selected')
+          migrateLegacyOfflineStorage(user!.id, selected.id)
+          const scope = workspaceScope(user!.id, selected.id)
+          const snapshot = readAuthorizedSnapshot(user!.id, selected.id, catalog, disconnected)
+          startupMark('snapshot-read')
+          if (snapshot) {
+            const optimistic = attachCoordinator(user!.id, selected.id, snapshot)
+            dataRef.current = optimistic
+            setVisibleOwner(user!.id)
+            setData(optimistic)
+            setLoading(false)
+            startupPath(disconnected ? 'offline' : 'warm')
+            startupMark('snapshot-hydrated')
+            void rememberWorkspace(selected.id)
+          }
+          if (disconnected) {
+            if (!snapshot) throw new Error('No account-scoped cached home is available while offline.')
+            setError('Offline: displaying saved household until the next cloud validation.')
+            return
+          }
+          startupMark('cloud-read-start')
+          if (snapshot) {
+            await coordinatorRef.current?.refresh()
+            if (cancelled || epoch !== activationRef.current) return
+            startupMark('cloud-read-end')
           } else {
-            setPendingSync(0)
-            setSyncConflicts([])
+            const remote = await loadCloudData(cloudUser, selected.id, { membershipConfirmedByCatalog: true })
+            if (cancelled || epoch !== activationRef.current) return
+            if (!remote) throw new Error('The selected home is unavailable.')
+            startupMark('cloud-read-end')
+            const optimistic = attachCoordinator(user!.id, selected.id, normalizeWorkspaceData(remote))
+            dataRef.current = optimistic
+            setVisibleOwner(user!.id)
+            setData(optimistic)
+            setLoading(false)
+            startupPath('cold')
+            void rememberWorkspace(selected.id)
+            try { saveCloudCache(scope, optimistic) } catch (err) { logClientError(err, { area: 'cache household' }) }
           }
+          // After the first render. Fresh cloud reads and pending edits remain
+          // protected by the 16A coordinator. A delayed generator cannot write
+          // into a different user/household or overwrite newer edits.
+          afterFirstFrame(() => {
+            if (cancelled || epoch !== activationRef.current || dataRef.current?.workspace.id !== selected.id) return
+            const current = dataRef.current
+            if (!current) return
+            const generated = materializeTasks(current)
+            startupMark('materialization-end')
+            if (JSON.stringify(generated) === JSON.stringify(current)) return
+            try {
+              coordinatorRef.current?.enqueueConfiguration(current, generated)
+              dataRef.current = generated
+              setData(generated)
+              saveCloudCache(scope, generated)
+            } catch (err) { reportError(err, 'queue startup materialization') }
+          })
+          setError(null)
         } else {
-          loaded = loadLocalData()
-          if (loaded && !cancelled) setWorkspaces([{
-            id: loaded.workspace.id, name: loaded.workspace.name, timezone: loaded.workspace.timezone, role: 'owner',
-            ownerUserId: loaded.workspace.ownerUserId, archivedAt: loaded.workspace.archivedAt, createdAt: loaded.workspace.createdAt,
-          }])
+          const local = loadLocalData()
+          if (cancelled || epoch !== activationRef.current) return
+          startupPath('local')
+          const loaded = local ? normalizeWorkspaceData(local) : null
+          setWorkspaces(loaded ? [{
+            id: loaded.workspace.id, name: loaded.workspace.name, timezone: loaded.workspace.timezone,
+            role: 'owner', ownerUserId: loaded.workspace.ownerUserId,
+            archivedAt: loaded.workspace.archivedAt, createdAt: loaded.workspace.createdAt,
+          }] : [])
+          setCatalogOwner(user!.id)
+          dataRef.current = loaded
+          setVisibleOwner(user!.id)
+          setData(loaded)
+          setLoading(false)
+          if (loaded) afterFirstFrame(() => {
+            if (cancelled || epoch !== activationRef.current || dataRef.current !== loaded) return
+            const generated = materializeTasks(loaded)
+            startupMark('materialization-end')
+            if (generated !== loaded && JSON.stringify(generated) !== JSON.stringify(loaded)) {
+              try { saveLocalData(generated); dataRef.current = generated; setData(generated) }
+              catch (err) { reportError(err, 'materialize local workspace') }
+            }
+          })
         }
-        if (loaded) {
-          loaded = normalizeWorkspaceData(loaded)
-          const generated = materializeTasks(loaded)
-          if (JSON.stringify(generated) !== JSON.stringify(loaded)) {
-            if (isCloud && navigator.onLine) await saveCloudData(generated, user.id)
-            else if (!isCloud) saveLocalData(generated)
-          }
-          loaded = generated
-          if (isCloud) saveCloudCache(workspaceScope(user.id, loaded.workspace.id), loaded)
-        }
-        if (!cancelled) { dataRef.current = loaded; setData(loaded); if (navigator.onLine) setError(null) }
       } catch (err) {
-        if (!cancelled) reportError(err, 'load household')
+        if (!cancelled && epoch === activationRef.current) {
+          reportError(err, 'load household')
+          if (isDeniedStartupAccess(err)) {
+            const workspaceId = dataRef.current?.workspace.id
+            if (workspaceId && user?.id) try { clearCloudCache(workspaceScope(user.id, workspaceId)) } catch { /* best effort */ }
+            dataRef.current = null
+            setData(null)
+          }
+        }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && epoch === activationRef.current) setLoading(false)
       }
     }
     void load()
-    return () => { cancelled = true }
-  }, [user?.id, cloudUser?.id, isCloud, preferredWorkspaceId, newestActiveWorkspace, rememberWorkspace, reportError])
+    return () => { cancelled = true; if (epoch === activationRef.current) coordinatorRef.current?.stop() }
+  }, [user?.id, cloudUser?.id, isCloud, offlineSessionValid, newestActiveWorkspace, rememberWorkspace, reportError, attachCoordinator])
+
+  useEffect(() => () => { coordinatorRef.current?.stop(); coordinatorRef.current = null }, [user?.id, isCloud])
 
   const currentMember = useMemo(() => {
     if (!data || !user) return undefined
@@ -348,116 +543,133 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [data, user])
 
   const commit = useCallback(async (mutate: (current: WorkspaceData) => WorkspaceData) => {
+    ensureNoRestore()
     const current = dataRef.current
     if (!current) return
-    if (isCloud && typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError('Configuration changes require a connection. Daily task actions can still be used offline.')
-      return
-    }
     const next = materializeTasks(normalizeWorkspaceData(mutate(current)))
+    if (next === current || JSON.stringify(next) === JSON.stringify(current)) return
+    if (isCloud) {
+      const coordinator = coordinatorRef.current
+      if (!coordinator || coordinator.workspaceId !== current.workspace.id) throw new Error('Safe sync is not ready for this household.')
+      // Durable outbox FIRST; failed localStorage writes cannot acknowledge UI edits.
+      coordinator.enqueueConfiguration(current, next)
+      if (user?.id) {
+        try { saveCloudCache(workspaceScope(user.id, current.workspace.id), next) }
+        catch (err) { reportError(err, 'save optimistic household cache') }
+      }
+    } else saveLocalData(next)
     dataRef.current = next
     setData(next)
-    await persist(next)
-  }, [isCloud, persist])
+  }, [isCloud, user?.id, reportError])
 
-  const recordConflict = useCallback((mutation: OfflineMutation) => {
-    if (!user?.id) return
-    const conflict: SyncConflict = {
-      id: newId(), mutationId: mutation.id, kind: mutation.kind,
-      itemId: mutation.kind === 'supply_status' ? mutation.supplyId : mutation.taskId,
-      at: nowIso(), message: mutation.kind === 'reopen_today' ? 'The activity changed before it could be restored to today.' : 'The cloud item changed before this action could sync.',
+  const commitVisualOverride = useCallback(async (kind: VisualSubjectKind, id: string, overrides: StudioOverrides, expectedRevision: number) => {
+    ensureNoRestore()
+    const current = dataRef.current
+    if (!current || !user?.id || !validVisualSubject(current, kind, id)) throw new Error('The visual subject is no longer available in this household.')
+    if (isCloud && !current.visualOverridesAvailable) throw new Error('Visual override persistence is unavailable until the additive Phase 18B migration is approved and installed.')
+    const clean = validatedVisualOverrides(overrides)
+    const previous = current.visualOverrides?.find((row) => row.subjectType === kind && row.subjectId === id)
+    if (previous && previous.generatorVersion !== HOUSE_CARE_VISUAL_VERSION) throw new Error('This artwork was made with an unsupported generator version. Preserve or migrate it before editing.')
+    if ((previous?.revision ?? 0) !== expectedRevision) throw new Error('Artwork changed since this Studio was opened. Close and reopen to compare before saving.')
+    if (JSON.stringify(previous?.overrides ?? {}) === JSON.stringify(clean)) return
+    const mutation = { workspaceId: current.workspace.id, subjectType: kind, subjectId: id,
+      expectedRevision: previous?.revision ?? 0, generatorVersion: HOUSE_CARE_VISUAL_VERSION, overrides: clean }
+    if (isCloud) {
+      const coordinator = coordinatorRef.current
+      if (!coordinator || coordinator.workspaceId !== current.workspace.id) throw new Error('Safe sync is not ready for this household.')
+      // Durable 16A outbox write must succeed before optimistic display.
+      const operationId = coordinator.enqueueVisual(mutation)
+      const projected = overlayVisualMutation(current, mutation, operationId, new Date().toISOString())
+      dataRef.current = projected
+      setData(projected)
+      try { saveCloudCache(workspaceScope(user.id, current.workspace.id), projected) }
+      catch (err) { reportError(err, 'cache visual edit') }
+    } else {
+      const projected = overlayVisualMutation(current, mutation, newId(), new Date().toISOString())
+      saveLocalData(projected)
+      dataRef.current = projected
+      setData(projected)
     }
-    const scope = workspaceScope(user.id, mutation.workspaceId)
-    const next = [...loadSyncConflicts(scope), conflict].slice(-30)
-    saveSyncConflicts(scope, next)
-    setSyncConflicts(next)
-  }, [user?.id])
+  }, [isCloud, user?.id, reportError])
+
+  const commitSceneDecorations = useCallback(async (sceneId: string, items: SceneDecoration[], expectedRevision: number) => {
+    ensureNoRestore()
+    const current = dataRef.current
+    if (!current || !user?.id || !sceneExists(current, sceneId)) throw new Error('Scene is no longer active in this household.')
+    if (isCloud && !current.sceneDecorationsAvailable) throw new Error('Saving Home decorations requires the unapplied Phase 19B migration.')
+    const clean = validatedSceneDecorations(items)
+    if (clean.some(item => item.elementId && !current.layoutElements.some(element => element.id === item.elementId
+      && element.sceneId === sceneId && !element.archivedAt))) throw new Error('A decoration references an unavailable placement.')
+    const previous = sceneRow(current, sceneId)
+    if (previous && previous.generatorVersion !== HOME_ILLUSTRATION_GENERATOR) throw new Error('Unsupported saved Home illustration generator. Preserve or migrate before editing.')
+    if ((previous?.revision ?? 0) !== expectedRevision) throw new Error('Another member changed this scene. Close and reopen before confirming.')
+    if (JSON.stringify(previous?.items ?? []) === JSON.stringify(clean)) return
+    const mutation = { workspaceId: current.workspace.id, sceneId, expectedRevision,
+      generatorVersion: HOME_ILLUSTRATION_GENERATOR, items: clean }
+    if (isCloud) {
+      const coordinator = coordinatorRef.current
+      if (!coordinator || coordinator.workspaceId !== current.workspace.id) throw new Error('Safe sync is not ready for this household.')
+      // Durable outbox first, then optimistic display. Never enqueue on slider/drag.
+      const operationId = coordinator.enqueueScene(mutation)
+      const optimistic = overlaySceneMutation(current, mutation, operationId, new Date().toISOString())
+      dataRef.current = optimistic
+      setData(optimistic)
+      try { saveCloudCache(workspaceScope(user.id, current.workspace.id), optimistic) }
+      catch (err) { reportError(err, 'cache scene decoration edit') }
+    } else {
+      const optimistic = overlaySceneMutation(current, mutation, newId(), new Date().toISOString())
+      saveLocalData(optimistic)
+      dataRef.current = optimistic
+      setData(optimistic)
+    }
+  }, [isCloud, user?.id, reportError])
 
   const performRuntimeMutation = useCallback(async (mutation: OfflineMutation) => {
+    ensureNoRestore()
     const current = dataRef.current
     if (!current || !user) return
-    const optimistic = materializeTasks(normalizeWorkspaceData(applyMutationLocally(current, mutation)))
+    const runtimeProjection = normalizeWorkspaceData(applyMutationLocally(current, mutation))
+    if (runtimeProjection === current || !runtimeProjection.taskEvents.some(x => x.id === mutation.eventId)
+      && !runtimeProjection.extraCareEvents?.some(x => x.id === mutation.eventId)
+      && !runtimeProjection.supplyEvents.some(x => x.id === mutation.eventId)) {
+      throw new Error('This task changed or its successor has history. Refresh and resolve the conflict before retrying.')
+    }
+    const runtimeTask = mutation.kind === 'supply_status' ? undefined : current.tasks.find(t => t.id === mutation.taskId)
+    const runtimeRoutine = current.routines.find(r => r.id === runtimeTask?.routineId)
+    // Every mutation of a 16C-enrolled completion-relative task must use a
+    // versioned V2 RPC. This covers Postpone, Reassign and Extra Care, too.
+    const afterCompletion = mutation.kind !== 'supply_status' && runtimeRoutine?.scheduleMode === 'after_completion'
+    if (mutation.kind !== 'supply_status') {
+      mutation.afterCompletion = afterCompletion
+      if (afterCompletion && (mutation.kind === 'complete' || mutation.kind === 'skip' || mutation.kind === 'complete_target')) {
+        const source = mutation.kind === 'complete_target' ? stableId(`target-completed:${mutation.eventId}`) : mutation.eventId
+        mutation.afterCompletionSuccessor = runtimeProjection.tasks.find(t => t.successorOfEventId === source)
+        mutation.afterCompletionEvents = runtimeProjection.taskEvents.filter(event => event.taskId === mutation.afterCompletionSuccessor?.id && ['TASK_CREATED', 'ASSIGNED'].includes(event.type))
+      }
+    }
+    const optimistic = materializeTasks(runtimeProjection)
+    if (isCloud && afterCompletion && current.recurrenceMode !== 'atomic') throw new Error('Atomic recurrence is not activated for this cloud household. No edit was queued.')
+    if (!isCloud) { saveLocalData(optimistic) }
+    else {
+      const coordinator = coordinatorRef.current
+      if (!coordinator || coordinator.workspaceId !== mutation.workspaceId) throw new Error('Safe sync is not ready for this household.')
+      coordinator.enqueueRuntime(mutation)
+      if (JSON.stringify(optimistic) !== JSON.stringify(runtimeProjection)) coordinator.enqueueConfiguration(runtimeProjection, optimistic)
+      try { saveCloudCache(workspaceScope(user.id, mutation.workspaceId), optimistic) }
+      catch (err) { reportError(err, 'cache task action') }
+    }
     dataRef.current = optimistic
     setData(optimistic)
-
-    if (!isCloud) { saveLocalData(optimistic); return }
-    const scope = workspaceScope(user.id, current.workspace.id)
-    saveCloudCache(scope, optimistic)
-    if (!navigator.onLine) {
-      const queue = enqueueOfflineMutation(scope, mutation)
-      setPendingSync(queue.length)
-      return
-    }
-
-    setSaving(true)
-    try {
-      // Runtime mutations and whole-household configuration saves share one cloud
-      // write queue. This prevents an older snapshot from landing after Complete/
-      // Skip/Postpone/Reassign and rolling the task back to stale runtime values.
-      const write = saveQueueRef.current.catch(() => undefined).then(() => applyCloudMutation(mutation))
-      saveQueueRef.current = write.then(() => undefined)
-      const result = await write
-      if (result.conflict || !result.applied) recordConflict(mutation)
-      await refreshFromCloud()
-      setError(result.conflict ? 'A cloud version conflict was detected. The latest cloud state was kept.' : null)
-    } catch (err) {
-      const message = normalizeError(err)
-      if (!navigator.onLine || /fetch|network|timeout/i.test(message)) {
-        const queue = enqueueOfflineMutation(scope, mutation)
-        setPendingSync(queue.length)
-        setOnline(false)
-        setError(null)
-      } else {
-        reportError(err, 'apply task or stock action')
-        await refreshFromCloud().catch(() => undefined)
-        throw err
-      }
-    } finally { setSaving(false) }
-  }, [isCloud, user, recordConflict, refreshFromCloud, reportError])
-
-  const flushOfflineQueue = useCallback(async () => {
-    if (!isCloud || !user?.id || !cloudUser || !navigator.onLine) return
-    const workspaceId = dataRef.current?.workspace.id
-    if (!workspaceId) return
-    const scope = workspaceScope(user.id, workspaceId)
-    const queue = loadOfflineQueue(scope)
-    if (!queue.length) { setPendingSync(0); return }
-    setSaving(true)
-    const remaining: OfflineMutation[] = []
-    const conflictedItems = new Set<string>()
-    try {
-      for (let index = 0; index < queue.length; index += 1) {
-        const mutation = queue[index]
-        const itemKey = mutation.kind === 'supply_status' ? `supply:${mutation.supplyId}` : `task:${mutation.taskId}`
-        if (conflictedItems.has(itemKey)) {
-          recordConflict(mutation)
-          continue
-        }
-        try {
-          const result = await applyCloudMutation(mutation)
-          if (result.conflict || !result.applied) {
-            recordConflict(mutation)
-            conflictedItems.add(itemKey)
-          }
-        } catch {
-          remaining.push(...queue.slice(index))
-          break
-        }
-      }
-      saveOfflineQueue(scope, remaining)
-      setPendingSync(remaining.length)
-      if (!remaining.length) { await refreshFromCloud(); setError(null) }
-    } finally { setSaving(false) }
-  }, [isCloud, user?.id, cloudUser, recordConflict, refreshFromCloud])
+  }, [isCloud, user, reportError])
 
   useEffect(() => {
-    const onOnline = () => { setOnline(true); void flushOfflineQueue() }
+    const onOnline = () => { setOnline(true); coordinatorRef.current?.resume() }
     const onOffline = () => setOnline(false)
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
-    if (navigator.onLine && !loading) void flushOfflineQueue()
+    if (navigator.onLine && !loading) coordinatorRef.current?.resume()
     return () => { window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline) }
-  }, [flushOfflineQueue, loading])
+  }, [loading])
 
   const cancelFutureTasks = useCallback((current: WorkspaceData, routineId: string): WorkspaceData => {
     const actorMemberId = currentMember?.id
@@ -478,26 +690,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [currentMember?.id])
 
+  /** Block new edits for the entire archive/restore/delete transaction, not
+   * just during the initial outbox drain. */
+  const withExclusive = async (operation: () => Promise<void>): Promise<void> => {
+    ensureNoRestore()
+    exclusiveRef.current = true
+    try { await operation() } finally { exclusiveRef.current = false }
+  }
+
   const value = useMemo<DataValue>(() => ({
-    data, workspaces, loading, saving, error, online, pendingSync, syncConflicts,
+    data: visibleOwner === user?.id ? data : null,
+    workspaces: catalogOwner === user?.id ? workspaces : [],
+    loading: loading || Boolean(user && visibleOwner !== user.id && catalogOwner !== user.id),
+    saving, error, online, pendingSync, syncConflicts,
     clearError: () => setError(null),
     dismissSyncConflicts: () => {
+      // Dismiss the *legacy* historical banner only; unresolved mutations must
+      // never be hidden, deleted, or treated as acknowledged by dismissal.
       if (user?.id && dataRef.current?.workspace.id) clearSyncConflicts(workspaceScope(user.id, dataRef.current.workspace.id))
-      setSyncConflicts([])
+    },
+    retrySyncIssue: async (id) => {
+      const coordinator = coordinatorRef.current
+      if (!coordinator) return
+      await coordinator.resolveConflict(id, 'keep_local')
+    },
+    discardSyncIssue: async (id) => {
+      const coordinator = coordinatorRef.current
+      if (!coordinator) return
+      await coordinator.resolveConflict(id, 'use_cloud')
     },
     currentMember,
+    commitVisualOverride,
+    commitSceneDecorations,
     switchWorkspace: async (workspaceId) => {
-      if (online && pendingSync > 0) await flushOfflineQueue()
+      ensureNoRestore()
+      // The old household outbox is durable. Cancel in-flight requests and
+      // resume them only after that exact household/user is reactivated.
       await activateWorkspace(workspaceId)
     },
-    archiveWorkspace: async (workspaceId) => {
+    archiveWorkspace: async (workspaceId) => withExclusive(async () => {
       if (!isCloud || !cloudUser || !user) return
-      await saveQueueRef.current.catch(() => undefined)
-      if (dataRef.current?.workspace.id === workspaceId && online && pendingSync > 0) {
-        await flushOfflineQueue()
-        const scope = workspaceScope(user.id, workspaceId)
-        if (loadOfflineQueue(scope).length) throw new Error('Sync pending changes before archiving this household.')
-      }
+      if (dataRef.current?.workspace.id === workspaceId) await coordinatorRef.current?.requireExclusive()
+      else if (readOutbox(workspaceScope(user.id, workspaceId)).length) throw new Error('Resolve pending edits before archiving another household.')
       await archiveCloudWorkspace(workspaceId)
       const catalog = await refreshWorkspaceCatalog()
       if (dataRef.current?.workspace.id === workspaceId) {
@@ -511,17 +745,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setSyncConflicts([])
         }
       }
-    },
-    restoreWorkspace: async (workspaceId) => {
+    }),
+    restoreWorkspace: async (workspaceId) => withExclusive(async () => {
       if (!isCloud || !cloudUser || !user) return
+      if (dataRef.current?.workspace.id === workspaceId) await coordinatorRef.current?.requireExclusive()
+      else if (readOutbox(workspaceScope(user.id, workspaceId)).length) throw new Error('Resolve pending edits before restoring this household.')
       await restoreCloudWorkspace(workspaceId)
       await refreshWorkspaceCatalog()
       if (!dataRef.current) await activateWorkspace(workspaceId)
-    },
-    deleteWorkspace: async (workspaceId) => {
+    }),
+    deleteWorkspace: async (workspaceId) => withExclusive(async () => {
       if (!isCloud || !cloudUser || !user) return
+      if (dataRef.current?.workspace.id === workspaceId) await coordinatorRef.current?.requireExclusive()
+      else if (readOutbox(workspaceScope(user.id, workspaceId)).length) throw new Error('Resolve pending edits before deleting this household.')
       await deleteCloudWorkspace(workspaceId)
       const scope = workspaceScope(user.id, workspaceId)
+      removeOutbox(scope)
       clearCloudCache(scope)
       saveOfflineQueue(scope, [])
       clearSyncConflicts(scope)
@@ -537,20 +776,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setSyncConflicts([])
         }
       }
-    },
+    }),
     createWorkspace: async (name, ownerName, timezone) => {
       if (!user) return
       const created = isCloud && cloudUser
         ? await createCloudWorkspace(cloudUser, name, ownerName, timezone)
         : createLocalWorkspace(name, ownerName, timezone)
-      dataRef.current = created
-      setData(created)
       if (isCloud) {
-        await rememberWorkspace(created.workspace.id)
-        saveCloudCache(workspaceScope(user.id, created.workspace.id), created)
+        await refreshWorkspaceCatalog()
+        await activateWorkspace(created.workspace.id)
+      } else {
+        saveLocalData(created)
+        dataRef.current = created
+        setData(created)
+        await refreshWorkspaceCatalog()
       }
-      await persist(created)
-      await refreshWorkspaceCatalog()
     },
     updateWorkspace: async (patch) => {
       await commit((current) => currentMember?.role === 'owner' ? { ...current, workspace: { ...current.workspace, ...patch } } : current)
@@ -733,6 +973,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ...current, actions: current.actions.map((item) => item.id === id ? { ...item, archivedAt: nowIso() } : item) }
     }),
     addRoutine: async (input) => commit((current) => {
+      if (isCloud && !integratedExtraCare(current) && input.additionalActivities?.length) throw new Error('Phase 16B cloud activation is required to create integrated Extra Care. See the migration notes.')
       const { additionalActivities, ...definition } = input
       const fingerprint = routineDefinitionFingerprint(definition)
       const duplicate = current.routines.some((routine) => !routine.archivedAt && !routine.parentRoutineId && routineDefinitionFingerprint(routine) === fingerprint)
@@ -747,6 +988,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return saveAdditionalActivities({ ...current, routines: [...current.routines, parent] }, parent, additionalActivities, currentMember?.id)
     }),
     updateRoutine: async (id, input) => commit((current) => {
+      if (isCloud && !integratedExtraCare(current) && input.additionalActivities?.length) throw new Error('Phase 16B cloud activation is required to edit integrated Extra Care.')
       const existing = current.routines.find((item) => item.id === id)
       if (!existing) return current
       if (existing.parentRoutineId) throw new Error('Edit additional activities through their parent routine.')
@@ -826,11 +1068,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const resumedRoutine = next.routines.find((item) => item.id === id)!
       if (resumedRoutine.scheduleMode === 'after_completion') {
-        const hasFuture = next.tasks.some((task) => task.routineId === id && task.state === 'scheduled')
-        if (!hasFuture) {
-          const dueAt = nextTheoreticalSlotAfter(resumedRoutine, at, next.workspace.timezone)
-          if (dueAt) next = materializeRoutineSlot(next, resumedRoutine, dueAt)
-        }
+        // Resume only reactivates known, still-future rows cancelled by Pause.
+        // Do not fabricate a completion-relative successor from the Resume
+        // timestamp. If a terminal row has no safe successor, retain history
+        // and require explicit repair rather than silently shifting cadence.
         return materializeTasks(normalizeWorkspaceData(next))
       }
 
@@ -843,14 +1084,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!current || !task || task.state !== 'scheduled') return null
       const eventAt = nowIso(); const eventId = newId()
       const targetIds = task.targets.filter((target) => !target.completedAt).map((target) => target.entityId)
-      const completionEffects = buildCompletionHealthEffects(current, task, eventAt, targetIds, currentMember?.id)
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete', taskId: id, expectedVersion: task.version, eventId, eventAt, actorMemberId: currentMember?.id, completionEffects })
+      if (isLegacyLinkedTask(current, task)) throw new Error('Extra Care is completed with its primary activity.')
+      const integrated = isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt)
+      const effects = integrated ? buildIntegratedEffects(current, task, eventAt, eventId, currentMember?.id) : null
+      const completionEffects = effects?.parentEffects ?? buildCompletionHealthEffects(current, task, eventAt, targetIds, currentMember?.id)
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete', taskId: id,
+        expectedVersion: task.version, eventId, eventAt, actorMemberId: currentMember?.id, completionEffects,
+        integrated, extraCompletions: effects?.extras, trajectoryBefore: effects?.beforeTrajectories })
+      return eventId
+    },
+    postponeExtraCare: async (id, extraRoutineId) => {
+      const current = dataRef.current; const task = current?.tasks.find(row => row.id === id)
+      if (!current || !task || !integratedExtraCare(current) || !dueExtraCare(current, task).some(row => row.id === extraRoutineId)) return null
+      const eventId = newId()
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'extra_postpone', taskId: id,
+        expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, extraRoutineId, integrated: true })
       return eventId
     },
     completeTaskTarget: async (id, entityId) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       const target = task?.targets.find((item) => item.entityId === entityId)
       if (!current || !task || task.state !== 'scheduled' || !target || target.completedAt) return
+      if (isLegacyLinkedTask(current, task) || integratedExtraCare(current) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt)) throw new Error('Use Complete on the primary activity to include Extra Care.')
       const eventAt = nowIso(); const eventId = newId()
       const completionEffects = buildCompletionHealthEffects(current, task, eventAt, [entityId], currentMember?.id)
       await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'complete_target', taskId: id, targetEntityId: entityId, expectedVersion: task.version, eventId, eventAt, actorMemberId: currentMember?.id, completionEffects })
@@ -858,51 +1113,66 @@ export function DataProvider({ children }: { children: ReactNode }) {
     skipTask: async (id) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task || task.state !== 'scheduled') return null
+      if (isLegacyLinkedTask(current, task)) throw new Error('Extra Care is managed through the primary activity.')
       const eventId = newId()
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'skip', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id })
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'skip', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, integrated: isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt) })
       return eventId
     },
     postponeTask: async (id, dueAt) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task || task.state !== 'scheduled') return null
+      if (isLegacyLinkedTask(current, task)) throw new Error('Extra Care is managed through the primary activity.')
       const eventId = newId()
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'postpone', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, dueAt, effectiveDueAt: dueAt })
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'postpone', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, dueAt, effectiveDueAt: dueAt, integrated: isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt) })
       return eventId
     },
     reassignTask: async (id, memberId, assignmentScope) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task || task.state !== 'scheduled') return null
+      if (isLegacyLinkedTask(current, task)) throw new Error('Extra Care is managed through the primary activity.')
       const eventId = newId()
       const scope = assignmentScope ?? (memberId ? 'member' : 'unassigned')
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, assigneeMemberId: scope === 'member' ? memberId : undefined, clearAssignee: scope !== 'member', assignmentScope: scope })
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reassign', taskId: id, expectedVersion: task.version, eventId, eventAt: nowIso(), actorMemberId: currentMember?.id, integrated: isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt), assigneeMemberId: scope === 'member' ? memberId : undefined, clearAssignee: scope !== 'member', assignmentScope: scope })
       return eventId
     },
     undoTaskAction: async (id, sourceEventId) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task) return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'undo', taskId: id, expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+      if (isLegacyLinkedTask(current, task)) throw new Error('Historical linked activities cannot be edited in integrated mode.')
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'undo', afterCompletion: current.routines.find(r => r.id === task.routineId)?.scheduleMode === 'after_completion', taskId: id, integrated: isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt), expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
     },
     restoreTaskToToday: async (id, sourceEventId) => {
       const current = dataRef.current; const task = current?.tasks.find((item) => item.id === id)
       if (!current || !task) return
-      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reopen_today', taskId: id, expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
+      if (isLegacyLinkedTask(current, task)) throw new Error('Historical linked activities cannot be restored independently in integrated mode.')
+      await performRuntimeMutation({ id: newId(), workspaceId: current.workspace.id, kind: 'reopen_today', afterCompletion: current.routines.find(r => r.id === task.routineId)?.scheduleMode === 'after_completion', taskId: id, integrated: isIntegratedPrimary(current, task) && current.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt), expectedVersion: task.version, sourceEventId, eventId: newId(), eventAt: nowIso(), actorMemberId: currentMember?.id })
     },
     importBackup: async (backup) => {
       const current = dataRef.current
       if (!current || !currentMember || currentMember.role !== 'owner') throw new Error('Only the household owner can import a backup.')
+      if (exclusiveRef.current) throw new Error('A household restore is already in progress.')
+      exclusiveRef.current = true
       setSaving(true)
       try {
-        const imported = materializeTasks(prepareImportedWorkspace(backup, current, currentMember))
+        if (isCloud) await coordinatorRef.current?.requireExclusive()
+        const imported = materializeTasks({ ...prepareImportedWorkspace(backup, current, currentMember),
+          extraCareMode: current.extraCareMode, recurrenceMode: current.recurrenceMode })
         if (isCloud) await replaceCloudData(imported, user?.id)
         else saveLocalData(imported)
-        dataRef.current = imported
+        if (isCloud && user?.id) {
+          // Only clear the outbox AFTER successful destructive replacement.
+          coordinatorRef.current?.resetAfterExclusive()
+          dataRef.current = attachCoordinator(user.id, imported.workspace.id, imported)
+          try { saveCloudCache(workspaceScope(user.id, imported.workspace.id), imported) }
+          catch (err) { reportError(err, 'cache restored household') }
+        } else dataRef.current = imported
         setData(imported)
-        if (isCloud && user?.id) saveCloudCache(workspaceScope(user.id, imported.workspace.id), imported)
         setError(null)
       } catch (err) {
         reportError(err, 'import backup')
         throw err
       } finally {
+        exclusiveRef.current = false
         setSaving(false)
       }
     },
@@ -913,7 +1183,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setData(null)
       setWorkspaces([])
     },
-  }), [data, workspaces, loading, saving, error, online, pendingSync, syncConflicts, currentMember, user, isCloud, cloudUser, persist, commit, cancelFutureTasks, performRuntimeMutation, activateWorkspace, refreshWorkspaceCatalog, flushOfflineQueue, newestActiveWorkspace, rememberWorkspace, reportError])
+  }), [data, workspaces, visibleOwner, catalogOwner, loading, saving, error, online, pendingSync, syncConflicts, currentMember, user, isCloud, cloudUser, commit, commitVisualOverride, commitSceneDecorations, cancelFutureTasks, performRuntimeMutation, activateWorkspace, refreshWorkspaceCatalog, newestActiveWorkspace, rememberWorkspace, reportError, attachCoordinator])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

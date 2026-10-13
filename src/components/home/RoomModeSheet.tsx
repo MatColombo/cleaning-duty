@@ -28,7 +28,7 @@ export function RoomModeSheet({ room, data, current, now, handled, total, isOver
     {current ? <>
       <div className="room-mode-progress v2-room-mode-progress"><span>{t('roomCleaning')}</span><strong className="hc-tabular-numerals">{handled + 1} {t('of')} {total}</strong></div>
       <section className="room-mode-card v2-room-mode-card">
-        <div className="v2-room-mode-art" aria-hidden="true"><CardArtwork task={current} data={data} /></div>
+        <div className="v2-room-mode-art" aria-hidden="true"><CardArtwork task={current} data={data} animated /></div>
         <div className="v2-room-mode-copy">
           <span className={`room-mode-state ${isOverdue ? 'overdue' : 'today'}`}>{isOverdue ? t('overdue') : t('dueTodayShort')}</span>
           <h2 className="hc-display">{activityTitle(current)}</h2>

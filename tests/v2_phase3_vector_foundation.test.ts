@@ -19,7 +19,7 @@ function assert(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message)
 }
 
-assert(HOUSE_CARE_VISUAL_VERSION === 1, 'Phase 3 must establish visual version 1')
+assert(HOUSE_CARE_VISUAL_VERSION === 2, 'Phase 3 must establish visual version 2')
 assert(VECTOR_ARTBOARDS.icon.viewBox === '0 0 64 64', 'Icon artboard must be 64x64')
 assert(VECTOR_ARTBOARDS.smallObject.viewBox === '0 0 128 128', 'Small-object artboard must be 128x128')
 assert(VECTOR_ARTBOARDS.mainObject.viewBox === '0 0 240 240', 'Main-object artboard must be 240x240')

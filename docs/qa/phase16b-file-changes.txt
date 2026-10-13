@@ -1,0 +1,44 @@
+House Care V2 Phase 16B changed-file inventory; base HOUSE_CARE_V2_PHASE16A_UPDATED.zip
+Updated 24; New 12; Removed 0; 483 packaged files
+
+UPDATED FILES:
+  README.md
+  src/components/home/HomeInspector.tsx
+  src/components/overview/ActiveDeck.tsx
+  src/components/overview/CareCard.tsx
+  src/components/overview/LinkedActivityAppendix.tsx
+  src/contexts/DataContext.tsx
+  src/lib/analytics.ts
+  src/lib/backup.ts
+  src/lib/cloudRepository.ts
+  src/lib/dataMigrations.ts
+  src/lib/home.ts
+  src/lib/localRepository.ts
+  src/lib/mutations.ts
+  src/lib/offline.ts
+  src/lib/overview.ts
+  src/lib/overviewDeck.ts
+  src/lib/presentation.ts
+  src/lib/scheduler.ts
+  src/lib/syncCoordinator.ts
+  src/lib/timelineNavigation.ts
+  src/lib/translations.ts
+  src/pages/OperationalTasksPage.tsx
+  src/styles/overview-v2.css
+  src/types/domain.ts
+
+NEW FILES:
+  docs/V2_PHASE16B_INTEGRATED_EXTRA_CARE.md
+  docs/qa/V2_PHASE16B_BROWSER_ACCEPTANCE.md
+  docs/qa/phase16b-npm-test.log
+  docs/qa/phase16b-static.log
+  docs/qa/phase16b-syntax.log
+  docs/qa/phase16b-typecheck-blocked.log
+  src/lib/extraCare.ts
+  supabase/migrations/20261012130000_v2_phase16b_integrated_extra_care.sql
+  supabase/migrations/20261012130001_v2_phase16b_rollback.sql.example
+  supabase/tests/v2_phase16b_activate_household.psql.example
+  supabase/tests/v2_phase16b_rls_staging.psql
+  tests/v2_phase16b_extra_care.test.ts
+
+REMOVED FILES:

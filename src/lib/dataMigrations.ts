@@ -105,6 +105,9 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
 
   const normalized: WorkspaceData = {
     ...input,
+    extraCareMode: input.extraCareMode ?? 'legacy',
+    extraCareEvents: dedupeById(Array.isArray(raw.extraCareEvents) ? raw.extraCareEvents as NonNullable<WorkspaceData['extraCareEvents']> : []),
+    extraCareLegacyCarries: dedupeById(Array.isArray(raw.extraCareLegacyCarries) ? raw.extraCareLegacyCarries as NonNullable<WorkspaceData['extraCareLegacyCarries']> : []),
     workspace: { ...input.workspace, careSensitivity: input.workspace?.careSensitivity ?? 'balanced' },
     members: dedupeById((input.members ?? []).map((member) => ({ ...member, labels: member.labels ?? [], unavailableUntil: member.unavailableUntil ?? undefined }))),
     fieldDefinitions: Array.isArray(raw.fieldDefinitions) ? dedupeById(raw.fieldDefinitions as WorkspaceData['fieldDefinitions']) : [],
@@ -148,6 +151,8 @@ export function normalizeWorkspaceData(input: WorkspaceData): WorkspaceData {
         triggerEvery: routine.parentRoutineId ? Math.max(1, Math.min(100, Math.round(routine.triggerEvery ?? 1))) : undefined,
       }
     })),
+    sceneDecorations: Array.isArray(raw.sceneDecorations) ? raw.sceneDecorations as WorkspaceData['sceneDecorations'] : [],
+    sceneDecorationsAvailable: raw.sceneDecorationsAvailable === true,
     tasks: reconciledTasks,
     taskEvents: dedupeById(taskEvents),
     healthTrajectories: Array.isArray(raw.healthTrajectories) ? dedupeTrajectories(raw.healthTrajectories as WorkspaceData['healthTrajectories']) : [],

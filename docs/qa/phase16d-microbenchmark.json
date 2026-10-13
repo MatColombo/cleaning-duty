@@ -1,0 +1,27 @@
+{
+  "kind": "local JSON snapshot parse-only microbenchmark",
+  "runtime": "v22.16.0",
+  "device": "linux",
+  "trials": 1000,
+  "bytes": 17760,
+  "medianMs": 0.0502,
+  "p95Ms": 0.1561,
+  "before": {
+    "knownHardcodedBootHoldMs": 520,
+    "exitAnimationMs": 360,
+    "requestsBeforeHouseholdFetch": "catalog request(s) plus duplicate claim+membership requests",
+    "fullHouseholdFetch": "18 parallel tables and optional capability reads",
+    "measuredColdStartupMs": null,
+    "measuredWarmStartupMs": null
+  },
+  "after": {
+    "knownHardcodedBootHoldMs": 0,
+    "exitAnimationMs": 120,
+    "requestedTablesAfterCachedRender": 18,
+    "cachedOverviewCanRenderBeforeFullFetch": true,
+    "duplicateClaimMembershipSkippedAfterFreshCatalog": true,
+    "measuredColdStartupMs": null,
+    "measuredWarmStartupMs": null
+  },
+  "limitations": "Parse timings are real process measurements; boot hold is source-defined, not wall-clock timing. No React bundle, network, device, installed PWA or first-paint time was measured."
+}

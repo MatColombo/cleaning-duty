@@ -3,12 +3,16 @@ import type { User } from '@supabase/supabase-js'
 import type { Locale, SessionUser } from '../types/domain'
 import { localUser } from '../lib/localRepository'
 import { supabase, supabaseEnabled } from '../lib/supabase'
+import { clearUserCloudCaches } from '../lib/offline'
+import { startupMark } from '../lib/startupTelemetry'
+import { clearSelectedWorkspaceId, clearWorkspaceCatalog } from '../lib/workspaces'
 import { defaultThemeId, isThemePresetId, sanitizePalette, themePreset, type ThemeId, type ThemePalette } from '../lib/theme'
 
 interface AuthValue {
   user: SessionUser | null
   cloudUser: User | null
   loading: boolean
+  offlineSessionValid: boolean
   isCloud: boolean
   preferredWorkspaceId: string | null
   preferredLocale: Locale | null
@@ -51,19 +55,35 @@ function loadLocalAppearance(): { themeId: ThemeId; palette: ThemePalette } {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [cloudUser, setCloudUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(supabaseEnabled)
+  const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [localAppearance, setLocalAppearance] = useState(loadLocalAppearance)
 
   useEffect(() => {
     if (!supabaseEnabled || !supabase) return
+    let eventSeen = false
     supabase.auth.getSession().then(({ data }) => {
-      setCloudUser(data.session?.user ?? null)
-    }).catch(() => setCloudUser(null)).finally(() => setLoading(false))
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCloudUser(session?.user ?? null)
+      if (!eventSeen) {
+        setCloudUser(data.session?.user ?? null)
+        setExpiresAt(data.session?.expires_at ?? null)
+      }
+    }).catch(() => { if (!eventSeen) setCloudUser(null) }).finally(() => setLoading(false))
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      eventSeen = true
+      if (event === 'SIGNED_OUT') {
+        // Remove private snapshots; preserve durable outboxes for a later
+        // authenticated session with the same account.
+        setCloudUser((previous) => { if (previous) {
+          try { clearUserCloudCaches(previous.id); clearWorkspaceCatalog(previous.id); clearSelectedWorkspaceId(previous.id) }
+          catch { /* best effort */ }
+        } return null })
+      } else setCloudUser(session?.user ?? null)
+      setExpiresAt(session?.expires_at ?? null)
       setLoading(false)
     })
     return () => subscription.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => { if (!loading) startupMark('auth-ready') }, [loading])
 
   const updateMetadata = useCallback(async (patch: Record<string, unknown>) => {
     if (!supabase || !cloudUser) return
@@ -123,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       : localUser,
     cloudUser,
     loading,
+    offlineSessionValid: !supabaseEnabled || Boolean(expiresAt && expiresAt * 1000 > Date.now() + 30_000),
     isCloud: supabaseEnabled,
     preferredWorkspaceId: metadataString(cloudUser, 'housecare_preferred_workspace_id'),
     preferredLocale,
@@ -146,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPreferredLocale,
     setOverviewPreferences,
     setAppearancePreferences,
-  }), [cloudUser, loading, preferredLocale, overviewCriticalCount, overviewCriticalThreshold, appearanceThemeId, appearancePalette, setPreferredWorkspaceId, setPreferredLocale, setOverviewPreferences, setAppearancePreferences])
+  }), [cloudUser, loading, expiresAt, preferredLocale, overviewCriticalCount, overviewCriticalThreshold, appearanceThemeId, appearancePalette, setPreferredWorkspaceId, setPreferredLocale, setOverviewPreferences, setAppearancePreferences])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

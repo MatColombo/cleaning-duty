@@ -1,8 +1,8 @@
 import { ProductStockList, TaskProducts } from '../components/TaskProducts'
 import { activityTitle, activitySubtitle, additionalActivityAppendix, groupLinkedTaskOccurrences } from '../lib/presentation'
 import { homeCleanlinessSummary } from '../lib/home'
-import { useEffect, useState } from 'react'
-import { CalendarDots, CheckCircle, DotsThree, MinusCircle, UserSwitch } from '@phosphor-icons/react'
+import { useEffect, useRef, useState } from 'react'
+import { CalendarDots, CheckCircle, DotsThree, UserSwitch } from '@phosphor-icons/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Sheet } from '../components/Sheet'
 import { useAuth } from '../contexts/AuthContext'
@@ -14,7 +14,9 @@ import { buildOverviewGroups, canonicalTaskState, mergeCriticalItemsByEntity, ty
 import { buildActiveDeck } from '../lib/overviewDeck'
 import { HouseState } from '../components/overview/HouseState'
 import { ActiveDeck } from '../components/overview/ActiveDeck'
+import { useOverviewViewport } from '../components/overview/useOverviewViewport'
 import { logClientError } from '../lib/errorLog'
+import { integratedExtraCare, isLegacyLinkedTask } from '../lib/extraCare'
 import type { StockStatus, TaskAssignmentScope, TaskEvent, TaskOccurrence } from '../types/domain'
 import type { TranslationKey } from '../lib/translations'
 
@@ -22,7 +24,7 @@ const stockStatuses: StockStatus[] = ['available', 'low', 'reserve_only', 'out_o
 interface UndoState { taskId: string; eventId: string; message: string }
 
 export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }) {
-  const { data, currentMember, completeTask, completeTaskTarget, skipTask, postponeTask, reassignTask, undoTaskAction, restoreTaskToToday, setSupplyStatus } = useData()
+  const { data, currentMember, completeTask, completeTaskTarget, skipTask, postponeExtraCare, postponeTask, reassignTask, undoTaskAction, restoreTaskToToday, setSupplyStatus } = useData()
   const { overviewCriticalCount, overviewCriticalThreshold } = useAuth()
   const { t, locale } = useI18n()
   const navigate = useNavigate()
@@ -40,6 +42,8 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
   const [completionStamp, setCompletionStamp] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const overviewRef = useRef<HTMLDivElement>(null)
+  useOverviewViewport(overviewRef, view === 'overview')
   useEffect(() => { setSelectedId(requestedTaskId) }, [requestedTaskId])
   useEffect(() => { if (!undo) return; const id = window.setTimeout(() => setUndo(null), 7000); return () => window.clearTimeout(id) }, [undo])
   useEffect(() => { const id = window.setInterval(() => setClockNow(new Date()), 60_000); return () => window.clearInterval(id) }, [])
@@ -57,7 +61,9 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
     criticalCount: overviewCriticalCount,
     criticalThreshold: overviewCriticalThreshold,
   })
-  const selectedRaw = data.tasks.find((task) => task.id === selectedId)
+  const chosenRaw = data.tasks.find(task => task.id === selectedId)
+  const selectedRaw = chosenRaw && isLegacyLinkedTask(data, chosenRaw) && chosenRaw.state === 'scheduled'
+    ? data.tasks.find(task => task.id === chosenRaw.parentOccurrenceId) ?? chosenRaw : chosenRaw
   const selected = selectedRaw ? canonicalTaskState(data, selectedRaw) : undefined
   const rescheduleRaw = data.tasks.find((task) => task.id === rescheduleId)
   const rescheduleTask = rescheduleRaw ? canonicalTaskState(data, rescheduleRaw) : undefined
@@ -110,15 +116,17 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
     navigate({ pathname, search: `?${nextParams}` }, { replace: true })
   }
 
-  return <div className={view === 'overview' ? 'v2-overview hc-v2-paper' : 'stack page-stack overview-page timeline-page'}>
+  return <div ref={overviewRef} className={view === 'overview' ? 'v2-overview hc-v2-paper' : 'stack page-stack overview-page timeline-page'}>
     {view === 'timeline' && <header className="page-title-row overview-hero"><div><div className="eyebrow">{t('today')}</div><h1>{t('timeline')}</h1><p className="muted">{t('timelineHint')}</p></div>
       {activePeople.length > 1 && <div className="segmented two overview-scope"><button className={scope === 'mine' ? 'selected' : ''} onClick={() => setScope('mine')}>{t('myTasks')}</button><button className={scope === 'household' ? 'selected' : ''} onClick={() => setScope('household')}>{t('householdTasks')}</button></div>}
     </header>}
+    {!integratedExtraCare(data) && data.routines.some(routine => routine.parentRoutineId && !routine.archivedAt) &&
+      <p className="v2-extra-compat-warning" role="status">{t('extraLegacyGate')}</p>}
     {view === 'overview' && <>
       <HouseState regular={homeScores.regular} deep={homeScores.deep} criticalItems={criticalSummaries} onOpenEntity={(itemId) => navigate(`/home?item=${encodeURIComponent(itemId)}`)}
         scope={scope} showScopeSwitch={activePeople.length > 1} onScopeChange={setScope} />
       <ActiveDeck entries={deckEntries} data={data} now={now} pendingTaskId={pendingTaskId} completionStamp={completionStamp} emptyLabel={groups.finished.length ? t('allHandledToday') : t('nothingElseToday')}
-        onComplete={(id) => { void completeDeckTask(id) }} onReschedule={setRescheduleId} onMore={setSelectedId} />
+        onComplete={(id) => { void completeDeckTask(id) }} onMore={setSelectedId} />
     </>}
 
     {view === 'timeline' && <>
@@ -171,7 +179,7 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
         {data!.routines.find((routine) => routine.id === task.routineId)?.affectsCleanliness === false && <small className="muted">{t('cleanlinessExcluded')}</small>}
         <div className="task-meta">{assignmentLabel} · <span className={`care-level-tag ${task.cleanlinessChannel === 'deep' ? 'deep' : 'routine'}`}>{task.cleanlinessChannel === 'deep' ? t('deepCleaning') : t('routineCleaning')}</span></div>
       </div>
-      <div className="task-actions overview-actions">{task.state === 'scheduled' && (compact ? <button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button> : <><button className="button primary action-button" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}><CheckCircle weight="bold" aria-hidden="true" />{t('done')}</button><button className="button secondary action-button" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}><MinusCircle aria-hidden="true" />{t('skip')}</button><button className="button secondary action-button" onClick={() => setRescheduleId(task.id)}><CalendarDots aria-hidden="true" />{t('reschedule')}</button></>)}<button className="button secondary square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={22} weight="bold" aria-hidden="true" /></button></div>
+      <div className="task-actions overview-actions">{task.state === 'scheduled' && !compact && !isLegacyLinkedTask(data!, task) && <button className="button primary action-button" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)).catch(error => { logClientError(error, { area: 'timeline complete' }); setActionError(t('careActionFailed')) }) }}><CheckCircle weight="bold" aria-hidden="true" />{t('done')}</button>}<button className="button secondary square" aria-label={t('more')} onClick={() => setSelectedId(task.id)}><DotsThree size={22} weight="bold" aria-hidden="true" /></button></div>
     </article>
   }
 
@@ -187,13 +195,13 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
       <div className="linked-activity-copy">
         <strong>{entry.routine.name}</strong>
         <span>{subtitle}</span>
-        <small>{task ? `${formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)} · ${assignmentLabel}` : frequency}</small>
+        <small>{entry.status === 'completed' ? t('completed') : entry.status === 'due' ? t('extraDue') : task ? `${formatTaskTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)} · ${assignmentLabel}` : frequency}</small>
         <div className="linked-products-section"><small className="linked-subsection-label">{t('additionalProducts')}</small><ProductStockList supplies={entry.supplies} data={data!} /></div>
       </div>
       <div className="linked-activity-actions">
         {task?.state === 'completed' && <span className="status">{t('completed')}</span>}
         {task?.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}
-        {task?.state === 'scheduled' && <>
+        {task?.state === 'scheduled' && !integratedExtraCare(data!) && <>
           {!compact && <button className="button primary small" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}>{t('done')}</button>}
           {!compact && <button className="button secondary small" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}>{t('skip')}</button>}
           <button className="button secondary small" onClick={() => setRescheduleId(task.id)}>{t('reschedule')}</button>
@@ -216,7 +224,7 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
       <div className="linked-activity-actions">
         {task.state === 'completed' && <span className="status">{t('completed')}</span>}
         {task.state === 'skipped' && <span className="status skipped-status">{t('skipped')}</span>}
-        {task.state === 'scheduled' && <>
+        {task.state === 'scheduled' && !integratedExtraCare(data!) && <>
           {!compact && <button className="button primary small" onClick={() => { if (!window.confirm(t('confirmCompleteTask'))) return; void completeTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('completed').toLowerCase()}`)) }}>{t('done')}</button>}
           {!compact && <button className="button secondary small" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`)) }}>{t('skip')}</button>}
           <button className="button secondary small" onClick={() => setRescheduleId(task.id)}>{t('reschedule')}</button>
@@ -237,7 +245,20 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
     const triggeredAdditional = additionalActivityAppendix(data!, task)
     return <Sheet title={t('taskDetails')} onClose={onClose}><div className="stack">
       <div className="summary-block"><strong>{activityTitle(task)}</strong><span>{activitySubtitle(task)}</span><span>{formatTaskDateTime(task.effectiveDueAt ?? task.dueAt, locale, timezone)}</span></div>
-      {triggeredAdditional.length > 0 && <section className="action-section triggered-additional-menu"><div className="section-header"><div><h3>{t('additionalActivities')}</h3><small>{t('additionalActivity')}</small></div><span className="count-pill small-pill">{triggeredAdditional.length}</span></div><div className="linked-activity-list">{triggeredAdditional.map((entry) => {
+      {integratedExtraCare(data!) && triggeredAdditional.length > 0 && <section className="action-section triggered-additional-menu" aria-label={t('extraCare')}>
+        <h3>{t('extraCare')}</h3><p className="muted">{t('extraIntegratedHint')}</p>
+        <div className="linked-activity-list">{triggeredAdditional.map(entry => <article className="linked-activity-row" key={entry.routine.id}>
+          <div className="linked-activity-copy"><strong>{entry.routine.name}</strong>
+            <small>{entry.targetNames.join(', ')}</small><ProductStockList supplies={entry.supplies} data={data!} />
+            <span className="status">{t(entry.status === 'completed' ? 'completed' : 'extraDue')}</span>
+          </div>
+          {task.state === 'scheduled' && <button className="button secondary small" type="button"
+            onClick={() => { void postponeExtraCare(task.id, entry.routine.id).then(eventId => { void rememberUndo(task.id, eventId, t('extraPostponed')); onClose() }).catch(error => { logClientError(error, { area: 'extra care postpone' }); setActionError(t('careActionFailed')) }) }}>
+            {t('extraPostpone')}
+          </button>}
+        </article>)}</div>
+      </section>}
+      {!integratedExtraCare(data!) && triggeredAdditional.length > 0 && <section className="action-section triggered-additional-menu"><div className="section-header"><div><h3>{t('additionalActivities')}</h3><small>{t('additionalActivity')}</small></div><span className="count-pill small-pill">{triggeredAdditional.length}</span></div><div className="linked-activity-list">{triggeredAdditional.map((entry) => {
         const child = entry.occurrence!
         const childEvents = data!.taskEvents.filter((event) => event.taskId === child.id)
         const childWorkflow = [...childEvents].filter((event) => event.type === 'COMPLETED' || event.type === 'SKIPPED' || event.type === 'POSTPONED' || event.type === 'REOPENED').sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime() || b.id.localeCompare(a.id))
@@ -253,9 +274,11 @@ export function OperationalTasksPage({ view }: { view: 'overview' | 'timeline' }
         </div></article>
       })}</div></section>}
       {canRestoreToday && <button className="button secondary" onClick={() => { if (!window.confirm(t('confirmRestoreTask'))) return; void restoreTaskToToday(task.id, restoreSourceId).then(onClose) }}>{t('restoreToDoToday')}</button>}
-      {task.targets.length > 1 && <section className="action-section"><div className="section-header"><div><h3>{t('taskTargets')}</h3><small>{t('targetCompletionHint')}</small></div><small>{task.targets.filter((target) => target.completedAt).length}/{task.targets.length}</small></div><div className="target-progress-list">{task.targets.map((target) => <div className={target.completedAt ? 'target-progress-row done' : 'target-progress-row'} key={target.entityId}><div><strong>{target.entityName}</strong><small>{target.entityTypeName}</small></div>{target.completedAt ? <span className="status">{t('completed')}</span> : task.state === 'scheduled' ? <button className="button secondary small" onClick={() => { if (!window.confirm(`${t('confirmCompleteTask')}\n${target.entityName}`)) return; void completeTaskTarget(task.id, target.entityId).then(onClose) }}>{t('completeTarget')}</button> : null}</div>)}</div></section>}
+      {task.targets.length > 1 && <section className="action-section"><div className="section-header"><div><h3>{t('taskTargets')}</h3><small>{t('targetCompletionHint')}</small></div><small>{task.targets.filter((target) => target.completedAt).length}/{task.targets.length}</small></div><div className="target-progress-list">{task.targets.map((target) => <div className={target.completedAt ? 'target-progress-row done' : 'target-progress-row'} key={target.entityId}><div><strong>{target.entityName}</strong><small>{target.entityTypeName}</small></div>{target.completedAt ? <span className="status">{t('completed')}</span> : task.state === 'scheduled' && !(integratedExtraCare(data!) && data!.routines.some(r => r.parentRoutineId === task.routineId && !r.archivedAt)) ? <button className="button secondary small" onClick={() => { if (!window.confirm(`${t('confirmCompleteTask')}\n${target.entityName}`)) return; void completeTaskTarget(task.id, target.entityId).then(onClose) }}>{t('completeTarget')}</button> : null}</div>)}</div></section>}
       {task.supplies.length > 0 && <section className="action-section"><h3>{t('reportStock')}</h3><div className="task-supplies">{task.supplies.map((snapshot) => { const supply = data!.supplies.find((item) => item.id === snapshot.supplyId); if (!supply || supply.archivedAt) return null; return <div className="task-supply-row" key={snapshot.supplyId}><div><strong>{snapshot.supplyName}</strong><small>{statusLabel(supply.status)}</small></div><div className="mini-stock-grid">{stockStatuses.map((status) => <button key={status} aria-label={statusLabel(status)} className={supply.status === status ? 'selected' : ''} onClick={() => void setSupplyStatus(supply.id, status, task.id).then(onClose)}><span className={`stock-dot stock-${status}`} /></button>)}</div></div> })}</div></section>}
-      {task.state === 'scheduled' && <section className="action-section secondary-task-actions"><button className="button secondary" onClick={onReassignRequest}><UserSwitch aria-hidden="true" />{t('reassign')}</button><button className="button danger-outline" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => { void rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`); onClose() }) }}>{t('skip')}</button></section>}
+      {task.state === 'scheduled' && !isLegacyLinkedTask(data!, task) && <section className="action-section secondary-task-actions">
+        <button className="button secondary" onClick={() => { onClose(); setRescheduleId(task.id) }}><CalendarDots aria-hidden="true" />{t('reschedule')}</button>
+        <button className="button secondary" onClick={onReassignRequest}><UserSwitch aria-hidden="true" />{t('reassign')}</button><button className="button danger-outline" onClick={() => { if (!window.confirm(t('confirmSkipTask'))) return; void skipTask(task.id).then((eventId) => { void rememberUndo(task.id, eventId, `${task.actionNameSnapshot} ${t('skipped').toLowerCase()}`); onClose() }) }}>{t('skip')}</button></section>}
       <details className="explain-box"><summary>{t('whyThisTask')}</summary><div className="stack compact-text"><p>{task.explanation.schedule}</p><p>{task.explanation.assignment}</p><p>{task.explanation.targetSummary}</p></div></details>
       <section className="action-section"><h3>{t('history')}</h3><div className="timeline">{[...events].reverse().map((event) => <div className="timeline-item" key={event.id}><span>{t(`event_${event.type}` as TranslationKey)}</span><small>{formatTaskDateTime(event.at, locale, timezone)}</small></div>)}</div></section>
     </div></Sheet>

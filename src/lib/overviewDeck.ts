@@ -3,9 +3,10 @@ import type { OverviewGroups } from './overview'
 import { itemChannelCleanliness } from './cleanliness'
 import { localDateInZone } from './date'
 import { additionalActivityAppendix } from './presentation'
+import { requiredCardSupplies, type CardSupply } from './cardSupplies'
 
 /** Presentation-only deck. Preserve the canonical bucket order and *every* actionable occurrence.
- * Linked children remain separate cards even when their parent appears in the same bucket. */
+ * Integrated V2 Extra Care is rendered inside its primary card; legacy history remains readable. */
 export type DeckPriority = 'overdue' | 'dueNow' | 'laterToday'
 export interface ActiveDeckEntry {
   task: TaskOccurrence
@@ -39,7 +40,8 @@ export interface CareCardContext {
   cleanlinessScore: number | null
   cleanlinessExcluded: boolean
   supplyAlerts: { supplyId: string; name: string; status: 'low' | 'reserve_only' | 'out_of_stock' }[]
-  linkedChildren: TaskOccurrence[]
+  supplies: CardSupply[]
+  linkedChildren: ReturnType<typeof additionalActivityAppendix>
 }
 
 /** This is informational only: it does not change cleanliness, supply or task state. */
@@ -50,18 +52,17 @@ export function careCardContext(data: WorkspaceData, task: TaskOccurrence, now: 
     const value = itemChannelCleanliness(data, target.entityId, task.cleanlinessChannel, now).score
     return value == null || !Number.isFinite(value) ? [] : [value]
   })
-  const supplyAlerts = task.supplies.flatMap((snapshot) => {
-    const supply = data.supplies.find((item) => item.id === snapshot.supplyId && !item.archivedAt)
-    if (!supply || supply.status === 'available') return []
-    return [{ supplyId: snapshot.supplyId, name: snapshot.supplyName, status: supply.status }]
-  })
+  const linkedChildren = additionalActivityAppendix(data, task)
+  const supplies = requiredCardSupplies(data, task, linkedChildren)
+  const supplyAlerts = supplies.flatMap(supply => supply.status && supply.status !== 'available'
+    ? [{ supplyId: supply.supplyId, name: supply.name, status: supply.status }] : [])
   return {
     assignmentScope: task.assignmentScope,
     assigneeName: assignee?.displayName,
     cleanlinessScore: scores.length ? Math.min(...scores) : null,
     cleanlinessExcluded,
     supplyAlerts,
-    linkedChildren: additionalActivityAppendix(data, task)
-      .flatMap((entry) => entry.occurrence ? [entry.occurrence] : []),
+    supplies,
+    linkedChildren,
   }
 }

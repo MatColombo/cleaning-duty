@@ -1,8 +1,10 @@
 import type { AssignmentPolicy, WorkspaceData, WorkspaceMember } from '../types/domain'
 import { APP_VERSION } from '../app/version'
 import { normalizeWorkspaceData } from './dataMigrations'
+import { prepareVisualOverrideImport } from './visualOverrides'
+import { prepareSceneDecorationImport } from './sceneDecorations'
 
-export const BACKUP_SCHEMA_VERSION = 9
+export const BACKUP_SCHEMA_VERSION = 11
 export const APPLICATION_VERSION = APP_VERSION
 
 export interface HouseholdBackup {
@@ -16,6 +18,10 @@ export function createHouseholdBackup(data: WorkspaceData): HouseholdBackup {
   const clean = normalizeWorkspaceData(structuredClone(data))
   clean.workspace = { ...clean.workspace, ownerUserId: undefined }
   clean.members = clean.members.map((member) => ({ ...member, userId: undefined }))
+  clean.visualOverrides = prepareVisualOverrideImport(clean.visualOverrides ?? [], clean)
+  clean.visualOverridesAvailable = undefined
+  clean.sceneDecorations = prepareSceneDecorationImport(clean.sceneDecorations ?? [], clean)
+  clean.sceneDecorationsAvailable = undefined
   return {
     schema_version: BACKUP_SCHEMA_VERSION,
     exported_at: new Date().toISOString(),
@@ -33,7 +39,7 @@ export function parseHouseholdBackup(text: string): HouseholdBackup {
   try { parsed = JSON.parse(text) } catch { throw new Error('The selected file is not valid JSON.') }
   if (!isObject(parsed)) throw new Error('Invalid backup file.')
   const schemaVersion = Number(parsed.schema_version)
-  if (![2, 3, 4, 5, 6, 7, 8, BACKUP_SCHEMA_VERSION].includes(schemaVersion)) {
+  if (![2, 3, 4, 5, 6, 7, 8, 9, 10, BACKUP_SCHEMA_VERSION].includes(schemaVersion)) {
     throw new Error(`Unsupported backup schema version. Supported: 2-${BACKUP_SCHEMA_VERSION}.`)
   }
   if (!isObject(parsed.data)) throw new Error('Backup data is missing.')
@@ -42,7 +48,12 @@ export function parseHouseholdBackup(text: string): HouseholdBackup {
   if (!Array.isArray(data.entities) || !Array.isArray(data.actions) || !Array.isArray(data.routines) || !Array.isArray(data.tasks)) {
     throw new Error('Backup collections are incomplete.')
   }
-  return { ...parsed, schema_version: BACKUP_SCHEMA_VERSION, data: normalizeWorkspaceData(data) } as HouseholdBackup
+  const normalized = normalizeWorkspaceData(data)
+  normalized.visualOverrides = schemaVersion >= 10 ? prepareVisualOverrideImport((data as WorkspaceData).visualOverrides, normalized) : []
+  normalized.visualOverridesAvailable = undefined
+  normalized.sceneDecorations = schemaVersion >= 11 ? prepareSceneDecorationImport((data as WorkspaceData).sceneDecorations, normalized) : []
+  normalized.sceneDecorationsAvailable = undefined
+  return { ...parsed, schema_version: BACKUP_SCHEMA_VERSION, data: normalized } as HouseholdBackup
 }
 
 function remapAssignment(policy: AssignmentPolicy, memberMap: Map<string, string>): AssignmentPolicy {
@@ -96,6 +107,10 @@ export function prepareImportedWorkspace(backup: HouseholdBackup, current: Works
   const withWorkspace = <T extends { workspaceId: string }>(items: T[]) => items.map((item) => ({ ...item, workspaceId }))
 
   return {
+    visualOverrides: prepareVisualOverrideImport(source.visualOverrides ?? [], { ...source, workspace: { ...source.workspace, id: workspaceId } }),
+    sceneDecorations: prepareSceneDecorationImport(source.sceneDecorations ?? [], { ...source, workspace: { ...source.workspace, id: workspaceId } }),
+    sceneDecorationsAvailable: current.sceneDecorationsAvailable,
+    visualOverridesAvailable: current.visualOverridesAvailable,
     workspace: {
       ...source.workspace,
       id: workspaceId,
@@ -112,6 +127,10 @@ export function prepareImportedWorkspace(backup: HouseholdBackup, current: Works
     actions: withWorkspace(source.actions),
     routines: withWorkspace(source.routines).map((routine) => ({ ...routine, assignment: remapAssignment(routine.assignment, memberMap) })),
     tasks: withWorkspace(source.tasks).map((task) => ({ ...task, assigneeMemberId: task.assigneeMemberId ? memberMap.get(task.assigneeMemberId) ?? task.assigneeMemberId : undefined, targets: task.targets.map((target) => ({ ...target, completedByMemberId: target.completedByMemberId ? memberMap.get(target.completedByMemberId) ?? target.completedByMemberId : undefined })) })),
+    extraCareEvents: withWorkspace(source.extraCareEvents ?? []).map(event => ({ ...event,
+      actorMemberId: event.actorMemberId ? memberMap.get(event.actorMemberId) ?? event.actorMemberId : undefined })),
+    extraCareLegacyCarries: withWorkspace(source.extraCareLegacyCarries ?? []),
+    extraCareMode: current.extraCareMode ?? 'legacy',
     taskEvents: withWorkspace(source.taskEvents).map((event) => ({ ...event, actorMemberId: event.actorMemberId ? memberMap.get(event.actorMemberId) ?? event.actorMemberId : undefined })),
     healthTrajectories: withWorkspace(source.healthTrajectories),
     completionSnapshots: withWorkspace(source.completionSnapshots).map((snapshot) => ({ ...snapshot, actorMemberId: snapshot.actorMemberId ? memberMap.get(snapshot.actorMemberId) ?? snapshot.actorMemberId : undefined })),

@@ -26,6 +26,10 @@ export function loadWorkspaceCatalog(userId: string): WorkspaceSummary[] {
   } catch { return [] }
 }
 
+export function clearWorkspaceCatalog(userId: string): void {
+  try { localStorage.removeItem(`${CATALOG_PREFIX}${userId}`) } catch { /* best effort */ }
+}
+
 export function saveWorkspaceCatalog(userId: string, workspaces: WorkspaceSummary[]): void {
   try { localStorage.setItem(`${CATALOG_PREFIX}${userId}`, JSON.stringify(workspaces)) } catch { /* ignore storage failures */ }
 }

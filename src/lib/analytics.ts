@@ -1,5 +1,6 @@
 import { addDays, localDateInZone, zonedLocalToUtc } from './date'
 import { cleanlinessForTrajectory } from './cleanliness'
+import { activeExtraEvents, isLegacyLinkedTask } from './extraCare'
 import { dedupeOccurrences } from './overview'
 import { followingTheoreticalSlot, nextTheoreticalSlotAfter, resolvedRoutineTargetIds, routineCleanlinessChannel } from './scheduler'
 import type { CleanlinessChannel, HealthTrajectory, Routine, StockStatus, SupplyEvent, TaskEvent, TaskOccurrence, WorkspaceData } from '../types/domain'
@@ -37,8 +38,8 @@ export interface SupplyForecast {
 
 export interface AuditEntry {
   id: string
-  source: 'task' | 'supply'
-  eventType: TaskEvent['type'] | SupplyEvent['type']
+  source: 'task' | 'supply' | 'extra'
+  eventType: TaskEvent['type'] | SupplyEvent['type'] | 'POSTPONED' | 'COMPLETED' | 'REOPENED'
   at: string
   actorMemberId?: string
   title: string
@@ -56,7 +57,7 @@ function eventCompletionForTask(data: WorkspaceData, taskId: string) {
 export function completionSummary(data: WorkspaceData, days = 30, now = new Date()): CompletionSummary {
   const end = now.getTime()
   const start = end - days * 86_400_000
-  const due = data.tasks.filter((task) => task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end)
+  const due = data.tasks.filter((task) => !isLegacyLinkedTask(data,task) && task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end)
   const completed = due.filter((task) => task.state === 'completed').length
   const skipped = due.filter((task) => task.state === 'skipped').length
   const stillOpen = due.filter((task) => task.state === 'scheduled').length
@@ -78,7 +79,7 @@ export function memberWorkload(data: WorkspaceData, days = 30, now = new Date())
   const activeMembers = data.members.filter((member) => member.status === 'active')
   const taskById = new Map(data.tasks.map((task) => [task.id, task]))
   const completedBy = new Map<string | undefined, number>()
-  for (const event of data.taskEvents) {
+  for (const event of [...data.taskEvents, ...activeExtraEvents(data).filter(e=>e.type==='COMPLETED').map(e=>({ ...e, type: 'COMPLETED' as const, taskId:e.parentOccurrenceId, metadata:{} }))]) {
     if (event.type !== 'COMPLETED') continue
     const at = new Date(event.at).getTime()
     if (at < start || at > end) continue
@@ -90,7 +91,7 @@ export function memberWorkload(data: WorkspaceData, days = 30, now = new Date())
     memberId: member.id,
     name: member.displayName,
     completed: completedBy.get(member.id) ?? 0,
-    assignedDue: data.tasks.filter((task) => (task.assigneeMemberId === member.id || task.assignmentScope === 'everyone') && task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end).length,
+    assignedDue: data.tasks.filter((task) => !isLegacyLinkedTask(data,task) && (task.assigneeMemberId === member.id || task.assignmentScope === 'everyone') && task.state !== 'cancelled' && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end).length,
   })).sort((a, b) => b.completed - a.completed || a.name.localeCompare(b.name))
 }
 
@@ -102,7 +103,7 @@ export function dailyCompletionTrend(data: WorkspaceData, days = 14, now = new D
     result.push({ date: localDateInZone(timezone, date), completed: 0, skipped: 0 })
   }
   const byDate = new Map(result.map((row) => [row.date, row]))
-  for (const event of data.taskEvents) {
+  for (const event of [...data.taskEvents, ...activeExtraEvents(data).filter(e=>e.type==='COMPLETED').map(e=>({ ...e, type: 'COMPLETED' as const }))]) {
     if (event.type !== 'COMPLETED' && event.type !== 'SKIPPED') continue
     const row = byDate.get(localDateInZone(timezone, new Date(event.at)))
     if (!row) continue
@@ -175,7 +176,13 @@ export function auditEntries(data: WorkspaceData): AuditEntry[] {
     detail: event.type === 'STOCK_CHANGED' ? `${String(event.metadata.from ?? '')} → ${String(event.metadata.to ?? '')}` : '',
     supplyId: event.supplyId,
   }))
-  return [...taskRows, ...supplyRows].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  const extraRows: AuditEntry[] = (data.extraCareEvents ?? []).map(event => ({
+    id: event.id, source: 'extra', eventType: event.type, at: event.at, actorMemberId:event.actorMemberId,
+    title: data.routines.find(row=>row.id===event.routineId)?.name ?? 'Extra Care',
+    detail: event.type==='POSTPONED' ? 'Next primary occurrence' : event.type==='REOPENED' ? 'Reversed' : 'Completed with primary',
+    taskId:event.parentOccurrenceId,
+  }))
+  return [...taskRows, ...extraRows, ...supplyRows].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 }
 
 // v1.2 Analysis -------------------------------------------------------------
@@ -249,7 +256,7 @@ export function todayActivitySummary(data: WorkspaceData, now = new Date()): Tod
   const today = localDateInZone(timezone, now)
   const eventsToday = data.taskEvents.filter((event) => localDateInZone(timezone, new Date(event.at)) === today)
   const completedEvents = eventsToday.filter((event) => event.type === 'COMPLETED')
-  const completed = completedEvents.length
+  const completed = completedEvents.length + activeExtraEvents(data).filter(e=>e.type==='COMPLETED' && localDateInZone(timezone,new Date(e.at))===today).length
   const skipped = eventsToday.filter((event) => event.type === 'SKIPPED').length
   const rescheduled = eventsToday.filter((event) => event.type === 'POSTPONED').length
   const taskById = new Map(data.tasks.map((task) => [task.id, task]))
@@ -262,7 +269,7 @@ export function todayActivitySummary(data: WorkspaceData, now = new Date()): Tod
       if (room) rooms.add(room)
     }
   }
-  const planned = dedupeOccurrences(data).filter((task) => task.state !== 'cancelled' && localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === today)
+  const planned = dedupeOccurrences(data).filter((task) => !isLegacyLinkedTask(data,task) && task.state !== 'cancelled' && localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) === today)
   const everythingHandled = planned.length > 0 && planned.every((task) => task.state === 'completed' || task.state === 'skipped')
   return { completed, skipped, rescheduled, roomsMaintained: rooms.size, everythingHandled, plannedCount: planned.length }
 }
@@ -271,7 +278,7 @@ export function activityOutcomeSummary(data: WorkspaceData, days = 30, now = new
   const cutoff = now.getTime() - days * 86_400_000
   const events = data.taskEvents.filter((event) => new Date(event.at).getTime() >= cutoff && new Date(event.at).getTime() <= now.getTime())
   return {
-    completed: events.filter((event) => event.type === 'COMPLETED').length,
+    completed: events.filter((event) => event.type === 'COMPLETED').length + activeExtraEvents(data).filter(e=>e.type==='COMPLETED' && new Date(e.at).getTime()>=cutoff && new Date(e.at).getTime()<=now.getTime()).length,
     skipped: events.filter((event) => event.type === 'SKIPPED').length,
     rescheduled: events.filter((event) => event.type === 'POSTPONED').length,
   }
@@ -379,7 +386,7 @@ export function historyEntriesV12(data: WorkspaceData, days = 90, now = new Date
       if (!task) return []
       const type: HistoryEntryV12['type'] = event.type === 'COMPLETED' ? 'completed' : event.type === 'SKIPPED' ? 'skipped' : event.type === 'POSTPONED' ? 'rescheduled' : 'reopened'
       const health = event.type === 'COMPLETED' ? data.completionSnapshots
-        .filter((row) => row.occurrenceId === task.id && Math.abs(new Date(row.completedAt).getTime() - new Date(event.at).getTime()) < 1000)
+        .filter((row) => row.occurrenceId === task.id && row.sourceRoutineId === task.routineId && Math.abs(new Date(row.completedAt).getTime() - new Date(event.at).getTime()) < 1000)
         .map((row) => ({ itemName: entities.get(row.itemId) ?? 'Item', channel: row.cleanlinessChannel, refreshLevelPctSnapshot: row.refreshLevelPctSnapshot, cleanlinessBeforePct: row.cleanlinessBeforePct, cleanlinessAfterPct: row.cleanlinessAfterPct, healthRefreshApplied: row.healthRefreshApplied })) : []
       return [{ id: event.id, at: event.at, taskId: task.id, type, activity: task.actionNameSnapshot, room: taskRoomName(data, task), routine: task.routineNameSnapshot, actor: event.actorMemberId ? members.get(event.actorMemberId) : undefined, previousDueAt: event.type === 'POSTPONED' && typeof event.metadata.from === 'string' ? event.metadata.from : undefined, newDueAt: event.type === 'POSTPONED' && typeof event.metadata.to === 'string' ? event.metadata.to : undefined, health }]
     })
@@ -391,5 +398,18 @@ export function historyEntriesV12(data: WorkspaceData, days = 90, now = new Date
     const health = data.completionSnapshots.filter((row) => row.occurrenceId === task.id && Math.abs(new Date(row.completedAt).getTime() - atMs) < 1000).map((row) => ({ itemName: entities.get(row.itemId) ?? 'Item', channel: row.cleanlinessChannel, refreshLevelPctSnapshot: row.refreshLevelPctSnapshot, cleanlinessBeforePct: row.cleanlinessBeforePct, cleanlinessAfterPct: row.cleanlinessAfterPct, healthRefreshApplied: row.healthRefreshApplied }))
     return [{ id: `completed-fallback:${task.id}:${task.completedAt}`, at: task.completedAt, taskId: task.id, type: 'completed' as const, activity: task.actionNameSnapshot, room: taskRoomName(data, task), routine: task.routineNameSnapshot, health }]
   })
-  return [...eventRows, ...fallbackRows].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  const extraRows: HistoryEntryV12[] = (data.extraCareEvents ?? []).flatMap(event => {
+    const task = tasks.get(event.parentOccurrenceId)
+    const routine = data.routines.find(row => row.id === event.routineId)
+    if (!task || !routine || new Date(event.at).getTime()<cutoff || new Date(event.at).getTime()>now.getTime()) return []
+    const type = event.type === 'COMPLETED' ? 'completed' as const : event.type === 'POSTPONED' ? 'rescheduled' as const : 'reopened' as const
+    const health: HistoryHealthDetail[] = event.type==='COMPLETED' ? data.completionSnapshots.filter(snapshot =>
+      snapshot.occurrenceId===task.id && snapshot.sourceRoutineId===routine.id && Math.abs(new Date(snapshot.completedAt).getTime()-new Date(event.at).getTime())<1000
+    ).map(snapshot=>({ itemName:entities.get(snapshot.itemId)??'Item',channel:snapshot.cleanlinessChannel,
+      refreshLevelPctSnapshot:snapshot.refreshLevelPctSnapshot,cleanlinessBeforePct:snapshot.cleanlinessBeforePct,
+      cleanlinessAfterPct:snapshot.cleanlinessAfterPct,healthRefreshApplied:snapshot.healthRefreshApplied })) : []
+    return [{id:event.id,at:event.at,taskId:task.id,type,activity:data.actions.find(a=>a.id===routine.actionId)?.name??routine.name,
+      routine:routine.name,room:taskRoomName(data,task),actor:event.actorMemberId ? members.get(event.actorMemberId):undefined,health}]
+  })
+  return [...eventRows, ...extraRows, ...fallbackRows].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 }

@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "House Care Phase 18B visual override row v1",
+  "description": "Small additive recipe instructions only. SQL enforces utf8 JSON <=2048 bytes and CAS. Current render generator version 2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workspaceId",
+    "subjectType",
+    "subjectId",
+    "generatorVersion",
+    "schemaVersion",
+    "overrides",
+    "revision",
+    "lastMutationId",
+    "updatedAt"
+  ],
+  "properties": {
+    "workspaceId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "subjectType": {
+      "enum": [
+        "routine",
+        "action",
+        "entity"
+      ]
+    },
+    "subjectId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "generatorVersion": {
+      "type": "integer",
+      "const": 2
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Schema inherited from Phase 18A. SQL enforces a 2048-byte cap.",
+      "additionalProperties": false,
+      "maxProperties": 13,
+      "properties": {
+        "subjectId": {
+          "type": "string",
+          "enum": [
+            "bathtub",
+            "bed",
+            "bookcase",
+            "broom",
+            "bucket",
+            "cabinet",
+            "chair",
+            "cleaner-bottle",
+            "cloth",
+            "coffee-machine",
+            "countertop",
+            "detergent-bottle",
+            "dishwasher",
+            "dryer",
+            "duster",
+            "generic-appliance",
+            "generic-supply",
+            "generic-surface",
+            "generic-tool",
+            "house",
+            "kettle",
+            "microfiber-stack",
+            "mop",
+            "oven",
+            "paper-roll",
+            "refrigerator",
+            "scrub-brush",
+            "shower-head",
+            "sink",
+            "sofa",
+            "sponge",
+            "spray-bottle",
+            "squeegee",
+            "stovetop",
+            "table",
+            "tablet-pack",
+            "toilet",
+            "vacuum",
+            "washer"
+          ]
+        },
+        "expression": {
+          "type": "string",
+          "enum": [
+            "joyful",
+            "smile",
+            "proud",
+            "neutral",
+            "focused",
+            "worried",
+            "tired",
+            "sweaty",
+            "angry",
+            "sleepy",
+            "relieved",
+            "surprised"
+          ]
+        },
+        "eyes": {
+          "type": "string",
+          "enum": [
+            "joyful",
+            "smile",
+            "proud",
+            "neutral",
+            "focused",
+            "worried",
+            "tired",
+            "sweaty",
+            "angry",
+            "sleepy",
+            "relieved",
+            "surprised"
+          ]
+        },
+        "mouth": {
+          "type": "string",
+          "enum": [
+            "joyful",
+            "smile",
+            "proud",
+            "neutral",
+            "focused",
+            "worried",
+            "tired",
+            "sweaty",
+            "angry",
+            "sleepy",
+            "relieved",
+            "surprised"
+          ]
+        },
+        "brows": {
+          "type": "string",
+          "enum": [
+            "joyful",
+            "smile",
+            "proud",
+            "neutral",
+            "focused",
+            "worried",
+            "tired",
+            "sweaty",
+            "angry",
+            "sleepy",
+            "relieved",
+            "surprised"
+          ]
+        },
+        "pose": {
+          "type": "string",
+          "enum": [
+            "arms-down",
+            "thumbs-up",
+            "wave",
+            "point",
+            "fist-pump",
+            "hands-on-hips",
+            "hold-sponge",
+            "hold-cloth",
+            "scrub",
+            "shrug",
+            "celebrate",
+            "present"
+          ]
+        },
+        "handGesture": {
+          "type": "string",
+          "enum": [
+            "thumb",
+            "open",
+            "fist",
+            "point",
+            "hold"
+          ]
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.75,
+          "maximum": 1.25,
+          "multipleOf": 0.05
+        },
+        "proportion": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "compact",
+            "tall"
+          ]
+        },
+        "prop": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sparkle-4",
+            "sparkle-6",
+            "action-rays",
+            "steam",
+            "droplets",
+            "shine"
+          ]
+        },
+        "scene": {
+          "type": "string",
+          "enum": [
+            "kitchen",
+            "bathroom",
+            "living",
+            "bedroom",
+            "dining",
+            "hallway",
+            "utility",
+            "outdoor",
+            "generic-interior"
+          ]
+        },
+        "paletteVariant": {
+          "type": "string",
+          "enum": [
+            "teal",
+            "coral",
+            "mustard",
+            "turquoise"
+          ]
+        },
+        "animation": {
+          "type": "string",
+          "enum": [
+            "none",
+            "tilt",
+            "blink",
+            "gesture"
+          ]
+        }
+      }
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "lastMutationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ActionEditorSheet } from '../components/actions/ActionEditorSheet'
+import { CharacterStudioSheet, type StudioTarget } from '../components/studio/CharacterStudioSheet'
 import { ActionLibraryCard } from '../components/actions/ActionLibraryCard'
 import { actionLibraryVisual, filterActionLibrary } from '../components/actions/actionPresentation'
 import { SvgCharacter } from '../visual/SvgCharacter'
@@ -16,6 +17,7 @@ export function ActionsPage() {
   const { t, locale } = useI18n()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ActionDefinition | null>(null)
+  const [studio, setStudio] = useState<StudioTarget | null>(null)
   const [query, setQuery] = useState('')
   const [family, setFamily] = useState<ActionFamily | 'all'>('all')
   if (!data) return null
@@ -29,6 +31,13 @@ export function ActionsPage() {
     : { subtitle: 'Your illustrated toolbox for taking care of the home.', kicker: 'THE CARE TOOLBOX', search: 'Search actions, instructions or supplies', category: 'Family', results: 'Actions found', none: 'No actions match these filters.', clear: 'Clear filters' }
   function openEditor(action: ActionDefinition | null) { setEditing(action); setOpen(true) }
   function closeEditor() { setEditing(null); setOpen(false) }
+  function openStudio(action: ActionDefinition) {
+    setStudio({ kind: 'action', id: action.id, name: action.name, input: {
+      routineId: `studio-action-${action.id}`, actionId: action.id,
+      occurrenceId: `studio-action-preview-${action.id}`,
+      actionName: action.name, activityTitle: action.name,
+    } })
+  }
 
   return <div className="stack page-stack v2-actions-page">
     <header className="v2-library-hero v2-action-hero">
@@ -43,8 +52,9 @@ export function ActionsPage() {
     {actions.length === 0 ? <EmptyState>{t('noActions')}</EmptyState> : displayed.length === 0
       ? <div className="v2-library-empty"><p>{labels.none}</p><button type="button" className="button secondary small" onClick={() => { setQuery(''); setFamily('all') }}>{labels.clear}</button></div>
       : <section className="v2-actions-library" aria-label={t('actions')}><div className="v2-library-section-head"><h2 className="hc-display">{t('actions')}</h2><span>{labels.results}: {displayed.length}</span></div>
-        <div className="v2-action-grid">{displayed.map((action) => <ActionLibraryCard key={action.id} action={action} supplies={supplies} routines={data.routines} onEdit={openEditor} onArchive={(id) => { void archiveAction(id) }} />)}</div>
+        <div className="v2-action-grid">{displayed.map((action) => <ActionLibraryCard key={action.id} action={action} supplies={supplies} routines={data.routines} onEdit={openEditor} onArtwork={openStudio} onArchive={(id) => { void archiveAction(id) }} />)}</div>
       </section>}
+    {studio && <CharacterStudioSheet key={`${studio.kind}-${studio.id}`} target={studio} onClose={() => setStudio(null)} />}
     {open && <ActionEditorSheet key={editing?.id ?? 'new'} action={editing} data={data} onClose={closeEditor} addAction={addAction} updateAction={updateAction} />}
   </div>
 }

@@ -1,0 +1,33 @@
+{
+  "source_candidate": "2.0.0-rc.9",
+  "phase20_test_environment": {
+    "node": "22.16.0",
+    "npm": "10.9.2",
+    "platform": "linux",
+    "app_dependencies_installed": false,
+    "npm_registry_reachable": false
+  },
+  "phase20_observed": {
+    "pure_test_suite": "PASS",
+    "static_audit": "PASS",
+    "syntax_audit": "PASS",
+    "typecheck": "BLOCKED",
+    "build": "BLOCKED",
+    "live_cloud_request_counts": null,
+    "live_cloud_egress_bytes": null,
+    "actual_cold_start_ms": null,
+    "actual_warm_start_ms": null,
+    "device_fps": null,
+    "device_heap_bytes": null,
+    "actual_browser_screenshots": 0,
+    "supabase_disk_measured": false
+  },
+  "historical_local_proxy_only": {
+    "19A_svg_markup_avg_bytes": 438,
+    "19A_svg_markup_max_bytes": 789,
+    "19B_one_prop_rpc_envelope_bytes": 322,
+    "19B_sixteen_props_rpc_envelope_bytes": 1873,
+    "16D_snapshot_parse_median_ms": 0.0502
+  },
+  "important": "Historical proxy values are source-string or JSON envelopes, not real device FPS, requests, transfer, Postgres disk or service quotas."
+}

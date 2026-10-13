@@ -1,0 +1,48 @@
+{
+  "method": "Node Buffer.byteLength(JSON.stringify(...)); request bodies and row JSON only; excludes HTTP headers, TLS, PostgREST transport, row/index overhead, WAL, auth, PostgreSQL physical storage",
+  "runtime": "v22.16.0",
+  "host": "linux",
+  "sampleCount": 4,
+  "samples": [
+    {
+      "label": "pose-only",
+      "overrideBytes": 20,
+      "rpcJsonBytes": 276,
+      "requestsPerConfirmation": 1
+    },
+    {
+      "label": "face + palette",
+      "overrideBytes": 62,
+      "rpcJsonBytes": 318,
+      "requestsPerConfirmation": 1
+    },
+    {
+      "label": "all 13 configured controls",
+      "overrideBytes": 257,
+      "rpcJsonBytes": 513,
+      "requestsPerConfirmation": 1
+    },
+    {
+      "label": "Reset to Auto",
+      "overrideBytes": 2,
+      "rpcJsonBytes": 258,
+      "requestsPerConfirmation": 1
+    }
+  ],
+  "read": {
+    "readsPerNormalHouseholdRefresh": 1,
+    "pollingReads": 0,
+    "sampleRowJsonBytes": 607,
+    "thousandRowsJsonBytes": 608001,
+    "sampledRows": 1000
+  },
+  "drag": {
+    "networkRequestsDuringSliderMotion": 0,
+    "confirmationRequests": 1
+  },
+  "supabaseFreeQuota": "Not measured against a live Supabase instance. No billing/storage statement is inferred.",
+  "liveRlsVerification": "NOT RUN",
+  "realHttpBytes": "NOT MEASURED",
+  "pgTableBytes": "NOT MEASURED",
+  "devicePerf": "NOT MEASURED"
+}

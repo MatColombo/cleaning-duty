@@ -1,0 +1,5 @@
+-- MANUAL ROLLBACK ONLY. Run after rolling V2 clients back AND verifying there
+-- are no unacknowledged V2 outbox entries. Does not modify V1 domain tables.
+revoke all on function public.v2_apply_entity_changes(uuid,uuid,jsonb) from authenticated;
+drop function if exists public.v2_apply_entity_changes(uuid,uuid,jsonb);
+drop table if exists public.v2_sync_applied_ops;

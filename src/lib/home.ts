@@ -1,3 +1,4 @@
+import { isLegacyLinkedTask } from './extraCare'
 import type { Entity, StockStatus, TaskOccurrence, WorkspaceData } from '../types/domain'
 import { aggregateCleanliness } from './cleanliness'
 
@@ -33,7 +34,7 @@ export function taskTouchesEntity(task: TaskOccurrence, entityIds: Set<string>):
 export function scheduledTasksForEntity(data: WorkspaceData, entityId: string): TaskOccurrence[] {
   const ids = entitySubtreeIds(data, entityId)
   return data.tasks
-    .filter((task) => task.state === 'scheduled' && taskTouchesEntity(task, ids))
+    .filter((task) => task.state === 'scheduled' && !isLegacyLinkedTask(data, task) && taskTouchesEntity(task, ids))
     .sort((a, b) => new Date(a.effectiveDueAt ?? a.dueAt).getTime() - new Date(b.effectiveDueAt ?? b.dueAt).getTime())
 }
 
@@ -71,7 +72,7 @@ function statusForScore(score: number | null): CareStatus {
 function workflowCounts(data: WorkspaceData, entityIds: Set<string>, channel: 'regular' | 'deep', nowMs: number) {
   const relevant = data.tasks.filter((task) => {
     const taskChannel = task.cleanlinessChannel ?? (task.careLevel === 'deep' ? 'deep' : 'regular')
-    return taskChannel === channel && task.state === 'scheduled' && taskTouchesEntity(task, entityIds)
+    return taskChannel === channel && task.state === 'scheduled' && !isLegacyLinkedTask(data, task) && taskTouchesEntity(task, entityIds)
   })
   return {
     pendingCount: relevant.length,

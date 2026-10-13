@@ -116,7 +116,7 @@ buttons will be HTML in later phases, never inside generated artwork.
 - `procedural/aliases.ts` adds targeted EN/IT subject matches. These are
   decorative classification hints. Structured entity typing still outranks an
   incompatible item name and unknown labels retain the generic fallback.
-- Keep the generator-v1 golden fixtures green. New alias recognition may refine
+- Keep the generator-v2 golden fixtures green. New alias recognition may refine
   the illustration of a previously generic subject **before V2 ships**. After
   release, this taxonomy must be frozen for v1; later changes require an
   explicit visual-version compatibility strategy so collected history is stable.
