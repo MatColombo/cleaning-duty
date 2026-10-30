@@ -345,6 +345,7 @@ function historicalAggregate(data: WorkspaceData, channel: CleanlinessChannel, a
       const trajectory = historicalTrajectory(data, routine, itemId, channel, at)
       if (!trajectory) continue
       const score = cleanlinessForTrajectory(trajectory, at)
+      if (!Number.isFinite(score)) continue
       const list = scoresByItem.get(itemId) ?? []
       list.push(score)
       scoresByItem.set(itemId, list)

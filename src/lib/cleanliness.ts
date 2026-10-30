@@ -35,7 +35,10 @@ export function cleanlinessForTrajectory(trajectory: HealthTrajectory, now: stri
   const td = new Date(trajectory.healthDueAt).getTime()
   const to = new Date(trajectory.healthOverdueEndAt).getTime()
   const anchor = clamp(trajectory.healthAnchorPct, 0, 100)
-  if (![t, ta, td, to].every(Number.isFinite)) return clamp(anchor, 0, 100)
+  // Preserve invalid numeric input as NaN so callers can exclude it rather than
+  // silently reporting a misleading 0% (or 100%) cleanliness score.
+  if (!Number.isFinite(anchor)) return NaN
+  if (![t, ta, td, to].every(Number.isFinite)) return anchor
   if (t <= ta) return anchor
   if (td <= ta) return t <= td ? Math.max(10, anchor) : 0
   if (t <= td) {
@@ -368,6 +371,7 @@ export function itemChannelCleanliness(
   const scores = data.healthTrajectories
     .filter((trajectory) => trajectory.itemId === itemId && trajectory.cleanlinessChannel === channel && routineIds.includes(trajectory.routineId))
     .map((trajectory) => ({ routineId: trajectory.routineId, score: cleanlinessForTrajectory(trajectory, now) }))
+    .filter((row) => Number.isFinite(row.score))
   return { itemId, channel, score: scores.length ? Math.min(...scores.map((row) => row.score)) : null, routineScores: scores }
 }
 
