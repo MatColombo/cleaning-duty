@@ -42,8 +42,8 @@ export function isRoutineActive(routine: Pick<Routine, 'archivedAt' | 'status'>)
   return !routine.archivedAt && (routine.status ?? 'active') === 'active'
 }
 
-export function isCleanlinessTrackableRoutine(routine: Pick<Routine, 'recurrence' | 'status' | 'archivedAt' | 'affectsCleanliness'>): boolean {
-  return isRoutineActive(routine) && routine.affectsCleanliness !== false && routine.recurrence.kind !== 'once'
+export function isCleanlinessTrackableRoutine(routine: Pick<Routine, 'recurrence' | 'status' | 'archivedAt' | 'affectsCleanliness'> & Partial<Pick<Routine, 'parentRoutineId'>>): boolean {
+  return isRoutineActive(routine) && !('parentRoutineId' in routine && routine.parentRoutineId) && routine.affectsCleanliness !== false && routine.recurrence.kind !== 'once'
 }
 
 function ruleAnchorDate(rule: RecurrenceRule): string {

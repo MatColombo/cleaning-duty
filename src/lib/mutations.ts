@@ -2,6 +2,7 @@ import type { WorkspaceData } from '../types/domain'
 import type { OfflineMutation } from './offline'
 import { newId } from './id'
 import { applyCompletionHealthEffects } from './cleanliness'
+import { supersededOccurrenceIds } from './occurrenceCoalescing'
 
 
 function undoTaskMutation(current: WorkspaceData, mutation: OfflineMutation & { kind: 'undo' }): WorkspaceData {
@@ -167,7 +168,25 @@ export function applyMutationLocally(current: WorkspaceData, mutation: OfflineMu
       tasks: current.tasks.map((item) => item.id === mutation.taskId ? { ...item, state: 'completed', completedAt: mutation.eventAt, targets: item.targets.map((target) => ({ ...target, completedAt: target.completedAt ?? mutation.eventAt, completedByMemberId: target.completedByMemberId ?? mutation.actorMemberId })), version: item.version + 1 } : item),
       taskEvents: [...current.taskEvents, { ...baseEvent, type: 'COMPLETED', metadata: { cleanlinessSnapshots: mutation.completionEffects?.map((effect) => effect.snapshotId) ?? [] } }],
     }
-    return applyCompletionHealthEffects(changed, mutation.taskId, mutation.eventAt, mutation.completionEffects ?? [], mutation.actorMemberId)
+    // Completing the newest due fixed-calendar occurrence also closes all
+    // older outstanding ones, without replaying their cleaning effects.
+    const coalesced = supersededOccurrenceIds(current.tasks, current.routines, new Date(mutation.eventAt))
+    const preceding = current.tasks.filter((item) => item.routineId === task.routineId && item.state === 'scheduled'
+      && item.id !== task.id && coalesced.has(item.id)
+      && new Date(item.effectiveDueAt ?? item.dueAt).getTime() <= new Date(task.effectiveDueAt ?? task.dueAt).getTime())
+    const closed = { ...changed,
+      tasks: changed.tasks.map((item) => preceding.some((prior) => prior.id === item.id)
+        ? { ...item, state: 'completed' as const, completedAt: mutation.eventAt,
+          targets: item.targets.map((target) => ({ ...target, completedAt: target.completedAt ?? mutation.eventAt,
+            completedByMemberId: target.completedByMemberId ?? mutation.actorMemberId })), version: item.version + 1 }
+        : item),
+      taskEvents: [...changed.taskEvents, ...preceding.map((prior) => ({
+        id: newId(), workspaceId: current.workspace.id, taskId: prior.id,
+        type: 'COMPLETED' as const, at: mutation.eventAt, actorMemberId: mutation.actorMemberId,
+        metadata: { supersededBy: task.id, automaticBacklogClosure: true, cleanlinessSnapshots: [] },
+      }))],
+    }
+    return applyCompletionHealthEffects(closed, mutation.taskId, mutation.eventAt, mutation.completionEffects ?? [], mutation.actorMemberId)
   }
   if (mutation.kind === 'complete_target' && mutation.targetEntityId) {
     const target = task.targets.find((item) => item.entityId === mutation.targetEntityId)

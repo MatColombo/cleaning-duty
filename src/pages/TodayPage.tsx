@@ -1,3 +1,4 @@
+import { supersededOccurrenceIds } from '../lib/occurrenceCoalescing'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Sheet } from '../components/Sheet'
@@ -71,9 +72,11 @@ export function TodayPage() {
         return task
       })
       .filter((task) => task.state !== 'cancelled')
-    if (scope === 'household' || !currentMember) return canonical
-    return canonical.filter((task) => !task.assigneeMemberId || task.assigneeMemberId === currentMember.id)
-  }, [data.tasks, currentMember, scope, terminalByTask])
+    const superseded = supersededOccurrenceIds(canonical, data.routines, new Date(now))
+    const visible = canonical.filter((task) => !superseded.has(task.id))
+    if (scope === 'household' || !currentMember) return visible
+    return visible.filter((task) => !task.assigneeMemberId || task.assigneeMemberId === currentMember.id)
+  }, [data.tasks, data.routines, currentMember, scope, terminalByTask, now])
 
   const dueNow = useMemo(() => scopedTasks
     .filter((task) => task.state === 'scheduled' && new Date(task.dueAt).getTime() <= now)

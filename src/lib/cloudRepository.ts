@@ -395,15 +395,31 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
 
   await persistCleanlinessState(db, data)
 
-  const { error: deleteRoutineTargetsError } = await db.from('routine_targets').delete().eq('workspace_id', workspaceId)
-  if (deleteRoutineTargetsError) throw persistenceError('routine_targets cleanup', deleteRoutineTargetsError)
-  const routineTargets = dedupeBy(data.routines.flatMap((routine) => routine.targetEntityIds.map((entityId) => ({
+  // Write desired associations BEFORE removing obsolete ones. A workspace-wide
+  // delete followed by an insert could permanently erase all targets if the
+  // insert failed, or if a stale client submitted empty arrays.
+  const routineTargets = dedupeBy(data.routines.flatMap((routine) => (routine.targetEntityIds ?? []).map((entityId) => ({
     workspace_id: workspaceId, routine_id: routine.id, entity_id: entityId,
-    include_descendants: routine.includeDescendantTargetIds.includes(entityId),
+    include_descendants: (routine.includeDescendantTargetIds ?? []).includes(entityId),
   }))), (row) => `${row.routine_id}:${row.entity_id}`)
+  const { data: storedTargets, error: targetReadError } = await db.from('routine_targets')
+    .select('routine_id,entity_id').eq('workspace_id', workspaceId)
+  if (targetReadError) throw persistenceError('routine_targets read', targetReadError)
+  // Fail closed on an empty workspace snapshot. Intentional mass deletion must
+  // use an explicit, separate maintenance operation, never an ordinary save.
+  if ((storedTargets?.length ?? 0) > 0 && routineTargets.length === 0 && data.routines.length > 0) {
+    throw new Error('Refusing to erase all routine targets from a workspace save.')
+  }
   if (routineTargets.length) {
-    const { error } = await db.from('routine_targets').insert(routineTargets)
-    if (error) throw persistenceError('routine_targets', error)
+    const { error } = await db.from('routine_targets').upsert(routineTargets, { onConflict: 'routine_id,entity_id' })
+    if (error) throw persistenceError('routine_targets upsert', error)
+  }
+  const wanted = new Set(routineTargets.map((row) => `${row.routine_id}:${row.entity_id}`))
+  for (const row of storedTargets ?? []) {
+    if (wanted.has(`${row.routine_id}:${row.entity_id}`)) continue
+    const { error } = await db.from('routine_targets').delete()
+      .eq('workspace_id', workspaceId).eq('routine_id', row.routine_id).eq('entity_id', row.entity_id)
+    if (error) throw persistenceError('routine_targets selective cleanup', error)
   }
 
   const taskTargets = dedupeBy(data.tasks.flatMap((task) => task.targets.map((target) => ({

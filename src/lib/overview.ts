@@ -1,5 +1,6 @@
 import type { CleanlinessChannel, TaskEvent, TaskOccurrence, WorkspaceData } from '../types/domain'
 import { itemChannelCleanliness } from './cleanliness'
+import { supersededOccurrenceIds } from './occurrenceCoalescing'
 import { addDays, localDateInZone } from './date'
 import { isRoutineActive } from './scheduler'
 
@@ -149,7 +150,8 @@ export function buildOverviewGroups(
     })
     .filter((task) => options.scope !== 'mine' || !options.currentMemberId || !task.assigneeMemberId || task.assigneeMemberId === options.currentMemberId)
 
-  const scheduled = tasks.filter((task) => task.state === 'scheduled')
+  const superseded = supersededOccurrenceIds(tasks, data.routines, now)
+  const scheduled = tasks.filter((task) => task.state === 'scheduled' && !superseded.has(task.id))
   const overdue = scheduled.filter((task) => localDateInZone(timezone, new Date(task.effectiveDueAt ?? task.dueAt)) < today)
   const dueNow = scheduled.filter((task) => {
     const due = new Date(task.effectiveDueAt ?? task.dueAt)

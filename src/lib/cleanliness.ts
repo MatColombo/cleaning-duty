@@ -34,7 +34,7 @@ export function cleanlinessForTrajectory(trajectory: HealthTrajectory, now: stri
   const ta = new Date(trajectory.healthAnchorAt).getTime()
   const td = new Date(trajectory.healthDueAt).getTime()
   const to = new Date(trajectory.healthOverdueEndAt).getTime()
-  const anchor = clamp(trajectory.healthAnchorPct, 0, 100)
+  const anchor = Number.isFinite(trajectory.healthAnchorPct) ? clamp(trajectory.healthAnchorPct, 0, 100) : 0
   if (![t, ta, td, to].every(Number.isFinite)) return clamp(anchor, 0, 100)
   if (t <= ta) return anchor
   if (td <= ta) return t <= td ? Math.max(10, anchor) : 0
@@ -216,6 +216,28 @@ export function reconcileCleanlinessState(input: WorkspaceData): WorkspaceData {
         if (initial.snapshot && !snapshots.has(initial.snapshot.id)) snapshots.set(initial.snapshot.id, initial.snapshot)
         continue
       }
+      // A completion snapshot may have been persisted while a stale trajectory
+      // was later re-uploaded by another device. Recover the newest applied
+      // snapshot instead of retaining an older anchor indefinitely.
+      const freshest = [...snapshots.values()]
+        .filter((snapshot) => snapshot.trajectoryRoutineId === routine.id && snapshot.itemId === entity.id
+          && snapshot.cleanlinessChannel === channel && snapshot.healthRefreshApplied
+          && completionSnapshotStillValid(input, snapshot))
+        .sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0]
+      if (freshest && new Date(freshest.completedAt).getTime() > new Date(prior.healthAnchorAt).getTime()) {
+        const repairedBoundaries = nextBoundaries(input, routine, freshest.completedAt,
+          freshest.sourceRoutineId === routine.id ? freshest.scheduledSlotAt : undefined)
+        if (repairedBoundaries) {
+          const repaired = { ...prior, healthAnchorAt: freshest.completedAt,
+            healthAnchorPct: freshest.cleanlinessAfterPct, healthDueAt: repairedBoundaries.dueAt,
+            healthOverdueEndAt: repairedBoundaries.overdueEndAt,
+            lastRefreshCompletionId: freshest.id, updatedAt: freshest.completedAt }
+          const at = nextTrajectories.findIndex((row) => trajectoryKey(row.routineId, row.itemId, row.cleanlinessChannel) === key)
+          if (at >= 0) nextTrajectories[at] = repaired
+          existing.set(key, repaired)
+          continue
+        }
+      }
       const refreshSnapshot = prior.lastRefreshCompletionId ? snapshots.get(prior.lastRefreshCompletionId) : undefined
       const associatedSlot = refreshSnapshot?.trajectoryRoutineId === routine.id && refreshSnapshot.sourceRoutineId === routine.id
         ? refreshSnapshot.scheduledSlotAt
@@ -251,7 +273,7 @@ export function buildCompletionHealthEffects(
   actorMemberId?: string,
 ): CompletionHealthEffect[] {
   const sourceRoutine = data.routines.find((routine) => routine.id === task.routineId)
-  if (!sourceRoutine || !isRoutineActive(sourceRoutine) || sourceRoutine.parentRoutineId || sourceRoutine.affectsCleanliness === false) return []
+  if (!sourceRoutine || !isCleanlinessTrackableRoutine(sourceRoutine)) return []
   const refresh = normalizeRefreshLevel(sourceRoutine.refreshLevelPct)
   const effects: CompletionHealthEffect[] = []
 
