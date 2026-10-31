@@ -24,6 +24,16 @@ function persistenceError(table: string, error: unknown): Error {
   return new Error(`Could not save ${table}${code}: ${message}${detail}`, { cause: error })
 }
 
+type TargetSnapshot = { entity_id: string; include_descendants: boolean }
+// The baseline comes from the database, never from normalized/reconciled app state.
+const loadedTargetBaselines = new Map<string, Map<string, TargetSnapshot[]>>()
+function canonicalTargets(rows: TargetSnapshot[]): TargetSnapshot[] {
+  return [...rows].sort((a,b) => a.entity_id.localeCompare(b.entity_id))
+}
+function targetsEqual(a: TargetSnapshot[], b: TargetSnapshot[]): boolean {
+  return JSON.stringify(canonicalTargets(a)) === JSON.stringify(canonicalTargets(b))
+}
+
 async function persistCleanlinessState(db: ReturnType<typeof client>, data: WorkspaceData): Promise<void> {
   const workspaceId = data.workspace.id
   if (data.completionSnapshots.length) {
@@ -36,13 +46,18 @@ async function persistCleanlinessState(db: ReturnType<typeof client>, data: Work
     if (error) throw persistenceError('completion_snapshots', error)
   }
   if (data.healthTrajectories.length) {
-    const rows = dedupeBy(data.healthTrajectories, (row) => `${row.routineId}:${row.itemId}:${row.cleanlinessChannel}`).map((row) => ({
+    // Secondary routines must never write autonomous health trajectories.
+    // Keep their historical records in memory for audit, but do not upsert them.
+    const excludedSecondaryIds = new Set(data.routines.filter((routine) => routine.parentRoutineId).map((routine) => routine.id))
+    const rows = dedupeBy(data.healthTrajectories.filter((row) => !excludedSecondaryIds.has(row.routineId)), (row) => `${row.routineId}:${row.itemId}:${row.cleanlinessChannel}`).map((row) => ({
       workspace_id: workspaceId, item_id: row.itemId, routine_id: row.routineId, cleanliness_channel: row.cleanlinessChannel,
       health_anchor_at: row.healthAnchorAt, health_anchor_pct: row.healthAnchorPct, health_due_at: row.healthDueAt, health_overdue_end_at: row.healthOverdueEndAt,
       last_refresh_completion_id: row.lastRefreshCompletionId ?? null, updated_at: row.updatedAt,
     }))
-    const { error } = await db.from('health_trajectories').upsert(rows, { onConflict: 'routine_id,item_id,cleanliness_channel' })
-    if (error) throw persistenceError('health_trajectories', error)
+    if (rows.length) {
+      const { error } = await db.from('health_trajectories').upsert(rows, { onConflict: 'routine_id,item_id,cleanliness_channel' })
+      if (error) throw persistenceError('health_trajectories', error)
+    }
   }
 }
 
@@ -126,6 +141,15 @@ export async function loadCloudData(user: User, requestedWorkspaceId?: string): 
   const actions = actionsResult.data ?? []
   const routines = routinesResult.data ?? []
   const routineTargets = routineTargetsResult.data ?? []
+  const loaded = new Map<string, TargetSnapshot[]>()
+  for (const routine of routines) loaded.set(routine.id, [])
+  for (const target of routineTargets) {
+    const rows = loaded.get(target.routine_id) ?? []
+    rows.push({ entity_id: target.entity_id, include_descendants: Boolean(target.include_descendants) })
+    loaded.set(target.routine_id, rows)
+  }
+  loadedTargetBaselines.set(workspaceId, loaded)
+
   const tasks = tasksResult.data ?? []
   const taskTargets = taskTargetsResult.data ?? []
   const events = eventsResult.data ?? []
@@ -395,31 +419,28 @@ export async function saveCloudData(data: WorkspaceData, actorUserId?: string): 
 
   await persistCleanlinessState(db, data)
 
-  // Write desired associations BEFORE removing obsolete ones. A workspace-wide
-  // delete followed by an insert could permanently erase all targets if the
-  // insert failed, or if a stale client submitted empty arrays.
-  const routineTargets = dedupeBy(data.routines.flatMap((routine) => (routine.targetEntityIds ?? []).map((entityId) => ({
-    workspace_id: workspaceId, routine_id: routine.id, entity_id: entityId,
-    include_descendants: (routine.includeDescendantTargetIds ?? []).includes(entityId),
-  }))), (row) => `${row.routine_id}:${row.entity_id}`)
-  const { data: storedTargets, error: targetReadError } = await db.from('routine_targets')
-    .select('routine_id,entity_id').eq('workspace_id', workspaceId)
-  if (targetReadError) throw persistenceError('routine_targets read', targetReadError)
-  // Fail closed on an empty workspace snapshot. Intentional mass deletion must
-  // use an explicit, separate maintenance operation, never an ordinary save.
-  if ((storedTargets?.length ?? 0) > 0 && routineTargets.length === 0 && data.routines.length > 0) {
-    throw new Error('Refusing to erase all routine targets from a workspace save.')
+  // Atomically update only routines with explicitly changed targets. Never interpret an
+  // absent/stale workspace snapshot as a request to delete everything.
+  const baseline = loadedTargetBaselines.get(workspaceId)
+  if (!baseline && data.routines.length) {
+    throw new Error('Routine targets were not loaded from Supabase. Reload the workspace before saving.')
   }
-  if (routineTargets.length) {
-    const { error } = await db.from('routine_targets').upsert(routineTargets, { onConflict: 'routine_id,entity_id' })
-    if (error) throw persistenceError('routine_targets upsert', error)
-  }
-  const wanted = new Set(routineTargets.map((row) => `${row.routine_id}:${row.entity_id}`))
-  for (const row of storedTargets ?? []) {
-    if (wanted.has(`${row.routine_id}:${row.entity_id}`)) continue
-    const { error } = await db.from('routine_targets').delete()
-      .eq('workspace_id', workspaceId).eq('routine_id', row.routine_id).eq('entity_id', row.entity_id)
-    if (error) throw persistenceError('routine_targets selective cleanup', error)
+  for (const routine of data.routines) {
+    const expected = baseline?.get(routine.id) ?? []
+    const desired = canonicalTargets((routine.targetEntityIds ?? []).map((entityId) => ({
+      entity_id: entityId,
+      include_descendants: (routine.includeDescendantTargetIds ?? []).includes(entityId),
+    })))
+    if (targetsEqual(expected, desired)) continue
+    if (expected.length > 0 && desired.length === 0) {
+      throw new Error(`Refusing to clear all targets for ${routine.name}; reload and use a dedicated edit action.`)
+    }
+    const { error } = await db.rpc('v1_replace_routine_targets', {
+      p_workspace_id: workspaceId, p_routine_id: routine.id,
+      p_expected: expected, p_desired: desired,
+    })
+    if (error) throw persistenceError(`routine_targets (${routine.name})`, error)
+    baseline?.set(routine.id, desired)
   }
 
   const taskTargets = dedupeBy(data.tasks.flatMap((task) => task.targets.map((target) => ({
